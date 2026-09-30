@@ -94,6 +94,7 @@ src/app/(app)/admin     จัดการผู้ใช้ / roles & levels / 
 5. เปิด `https://<project>.vercel.app` แล้ว login ด้วย admin ที่ตั้งไว้ · push เข้า `main` = deploy ใหม่อัตโนมัติ
 
 หมายเหตุ
+- `vercel.json` กำหนดให้ function รันที่ `bom1` (Mumbai) ให้อยู่ region เดียวกับ Supabase — ถ้าย้าย DB ไป region อื่น ให้เปลี่ยนตามกัน (เช่น Singapore = `sin1`) ไม่งั้นทุก query จะช้ามาก
 - ตารางเปิด Row Level Security ไว้ (migration `0002_enable_rls`) เพื่อไม่ให้เข้าถึงข้อมูลผ่าน Supabase Data API ได้ — แอปต่อผ่าน Prisma จึงไม่กระทบ
 - Supabase free จะ **pause project ถ้าไม่มีการใช้งาน 7 วัน** (กด Restore ใน dashboard ได้) — ถ้าทีมใช้ทุกวันทำงานจะไม่เจอ
 - Vercel Hobby ฟรีสำหรับใช้งานที่ไม่ใช่เชิงพาณิชย์
