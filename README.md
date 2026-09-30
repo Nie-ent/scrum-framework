@@ -73,6 +73,17 @@ src/app/(app)/dashboard ภาพรวมทีม + ประวัติร�
 src/app/(app)/admin     จัดการผู้ใช้ / roles & levels / ทีม
 ```
 
+## Deploy ฟรีด้วย Render + Neon
+
+1. **Neon** — สมัครที่ [neon.tech](https://neon.tech) → สร้าง project (region Singapore) → copy connection string แบบ **direct** (ปิด "Connection pooling" — URL ต้องไม่มี `-pooler`) แล้วต่อท้ายด้วย `&connect_timeout=15`
+2. **Render** — [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** → เลือก repo นี้ (ใช้ `render.yaml`)
+3. กรอกค่าที่ Render ถาม: `DATABASE_URL` (จาก Neon), `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` — `AUTH_SECRET` สร้างให้อัตโนมัติ
+4. รอ deploy เสร็จ → เปิด URL `https://<ชื่อ>.onrender.com` แล้ว login ด้วย admin ที่ตั้งไว้
+
+container จะรัน migration + สร้าง admin ให้เองตอน start · push เข้า `main` = deploy ใหม่อัตโนมัติ
+
+ข้อจำกัดของ free tier: Render หลับเมื่อไม่มีคนใช้ 15 นาที (เปิดครั้งแรกรอ ~30–60 วิ) และ Neon พัก compute เมื่อว่าง (query แรกช้าขึ้นเล็กน้อย)
+
 ## Deploy ที่ไหนดี
 
 | ตัวเลือก | เหมาะกับ | หมายเหตุ |
