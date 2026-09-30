@@ -1,0 +1,58 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Role ที่กำหนดได้เอง — `level` ใช้ตัดสินสิทธิ์ (ดู src/lib/permissions.ts)
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  level       Int
+  description String?
+  users       User[]
+  createdAt   DateTime @default(now())
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  active       Boolean   @default(true)
+  roleId       String
+  role         Role      @relation(fields: [roleId], references: [id])
+  teamId       String?
+  team         Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  standups     Standup[]
+  createdAt    DateTime  @default(now())
+}
+
+/// Daily scrum หนึ่งรายการต่อคนต่อวัน
+model Standup {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  yesterday   String
+  today       String
+  blockers    String?
+  notWorking  String?
+  workingWell String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+}
