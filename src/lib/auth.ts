@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { SESSION_COOKIE, decryptSession } from "./session";
+import { canViewOverview } from "./permissions";
 
 /** โหลด user จาก DB ทุก request เพื่อให้การเปลี่ยน role มีผลทันที */
 export const getCurrentUser = cache(async () => {
@@ -11,7 +12,7 @@ export const getCurrentUser = cache(async () => {
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
-    include: { role: true, team: true },
+    include: { role: true, memberships: { include: { team: true }, orderBy: { team: { name: "asc" } } } },
   });
   if (!user || !user.active) return null;
   return user;
@@ -24,5 +25,12 @@ export async function requireUser(minLevel = 0): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.role.level < minLevel) redirect("/standup");
+  return user;
+}
+
+/** หน้าภาพรวม: Manager ขึ้นไป หรือเป็นหัวหน้าอย่างน้อย 1 ทีม */
+export async function requireOverviewAccess(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!canViewOverview(user)) redirect("/standup");
   return user;
 }

@@ -1,30 +1,37 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { LEVEL } from "@/lib/permissions";
-import { visibleUsersWhere } from "@/lib/scope";
+import { requireOverviewAccess } from "@/lib/auth";
+import { canViewAllTeams, teamsLabel } from "@/lib/permissions";
+import { getVisibleTeams } from "@/lib/teams";
 import { dateToKey, formatDateKey } from "@/lib/dates";
 import { StandupSections } from "@/components/standup-card";
 
 export default async function MemberPage({ params }: PageProps<"/dashboard/member/[id]">) {
-  const viewer = await requireUser(LEVEL.LEAD);
+  const viewer = await requireOverviewAccess();
   const { id } = await params;
 
+  // หัวหน้าทีมดูได้เฉพาะคนที่อยู่ในทีม/ทีมย่อยที่ตัวเองดูแล
+  const scope = canViewAllTeams(viewer.role.level)
+    ? {}
+    : { memberships: { some: { teamId: { in: (await getVisibleTeams(viewer)).map((t) => t.id) } } } };
   const member = await prisma.user.findFirst({
-    where: { AND: [{ id }, visibleUsersWhere(viewer)] },
-    include: { role: true, team: true, standups: { orderBy: { date: "desc" }, take: 30 } },
+    where: { id, ...scope },
+    include: {
+      role: true,
+      memberships: { include: { team: true }, orderBy: { team: { name: "asc" } } },
+      standups: { orderBy: { date: "desc" }, take: 30 },
+    },
   });
   if (!member) notFound();
 
   return (
     <div className="space-y-4">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-indigo-600">← กลับภาพรวม</Link>
+      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-blue-600">← กลับภาพรวม</Link>
       <div>
         <h1 className="text-2xl font-semibold">{member.name}</h1>
         <p className="text-sm text-slate-500">
-          {member.role.name} · Lv {member.role.level}
-          {member.team && ` · ${member.team.name}`} · {member.email}
+          {member.role.name} · Lv {member.role.level} · {teamsLabel(member.memberships)} · {member.email}
         </p>
       </div>
       <div className="space-y-3">

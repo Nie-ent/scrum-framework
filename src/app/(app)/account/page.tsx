@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth";
+import { teamsLabel } from "@/lib/permissions";
 import { PasswordForm } from "./password-form";
 
 export default async function AccountPage() {
@@ -10,7 +11,7 @@ export default async function AccountPage() {
         <div className="font-medium">{user.name}</div>
         <div className="text-slate-500">{user.email}</div>
         <div className="mt-2 text-slate-500">
-          {user.role.name} · Lv {user.role.level} · {user.team?.name ?? "ไม่มีทีม"}
+          {user.role.name} · Lv {user.role.level} · {teamsLabel(user.memberships)}
         </div>
       </div>
       <PasswordForm />

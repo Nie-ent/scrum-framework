@@ -9,8 +9,9 @@ const plex = IBM_Plex_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "Scrum Framework",
-  description: "Daily scrum และภาพรวมทีม",
+  title: { default: "Pace", template: "%s · Pace" },
+  description: "Keep your team moving. — Daily scrum และภาพรวมทีม",
+  applicationName: "Pace",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

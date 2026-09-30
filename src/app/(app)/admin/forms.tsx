@@ -29,25 +29,49 @@ export function RoleForm({ role }: { role?: { id: string; name: string; level: n
   );
 }
 
-export function TeamForm({ team }: { team?: Option }) {
+export function TeamForm({
+  team,
+  parents,
+  hasChildren = false,
+}: {
+  team?: Option & { parentId: string | null };
+  parents: Option[];
+  hasChildren?: boolean;
+}) {
   const [state, action] = useActionState(saveTeam, undefined);
   return (
     <form action={action} className="flex flex-wrap items-start gap-2">
       {team && <input type="hidden" name="id" value={team.id} />}
       <input className="input max-w-xs" name="name" defaultValue={team?.name} placeholder="ชื่อทีม" required />
-      <SubmitButton className={team ? "btn-ghost" : "btn"}>{team ? "เปลี่ยนชื่อ" : "เพิ่มทีม"}</SubmitButton>
+      <select
+        className="input max-w-56"
+        name="parentId"
+        defaultValue={team?.parentId ?? ""}
+        disabled={hasChildren}
+        title={hasChildren ? "ทีมที่มีทีมย่อยต้องเป็นทีมระดับบน" : undefined}
+      >
+        <option value="">— ทีมระดับบน —</option>
+        {parents
+          .filter((p) => p.id !== team?.id)
+          .map((p) => (
+            <option key={p.id} value={p.id}>ทีมย่อยของ {p.name}</option>
+          ))}
+      </select>
+      <SubmitButton className={team ? "btn-ghost" : "btn"}>{team ? "บันทึก" : "เพิ่มทีม"}</SubmitButton>
       <FormMessage state={state} />
     </form>
   );
 }
+
+type TeamOption = Option & { parentId: string | null };
 
 type UserValue = {
   id: string;
   name: string;
   email: string;
   roleId: string;
-  teamId: string | null;
   active: boolean;
+  memberships: { teamId: string; isLead: boolean }[];
 };
 
 export function UserForm({
@@ -57,9 +81,11 @@ export function UserForm({
 }: {
   user?: UserValue;
   roles: (Option & { level: number })[];
-  teams: Option[];
+  /** เรียงแบบต้นไม้แล้ว (ทีมใหญ่ → ทีมย่อย) */
+  teams: TeamOption[];
 }) {
   const [state, action] = useActionState(saveUser, undefined);
+  const member = new Map(user?.memberships.map((m) => [m.teamId, m.isLead]));
   return (
     <form action={action} className="grid gap-3 md:grid-cols-3">
       {user && <input type="hidden" name="id" value={user.id} />}
@@ -84,22 +110,36 @@ export function UserForm({
           ))}
         </select>
       </div>
-      <div>
-        <label className="label">ทีม</label>
-        <select className="input" name="teamId" defaultValue={user?.teamId ?? ""}>
-          <option value="">— ไม่มีทีม —</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex items-end gap-3 md:col-span-2">
         <label className="flex items-center gap-2 pb-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={user?.active ?? true} /> ใช้งานอยู่
         </label>
+      </div>
+      <fieldset className="md:col-span-3">
+        <legend className="label">ทีม <span className="font-normal text-slate-400">(เลือกได้หลายทีม · ★ = หัวหน้าทีม เห็นภาพรวมทีมนั้นและทีมย่อย)</span></legend>
+        {teams.length === 0 ? (
+          <p className="text-sm text-slate-400">ยังไม่มีทีม — สร้างได้ที่เมนู ทีม</p>
+        ) : (
+          <div className="grid gap-1 rounded-lg border border-slate-200 p-2 sm:grid-cols-2">
+            {teams.map((t) => (
+              <div key={t.id} className={`flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-slate-50 ${t.parentId ? "pl-6" : ""}`}>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="teams" value={t.id} defaultChecked={member.has(t.id)} />
+                  {t.parentId && <span className="text-slate-400">└</span>}
+                  {t.name}
+                </label>
+                <label className="flex items-center gap-1 text-xs text-slate-500">
+                  <input type="checkbox" name="leads" value={t.id} defaultChecked={member.get(t.id) === true} /> ★ หัวหน้า
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </fieldset>
+      <div className="md:col-span-3 flex items-center justify-between gap-3">
+        <FormMessage state={state} />
         <SubmitButton>{user ? "บันทึก" : "เพิ่มผู้ใช้"}</SubmitButton>
       </div>
-      <div className="md:col-span-3"><FormMessage state={state} /></div>
     </form>
   );
 }

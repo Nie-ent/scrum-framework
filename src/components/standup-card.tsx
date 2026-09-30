@@ -12,7 +12,7 @@ export type SectionKey = (typeof SECTIONS)[number]["key"];
 
 const TONES = {
   slate: "border-slate-300",
-  indigo: "border-indigo-400",
+  indigo: "border-blue-400",
   red: "border-red-400 bg-red-50/60",
   amber: "border-amber-400 bg-amber-50/60",
   emerald: "border-emerald-400 bg-emerald-50/60",

@@ -71,10 +71,23 @@ export async function saveTeam(_: FormState, formData: FormData): Promise<FormSt
   await requireAdmin();
   const id = (formData.get("id") as string) || undefined;
   const name = String(formData.get("name") ?? "").trim();
+  const parentId = (formData.get("parentId") as string) || null;
   if (!name) return { error: "กรุณาระบุชื่อทีม" };
+
+  // ซ้อนได้ 2 ชั้น: ทีมแม่ต้องเป็นทีมระดับบน และทีมที่มีทีมย่อยแล้วจะไปเป็นทีมย่อยของใครไม่ได้
+  if (parentId) {
+    if (parentId === id) return { error: "ทีมเป็นทีมแม่ของตัวเองไม่ได้" };
+    const parent = await prisma.team.findUnique({ where: { id: parentId } });
+    if (!parent) return { error: "ไม่พบทีมแม่" };
+    if (parent.parentId) return { error: "เลือกได้เฉพาะทีมระดับบนเป็นทีมแม่ (ซ้อนได้ 2 ชั้น)" };
+    if (id && (await prisma.team.count({ where: { parentId: id } })) > 0) {
+      return { error: "ทีมนี้มีทีมย่อยอยู่แล้ว จึงเป็นทีมย่อยของทีมอื่นไม่ได้" };
+    }
+  }
+
   try {
-    if (id) await prisma.team.update({ where: { id }, data: { name } });
-    else await prisma.team.create({ data: { name } });
+    if (id) await prisma.team.update({ where: { id }, data: { name, parentId } });
+    else await prisma.team.create({ data: { name, parentId } });
   } catch (e) {
     return uniqueError(e, "มีทีมชื่อนี้แล้ว");
   }
@@ -84,7 +97,10 @@ export async function saveTeam(_: FormState, formData: FormData): Promise<FormSt
 
 export async function deleteTeam(formData: FormData) {
   await requireAdmin();
-  await prisma.team.delete({ where: { id: String(formData.get("id")) } });
+  const id = String(formData.get("id"));
+  if ((await prisma.team.count({ where: { parentId: id } })) === 0) {
+    await prisma.team.delete({ where: { id } });
+  }
   revalidatePath("/admin/teams");
 }
 
@@ -95,7 +111,8 @@ const UserSchema = z.object({
   name: z.string().trim().min(1, { error: "กรุณาระบุชื่อ" }).max(100),
   email: z.email({ error: "อีเมลไม่ถูกต้อง" }).trim().toLowerCase(),
   roleId: z.string().min(1, { error: "กรุณาเลือก role" }),
-  teamId: z.string().transform((v) => v || null),
+  teams: z.array(z.string()),
+  leads: z.array(z.string()),
   active: z.boolean(),
   password: z.string().refine((v) => v === "" || v.length >= 8, {
     error: "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร",
@@ -109,16 +126,25 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
     name: formData.get("name"),
     email: formData.get("email"),
     roleId: formData.get("roleId") ?? "",
-    teamId: formData.get("teamId") ?? "",
+    teams: formData.getAll("teams"),
+    leads: formData.getAll("leads"),
     active: formData.get("active") === "on",
     password: formData.get("password") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { id, password, ...data } = parsed.data;
+  const { id, password, teams, leads, ...data } = parsed.data;
 
   const role = await prisma.role.findUnique({ where: { id: data.roleId } });
   if (!role) return { error: "ไม่พบ role" };
   if (role.level > actor.role.level) return { error: "กำหนด role ที่สูงกว่าตัวเองไม่ได้" };
+
+  // ติ๊กหัวหน้าทีมไหน = เป็นสมาชิกทีมนั้นด้วย
+  const leadIds = new Set(leads);
+  const teamIds = [...new Set([...teams, ...leads])];
+  if ((await prisma.team.count({ where: { id: { in: teamIds } } })) !== teamIds.length) {
+    return { error: "ไม่พบบางทีม กรุณารีเฟรชหน้า" };
+  }
+  const memberships = teamIds.map((teamId) => ({ teamId, isLead: leadIds.has(teamId) }));
 
   if (id) {
     const target = await prisma.user.findUnique({ where: { id }, include: { role: true } });
@@ -133,8 +159,17 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
 
   const passwordHash = password ? await bcrypt.hash(password, 10) : undefined;
   try {
-    if (id) await prisma.user.update({ where: { id }, data: { ...data, passwordHash } });
-    else await prisma.user.create({ data: { ...data, passwordHash: passwordHash! } });
+    if (id) {
+      await prisma.$transaction([
+        prisma.user.update({ where: { id }, data: { ...data, passwordHash } }),
+        prisma.teamMember.deleteMany({ where: { userId: id } }),
+        prisma.teamMember.createMany({ data: memberships.map((m) => ({ ...m, userId: id })) }),
+      ]);
+    } else {
+      await prisma.user.create({
+        data: { ...data, passwordHash: passwordHash!, memberships: { create: memberships } },
+      });
+    }
   } catch (e) {
     return uniqueError(e, "มีผู้ใช้อีเมลนี้แล้ว");
   }

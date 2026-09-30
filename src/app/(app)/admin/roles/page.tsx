@@ -12,13 +12,15 @@ export default async function RolesPage() {
   return (
     <div className="space-y-4">
       <div className="card text-sm text-slate-600">
-        <p className="mb-2 font-medium text-slate-800">Level กำหนดสิทธิ์ดังนี้</p>
-        <ul className="grid gap-1 sm:grid-cols-2">
+        <p className="mb-2 font-medium text-slate-800">Level กำหนดสิทธิ์ระดับระบบ</p>
+        <ul className="grid gap-1 sm:grid-cols-3">
           <li><b>≥ {LEVEL.MEMBER}</b> Member — ส่ง daily scrum ของตัวเอง</li>
-          <li><b>≥ {LEVEL.LEAD}</b> Lead — ดูภาพรวมทีมตัวเอง</li>
           <li><b>≥ {LEVEL.MANAGER}</b> Manager — ดูภาพรวมทุกทีม</li>
           <li><b>≥ {LEVEL.ADMIN}</b> Admin — จัดการผู้ใช้ / role / ทีม</li>
         </ul>
+        <p className="mt-2">
+          หัวหน้าทีมกำหนดรายทีมที่เมนู <b>ผู้ใช้</b> (ติ๊ก ★ หัวหน้า) — เห็นภาพรวมทีมนั้นและทีมย่อยทั้งหมด
+        </p>
       </div>
 
       <div className="card">
@@ -31,7 +33,7 @@ export default async function RolesPage() {
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
             <span>
               <span className="font-medium">{role.name}</span>
-              <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
+              <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
                 Lv {role.level} · {levelLabel(role.level)}
               </span>
               {role.description && <span className="ml-2 text-sm text-slate-500">{role.description}</span>}

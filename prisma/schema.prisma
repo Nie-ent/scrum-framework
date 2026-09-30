@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // Supabase บน Vercel: DATABASE_URL = pooler (6543), DIRECT_URL = direct/session (5432) สำหรับ migrate
   // Docker / local: ใส่ค่าเดียวกันทั้งสองตัว
   url       = env("DATABASE_URL")
@@ -21,25 +21,43 @@ model Role {
   createdAt   DateTime @default(now())
 }
 
+/// ทีมซ้อนได้ 2 ชั้น: ทีมใหญ่ (parentId = null) → ทีมย่อย
 model Team {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  users     User[]
+  id        String       @id @default(cuid())
+  name      String       @unique
+  parentId  String?
+  parent    Team?        @relation("TeamTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Team[]       @relation("TeamTree")
+  members   TeamMember[]
+  createdAt DateTime     @default(now())
+
+  @@index([parentId])
+}
+
+/// สมาชิกทีม — คนหนึ่งอยู่ได้หลายทีม, isLead = หัวหน้าของทีมนี้ (เห็นภาพรวมทีมนี้ + ทีมย่อย)
+model TeamMember {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  isLead    Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@id([userId, teamId])
+  @@index([teamId])
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String       @id @default(cuid())
+  email        String       @unique
   name         String
   passwordHash String
-  active       Boolean   @default(true)
+  active       Boolean      @default(true)
   roleId       String
-  role         Role      @relation(fields: [roleId], references: [id])
-  teamId       String?
-  team         Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  role         Role         @relation(fields: [roleId], references: [id])
+  memberships  TeamMember[]
   standups     Standup[]
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime     @default(now())
 }
 
 /// Daily scrum หนึ่งรายการต่อคนต่อวัน
