@@ -18,19 +18,19 @@ export default async function UsersPage() {
   return (
     <div className="space-y-4">
       <div className="card">
-        <h2 className="mb-3 font-semibold">เพิ่มผู้ใช้</h2>
+        <div className="mb-4 flex items-center justify-between"><div><p className="eyebrow">New member</p><h2 className="font-semibold text-slate-900">เพิ่มผู้ใช้</h2></div><span className="badge badge-neutral">{users.length} คน</span></div>
         <UserForm roles={roles} teams={teamTree} />
       </div>
       {users.map((user) => (
-        <details key={user.id} className="card">
+        <details key={user.id} className="card group">
           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
             <span className={user.active ? "" : "opacity-50"}>
               <span className="font-medium">{user.name}</span>
               <span className="ml-2 text-sm text-slate-500">{user.email}</span>
-              {!user.active && <span className="ml-2 text-xs text-red-600">(ปิดใช้งาน)</span>}
+              {!user.active && <span className="badge badge-danger ml-2">ปิดใช้งาน</span>}
             </span>
             <span className="text-sm text-slate-500">
-              {user.role.name} · Lv {user.role.level} · {teamsLabel(user.memberships)} · แก้ไข ▾
+              {user.role.name} · Lv {user.role.level} · {teamsLabel(user.memberships)} <span className="ml-1 text-indigo-600">แก้ไข</span>
             </span>
           </summary>
           <div className="mt-4 border-t border-slate-100 pt-4">

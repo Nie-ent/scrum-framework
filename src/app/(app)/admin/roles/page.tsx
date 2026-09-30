@@ -33,7 +33,7 @@ export default async function RolesPage() {
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
             <span>
               <span className="font-medium">{role.name}</span>
-              <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+              <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">
                 Lv {role.level} · {levelLabel(role.level)}
               </span>
               {role.description && <span className="ml-2 text-sm text-slate-500">{role.description}</span>}

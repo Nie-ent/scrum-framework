@@ -7,7 +7,8 @@ import { FormMessage, SubmitButton } from "@/components/form";
 export function LoginForm() {
   const [state, action] = useActionState(login, undefined);
   return (
-    <form action={action} className="card space-y-4">
+    <form action={action} className="card space-y-5">
+      <div><p className="eyebrow">Welcome back</p><h2 className="text-xl font-semibold text-slate-950">เข้าสู่ระบบ</h2><p className="mt-1 text-sm text-slate-500">เช็กอินและติดตามจังหวะของทีม</p></div>
       <div>
         <label className="label" htmlFor="email">อีเมล</label>
         <input className="input" id="email" name="email" type="email" autoComplete="email" required />

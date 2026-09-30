@@ -67,19 +67,20 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-semibold">ภาพรวม Scrum</h1>
-          <p className="text-sm text-slate-500">
+          <p className="eyebrow">Team health</p>
+          <h1 className="page-title">ภาพรวม Scrum</h1>
+          <p className="page-subtitle">
             {scopeLabel} · {formatDateKey(dateKey)}
             {dateKey === today && " (วันนี้)"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="card flex flex-wrap items-center gap-2 p-2">
           <Link className="btn-ghost" href={href(shiftKey(dateKey, -1))}>← ก่อนหน้า</Link>
           <form className="flex gap-2" action="/dashboard">
-            <input type="date" name="date" defaultValue={dateKey} max={today} className="input py-1.5" />
-            <select name="team" defaultValue={teamId} className="input py-1.5">
+            <input aria-label="วันที่" type="date" name="date" defaultValue={dateKey} max={today} className="input min-h-10 py-1.5" />
+            <select aria-label="ทีม" name="team" defaultValue={teamId} className="input min-h-10 py-1.5">
               {allTeams && <option value="">ทุกทีม</option>}
               {teams.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -94,16 +95,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="ส่งแล้ว" value={`${submitted.length}/${rows.length}`} tone="indigo" />
         <Stat label="Blockers" value={blockers.length} tone="red" />
-        <Stat label="Not work" value={notWorking.length} tone="amber" />
-        <Stat label="Work well" value={workingWell.length} tone="emerald" />
+        <Stat label="ควรปรับปรุง" value={notWorking.length} tone="amber" />
+        <Stat label="ไปได้ดี" value={workingWell.length} tone="emerald" />
       </div>
 
-      {blockers.length > 0 && (
-        <section className="card border-red-200">
-          <h2 className="mb-3 font-semibold text-red-700">🚧 Blockers ที่ต้องช่วยปลดล็อก</h2>
+      {(blockers.length > 0 || missing.length > 0) && (
+        <section className="card border-rose-200 bg-rose-50/30">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><p className="eyebrow text-rose-600">Needs attention</p><h2 className="font-semibold text-rose-950">รายการที่ต้องดูแล</h2></div><span className="badge badge-danger">{blockers.length + missing.length} รายการ</span></div>
+          {blockers.length > 0 && <>
+          <h3 className="mb-2 text-sm font-semibold text-rose-700">Blockers ที่ต้องช่วยปลดล็อก</h3>
           <ul className="space-y-2">
             {blockers.map(({ member, entry }) => (
               <li key={member.id} className="text-sm">
@@ -112,15 +115,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               </li>
             ))}
           </ul>
+          </>}
+          {missing.length > 0 && <div className={blockers.length > 0 ? "mt-4 border-t border-rose-100 pt-4" : ""}><h3 className="mb-2 text-sm font-semibold text-slate-700">ยังไม่ส่ง ({missing.length})</h3><div className="flex flex-wrap gap-2">{missing.map(({ member }) => <Link key={member.id} href={`/dashboard/member/${member.id}`} className="badge badge-neutral hover:bg-slate-200">{member.name}</Link>)}</div></div>}
         </section>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <FeedbackList title="อะไรที่ไม่เวิร์ก (Not work)" tone="text-amber-700" items={notWorking.map((r) => [r.member.name, r.entry!.notWorking!])} />
-        <FeedbackList title="อะไรที่เวิร์ก (Work well)" tone="text-emerald-700" items={workingWell.map((r) => [r.member.name, r.entry!.workingWell!])} />
+        <FeedbackList title="สิ่งที่ควรปรับปรุง" tone="text-amber-700" items={notWorking.map((r) => [r.member.name, r.entry!.notWorking!])} />
+        <FeedbackList title="สิ่งที่ไปได้ดี" tone="text-emerald-700" items={workingWell.map((r) => [r.member.name, r.entry!.workingWell!])} />
       </div>
 
       <section className="space-y-6">
+        <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Team updates</p><h2 className="text-lg font-semibold text-slate-950">ความคืบหน้ารายคน</h2></div><p className="text-sm text-slate-500">เลือกชื่อเพื่อดูรายละเอียด</p></div>
         {groups.map(({ team, rows: groupRows }) => {
           const done = groupRows.filter((r) => r.entry);
           const groupBlockers = done.filter((r) => r.entry!.blockers).length;
@@ -135,7 +141,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               </div>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {done.map(({ member, entry }) => (
-                  <div key={member.id} className="card">
+                  <div key={member.id} className="card transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
                     <MemberHeader member={member} />
                     <StandupSections standup={entry!} only={["yesterday", "today", "blockers"]} />
                   </div>
@@ -143,7 +149,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 {groupRows
                   .filter((r) => !r.entry)
                   .map(({ member }) => (
-                    <div key={member.id} className="card border-dashed bg-slate-50/60">
+                    <div key={member.id} className="card border-dashed bg-slate-50/60 opacity-75">
                       <MemberHeader member={member} />
                       <p className="text-sm text-slate-400">ยังไม่ได้ส่ง</p>
                     </div>
@@ -152,18 +158,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </div>
           );
         })}
-        {missing.length > 0 && (
-          <div className="card mt-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-600">ยังไม่ส่ง ({missing.length})</h3>
-            <div className="flex flex-wrap gap-2">
-              {missing.map(({ member }) => (
-                <Link key={member.id} href={`/dashboard/member/${member.id}`} className="rounded-full bg-slate-100 px-3 py-1 text-sm hover:bg-slate-200">
-                  {member.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
         {rows.length === 0 && <p className="text-sm text-slate-500">ไม่มีสมาชิกในขอบเขตนี้</p>}
       </section>
 
@@ -175,7 +169,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <th className="py-1 pr-4 font-medium">สมาชิก</th>
               {trendKeys.map((k) => (
                 <th key={k} className="px-1 text-center font-medium">
-                  <Link href={href(k)} className="hover:text-blue-600">{k.slice(8)}</Link>
+                  <Link href={href(k)} className="hover:text-indigo-600">{k.slice(8)}</Link>
                 </th>
               ))}
             </tr>
@@ -184,7 +178,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             {rows.map(({ member, days }) => (
               <tr key={member.id} className="border-t border-slate-100">
                 <td className="py-1.5 pr-4">
-                  <Link href={`/dashboard/member/${member.id}`} className="hover:text-blue-600">{member.name}</Link>
+                  <Link href={`/dashboard/member/${member.id}`} className="hover:text-indigo-600">{member.name}</Link>
                 </td>
                 {trendKeys.map((k) => (
                   <td key={k} className="text-center">
@@ -201,11 +195,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 }
 
 function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone: "indigo" | "red" | "amber" | "emerald" }) {
-  const color = { indigo: "text-blue-600", red: "text-red-600", amber: "text-amber-600", emerald: "text-emerald-600" }[tone];
+  const color = { indigo: "text-indigo-600", red: "text-rose-600", amber: "text-amber-600", emerald: "text-emerald-600" }[tone];
   return (
     <div className="card py-4">
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className={`text-3xl font-semibold ${color}`}>{value}</div>
+      <div className="text-sm font-medium text-slate-500">{label}</div>
+      <div className={`mt-1 text-3xl font-semibold tracking-tight ${color}`}>{value}</div>
     </div>
   );
 }
@@ -239,7 +233,7 @@ type MemberInfo = {
 function MemberHeader({ member }: { member: MemberInfo }) {
   return (
     <div className="mb-3 flex items-start justify-between gap-2">
-      <Link href={`/dashboard/member/${member.id}`} className="font-medium hover:text-blue-600">{member.name}</Link>
+      <Link href={`/dashboard/member/${member.id}`} className="font-medium hover:text-indigo-600">{member.name}</Link>
       <span className="text-right text-xs text-slate-500">
         {member.role.name} · {teamsLabel(member.memberships)}
       </span>

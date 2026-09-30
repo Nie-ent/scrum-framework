@@ -17,13 +17,15 @@ export default async function StandupPage() {
   const previous = history.find((s) => s.date < keyToDate(today));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <section>
-        <div className="mb-4">
-          <h1 className="text-2xl font-semibold">Daily Scrum</h1>
-          <p className="text-sm text-slate-500">
-            {formatDateKey(today)} · {current ? "ส่งแล้ว แก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}
-          </p>
+        <div className="page-header mb-6">
+          <div>
+            <p className="eyebrow">Daily rhythm</p>
+            <h1 className="page-title">Daily Scrum</h1>
+            <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
+          </div>
+          <span className={`badge ${current ? "badge-success" : "badge-warning"}`}>{current ? "✓ เช็กอินแล้ว" : "รอเช็กอิน"}</span>
         </div>
         <StandupForm
           initial={{
@@ -38,12 +40,15 @@ export default async function StandupPage() {
         />
       </section>
 
-      <aside>
-        <h2 className="mb-3 font-semibold">ประวัติของฉัน</h2>
+      <aside className="xl:border-l xl:border-slate-200 xl:pl-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-slate-800">ประวัติของฉัน</h2>
+          <span className="badge badge-neutral">15 รายการล่าสุด</span>
+        </div>
         <div className="space-y-3">
           {history.filter((s) => s !== current).map((s) => (
-            <div key={s.id} className="card">
-              <div className="mb-2 text-sm font-medium text-slate-500">{formatDateKey(dateToKey(s.date))}</div>
+            <div key={s.id} className="rounded-2xl border border-slate-200/80 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between text-sm font-medium text-slate-500"><span>{formatDateKey(dateToKey(s.date))}</span><span className="h-2 w-2 rounded-full bg-emerald-500" aria-label="ส่งแล้ว" /></div>
               <StandupSections standup={s} />
             </div>
           ))}

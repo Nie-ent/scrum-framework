@@ -27,7 +27,7 @@ export default async function MemberPage({ params }: PageProps<"/dashboard/membe
 
   return (
     <div className="space-y-4">
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-blue-600">← กลับภาพรวม</Link>
+      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-indigo-600">← กลับภาพรวม</Link>
       <div>
         <h1 className="text-2xl font-semibold">{member.name}</h1>
         <p className="text-sm text-slate-500">
