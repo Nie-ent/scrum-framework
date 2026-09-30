@@ -1,0 +1,6 @@
+-- ปิดการเข้าถึงผ่าน Supabase Data API (PostgREST) — แอปต่อผ่าน Prisma ด้วย role เจ้าของตาราง จึงไม่โดน RLS
+ALTER TABLE "Role" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Team" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Standup" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;

@@ -11,7 +11,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "node prisma/seed.mjs",
     "db:seed-demo": "node prisma/seed-demo.mjs",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy && node prisma/seed.mjs && next build"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

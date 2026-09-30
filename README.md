@@ -54,7 +54,8 @@ npm run dev
 
 | ตัวแปร | คำอธิบาย |
 |--------|---------|
-| `DATABASE_URL` | Postgres connection string |
+| `DATABASE_URL` | Postgres connection string (runtime — บน Supabase ใช้ pooler 6543) |
+| `DIRECT_URL` | connection string สำหรับ migrate (local/docker ใช้ค่าเดียวกับ `DATABASE_URL`) |
 | `AUTH_SECRET` | secret สำหรับเซ็น session (≥ 32 ตัวอักษร) |
 | `APP_TIMEZONE` | timezone ที่ใช้ตัดวัน (default `Asia/Bangkok`) |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | admin คนแรก (สร้างครั้งเดียว) |
@@ -73,16 +74,29 @@ src/app/(app)/dashboard ภาพรวมทีม + ประวัติร�
 src/app/(app)/admin     จัดการผู้ใช้ / roles & levels / ทีม
 ```
 
-## Deploy ฟรีด้วย Render + Neon
+## Deploy ฟรีด้วย Vercel + Supabase
 
-1. **Neon** — สมัครที่ [neon.tech](https://neon.tech) → สร้าง project (region Singapore) → copy connection string แบบ **direct** (ปิด "Connection pooling" — URL ต้องไม่มี `-pooler`) แล้วต่อท้ายด้วย `&connect_timeout=15`
-2. **Render** — [dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** → เลือก repo นี้ (ใช้ `render.yaml`)
-3. กรอกค่าที่ Render ถาม: `DATABASE_URL` (จาก Neon), `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` — `AUTH_SECRET` สร้างให้อัตโนมัติ
-4. รอ deploy เสร็จ → เปิด URL `https://<ชื่อ>.onrender.com` แล้ว login ด้วย admin ที่ตั้งไว้
+1. **Supabase** — สมัครที่ [supabase.com](https://supabase.com) → New project (region Southeast Asia / Singapore) → จดรหัสผ่าน database ไว้
+2. ไปที่ **Connect** (ปุ่มด้านบนของ project) → แท็บ **ORMs → Prisma** จะได้ 2 URL:
+   - `DATABASE_URL` — Transaction pooler (port **6543**) ต่อท้าย `?pgbouncer=true&connection_limit=1`
+   - `DIRECT_URL` — Session pooler (port **5432**) ใช้ตอน migrate
+3. **Vercel** — [vercel.com/new](https://vercel.com/new) → Import repo นี้ → เพิ่ม Environment Variables:
 
-container จะรัน migration + สร้าง admin ให้เองตอน start · push เข้า `main` = deploy ใหม่อัตโนมัติ
+| ตัวแปร | ค่า |
+|--------|-----|
+| `DATABASE_URL` | Transaction pooler URL (6543) |
+| `DIRECT_URL` | Session pooler URL (5432) |
+| `AUTH_SECRET` | `openssl rand -base64 32` |
+| `APP_TIMEZONE` | `Asia/Bangkok` |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | admin คนแรก |
 
-ข้อจำกัดของ free tier: Render หลับเมื่อไม่มีคนใช้ 15 นาที (เปิดครั้งแรกรอ ~30–60 วิ) และ Neon พัก compute เมื่อว่าง (query แรกช้าขึ้นเล็กน้อย)
+4. กด Deploy — script `vercel-build` จะรัน migration + สร้าง admin (ครั้งแรกเท่านั้น) + build ให้เอง
+5. เปิด `https://<project>.vercel.app` แล้ว login ด้วย admin ที่ตั้งไว้ · push เข้า `main` = deploy ใหม่อัตโนมัติ
+
+หมายเหตุ
+- ตารางเปิด Row Level Security ไว้ (migration `0002_enable_rls`) เพื่อไม่ให้เข้าถึงข้อมูลผ่าน Supabase Data API ได้ — แอปต่อผ่าน Prisma จึงไม่กระทบ
+- Supabase free จะ **pause project ถ้าไม่มีการใช้งาน 7 วัน** (กด Restore ใน dashboard ได้) — ถ้าทีมใช้ทุกวันทำงานจะไม่เจอ
+- Vercel Hobby ฟรีสำหรับใช้งานที่ไม่ใช่เชิงพาณิชย์
 
 ## Deploy ที่ไหนดี
 
@@ -92,7 +106,7 @@ container จะรัน migration + สร้าง admin ให้เอง�
 | **Render** | คล้าย Railway | Web Service (Docker) + Render Postgres, free tier มี cold start |
 | **VPS + Docker Compose** (DigitalOcean / Hetzner / Vultr) | คุมเองทั้งหมด ถูกสุดระยะยาว | ใช้ `docker-compose.yml` นี้ + Caddy/Nginx ทำ HTTPS, ~$5–6/เดือน |
 | **Coolify / Dokploy บน VPS** | อยากได้ UI แบบ PaaS แต่ถือเครื่องเอง | deploy จาก git push, จัดการ SSL/backup ให้ |
-| **Vercel + Neon/Supabase Postgres** | ไม่ต้องใช้ Docker | deploy Next.js ได้ดีที่สุด แต่ไม่ได้ใช้ Dockerfile |
+| **Vercel + Supabase** ⭐ ฟรี | ไม่ต้องใช้ Docker | ตั้งค่าไว้แล้วใน repo (ดูหัวข้อด้านบน) |
 | **Google Cloud Run + Cloud SQL** | องค์กร / scale อัตโนมัติ | จ่ายตามใช้งาน แต่ Cloud SQL มีค่าใช้จ่ายขั้นต่ำ |
 
 คำแนะนำ: เริ่มที่ **Railway** (ง่ายและเร็ว) หรือ **VPS + Coolify** ถ้าอยากคุมค่าใช้จ่ายและข้อมูลเอง

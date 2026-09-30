@@ -1,11 +1,14 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Supabase บน Vercel: DATABASE_URL = pooler (6543), DIRECT_URL = direct/session (5432) สำหรับ migrate
+  // Docker / local: ใส่ค่าเดียวกันทั้งสองตัว
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 /// Role ที่กำหนดได้เอง — `level` ใช้ตัดสินสิทธิ์ (ดู src/lib/permissions.ts)
