@@ -3,7 +3,7 @@ import { keyToDate, todayKey } from "@/lib/dates";
 
 const DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
-export function DashboardCalendar({ dateKey, teamId }: { dateKey: string; teamId: string }) {
+export function DashboardCalendar({ dateKey, teamId, view }: { dateKey: string; teamId: string; view?: string }) {
   const selected = keyToDate(dateKey);
   const year = selected.getUTCFullYear();
   const month = selected.getUTCMonth();
@@ -13,7 +13,7 @@ export function DashboardCalendar({ dateKey, teamId }: { dateKey: string; teamId
   const today = todayKey();
   const href = (day: number) => {
     const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return `/dashboard?date=${key}${teamId ? `&team=${teamId}` : ""}`;
+    return `/dashboard?date=${key}${teamId ? `&team=${teamId}` : ""}${view ? `&view=${view}` : ""}`;
   };
   const monthLabel = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric", timeZone: "UTC" }).format(first);
 

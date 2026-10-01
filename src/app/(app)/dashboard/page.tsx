@@ -8,7 +8,7 @@ import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } fr
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
-import { ProgressSummary } from "@/components/standup-card";
+import { ProgressSummary, StandupSections } from "@/components/standup-card";
 
 const TREND_DAYS = 7;
 
@@ -57,7 +57,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const workingWell = withField("workingWell");
   const trendKeys = Array.from({ length: TREND_DAYS }, (_, i) => shiftKey(trendStart, i));
 
-  const href = (date: string) => `/dashboard?date=${date}${teamId ? `&team=${teamId}` : ""}`;
+  // มุมมองรายคน: ตาราง (ค่าเริ่มต้น) หรือการ์ดแบบ grid — เก็บใน URL เพื่อให้คงอยู่เมื่อเปลี่ยนวัน/ทีม
+  const view = params.view === "grid" ? "grid" : "table";
+  const viewParam = view === "grid" ? "&view=grid" : "";
+  const href = (date: string, nextView = viewParam) => `/dashboard?date=${date}${teamId ? `&team=${teamId}` : ""}${nextView}`;
   const scopeLabel = teams.find((t) => t.id === teamId)?.name ?? "ทุกทีม";
 
   return (
@@ -74,6 +77,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <div className="card flex flex-wrap items-center gap-2 p-2">
           <Link className="btn-ghost" href={href(shiftKey(dateKey, -1))}>← ก่อนหน้า</Link>
           <form className="flex gap-2" action="/dashboard">
+            {view === "grid" && <input type="hidden" name="view" value="grid" />}
             <input aria-label="วันที่" type="date" name="date" defaultValue={dateKey} max={today} className="input min-h-10 py-1.5" />
             <select aria-label="ทีม" name="team" defaultValue={teamId} className="input min-h-10 py-1.5">
               {allTeams && <option value="">ทุกทีม</option>}
@@ -99,7 +103,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <TeamHealthChart submitted={submitted.length} total={rows.length} />
-        <DashboardCalendar dateKey={dateKey} teamId={teamId} />
+        <DashboardCalendar dateKey={dateKey} teamId={teamId} view={view === "grid" ? "grid" : undefined} />
       </div>
 
       {(blockers.length > 0 || missing.length > 0) && (
@@ -127,12 +131,42 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {rows.length === 0 ? <EmptyState title="ยังไม่มีสมาชิกในขอบเขตนี้" description="เลือกทีมอื่น หรือตรวจสอบการกำหนดสมาชิกในหน้าจัดการระบบ" /> : <section className="space-y-4">
-        <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Team updates</p><h2 className="text-lg font-semibold text-slate-950">ความคืบหน้ารายคน</h2></div><p className="text-sm text-slate-500">เลือกชื่อเพื่อดูรายละเอียด</p></div>
+        <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Team updates</p><h2 className="text-lg font-semibold text-slate-950">ความคืบหน้ารายคน</h2></div><div className="flex rounded-2xl bg-slate-100 p-1" role="group" aria-label="มุมมอง">
+            {([["table", "☰ ตาราง", ""], ["grid", "▦ การ์ด", "&view=grid"]] as const).map(([key, label, param]) => (
+              <Link key={key} href={href(dateKey, param)} aria-current={view === key ? "true" : undefined} className={`inline-flex min-h-9 items-center rounded-xl px-3 text-sm transition ${view === key ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"}`}>
+                {label}
+              </Link>
+            ))}
+          </div></div>
+        {view === "grid" ? (
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {rows.map(({ key, member, team, entry }) => (
+              <article key={key} className={`card flex flex-col gap-3 ${entry ? "transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md" : "border-dashed bg-slate-50/60"}`}>
+                <header className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{member.name.slice(0, 1)}</span>
+                    <div className="min-w-0">
+                      <Link href={`/dashboard/member/${member.id}`} className="block truncate font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link>
+                      <p className="truncate text-xs text-slate-500">{member.role.name} · {team.name}</p>
+                    </div>
+                  </div>
+                  {entry ? <span className={`shrink-0 ${entry.blockers ? "badge badge-danger" : "badge badge-success"}`}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning shrink-0">ยังไม่ส่ง</span>}
+                </header>
+                {entry ? (
+                  <StandupSections standup={entry} only={["yesterdayTasks", "todayTasks", "blockers"]} />
+                ) : (
+                  <p className="text-sm text-slate-400">ยังไม่ได้เช็กอินของวันนี้</p>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <table className="w-full min-w-[1080px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">ทีม</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
             <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{member.name.slice(0, 1)}</span><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">รายละเอียด →</Link></td></tr>)}</tbody>
           </table>
         </div>
+        )}
       </section>}
 
       <section className="card overflow-x-auto">
