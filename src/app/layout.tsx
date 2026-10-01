@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
@@ -12,6 +12,14 @@ export const metadata: Metadata = {
   title: { default: "Pace", template: "%s · Pace" },
   description: "Keep your team moving. — Daily scrum และภาพรวมทีม",
   applicationName: "Pace",
+};
+
+// viewportFit: cover เพื่อให้ใช้ safe-area-inset กับแถบเมนูล่างบน iPhone ได้
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

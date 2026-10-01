@@ -78,7 +78,7 @@ export function TaskListEditor({
   return (
     <ul className="space-y-1.5" aria-labelledby={`${id}-label`}>
       {rows.map((task, index) => (
-        <li key={index} className="group/task flex items-center gap-2">
+        <li key={index} className="group/task flex items-center gap-1.5 sm:gap-2">
           {withProgress ? (
             <input
               type="checkbox"
@@ -101,6 +101,7 @@ export function TaskListEditor({
             onPaste={(e) => onPaste(e, index)}
             placeholder={index === 0 ? placeholder : "task ถัดไป…"}
             maxLength={500}
+            enterKeyHint="next"
             className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""}`}
           />
           {withProgress && (
@@ -115,7 +116,7 @@ export function TaskListEditor({
                 value={task.progress ?? 0}
                 onChange={(e) => update(index, { progress: clampPercent(e.target.value) })}
                 onFocus={(e) => e.target.select()}
-                className={`input w-16 px-2 py-2 text-right tabular-nums ${isDone(task) ? "border-emerald-300 text-emerald-700" : ""}`}
+                className={`input w-14 px-1.5 py-2 text-right tabular-nums sm:w-16 sm:px-2 ${isDone(task) ? "border-emerald-300 text-emerald-700" : ""}`}
               />
               %
             </label>
@@ -125,14 +126,14 @@ export function TaskListEditor({
               type="button"
               aria-label="ลบ task"
               onClick={() => onChange(rows.filter((_, i) => i !== index))}
-              className="shrink-0 rounded-lg px-2 py-1 text-slate-300 opacity-0 transition hover:text-rose-600 focus:opacity-100 group-hover/task:opacity-100"
+              className="shrink-0 rounded-lg px-2 py-1 text-slate-400 transition hover:text-rose-600 focus:opacity-100 sm:text-slate-300 sm:opacity-0 sm:group-hover/task:opacity-100"
             >
               ×
             </button>
           )}
         </li>
       ))}
-      <li className="pl-4 text-xs text-slate-400">กด Enter เพื่อเพิ่ม task · Backspace ในบรรทัดว่างเพื่อลบ</li>
+      <li className="pl-4 text-xs text-slate-400">กด Enter เพื่อเพิ่ม task<span className="hidden sm:inline"> · Backspace ในบรรทัดว่างเพื่อลบ</span></li>
     </ul>
   );
 }

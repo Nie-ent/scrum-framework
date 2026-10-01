@@ -74,12 +74,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             {dateKey === today && " (วันนี้)"}
           </p>
         </div>
-        <div className="card flex flex-wrap items-center gap-2 p-2">
+        <div className="card flex w-full flex-wrap items-center gap-2 p-2 sm:w-auto">
           <Link className="btn-ghost" href={href(shiftKey(dateKey, -1))}>← ก่อนหน้า</Link>
-          <form className="flex gap-2" action="/dashboard">
+          <form className="order-last flex min-w-0 basis-full gap-2 sm:order-none sm:basis-auto" action="/dashboard">
             {view === "grid" && <input type="hidden" name="view" value="grid" />}
-            <input aria-label="วันที่" type="date" name="date" defaultValue={dateKey} max={today} className="input min-h-10 py-1.5" />
-            <select aria-label="ทีม" name="team" defaultValue={teamId} className="input min-h-10 py-1.5">
+            <input aria-label="วันที่" type="date" name="date" defaultValue={dateKey} max={today} className="input min-h-10 min-w-0 flex-1 py-1.5 sm:w-auto sm:flex-none" />
+            <select aria-label="ทีม" name="team" defaultValue={teamId} className="input min-h-10 min-w-0 flex-1 py-1.5 sm:w-auto sm:flex-none">
               {allTeams && <option value="">ทุกทีม</option>}
               {teams.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -131,15 +131,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       {rows.length === 0 ? <EmptyState title="ยังไม่มีสมาชิกในขอบเขตนี้" description="เลือกทีมอื่น หรือตรวจสอบการกำหนดสมาชิกในหน้าจัดการระบบ" /> : <section className="space-y-4">
-        <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Team updates</p><h2 className="text-lg font-semibold text-slate-950">ความคืบหน้ารายคน</h2></div><div className="flex rounded-2xl bg-slate-100 p-1" role="group" aria-label="มุมมอง">
+        <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Team updates</p><h2 className="text-lg font-semibold text-slate-950">ความคืบหน้ารายคน</h2></div><div className="hidden rounded-2xl bg-slate-100 p-1 md:flex" role="group" aria-label="มุมมอง">
             {([["table", "☰ ตาราง", ""], ["grid", "▦ การ์ด", "&view=grid"]] as const).map(([key, label, param]) => (
               <Link key={key} href={href(dateKey, param)} aria-current={view === key ? "true" : undefined} className={`inline-flex min-h-9 items-center rounded-xl px-3 text-sm transition ${view === key ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"}`}>
                 {label}
               </Link>
             ))}
           </div></div>
-        {view === "grid" ? (
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        {/* มือถือแสดงการ์ดเสมอ (ตารางกว้างเกินจอ) — จอใหญ่เลือกได้ระหว่างตาราง/การ์ด */}
+        <div className={`grid gap-4 md:grid-cols-2 2xl:grid-cols-3 ${view === "grid" ? "" : "md:hidden"}`}>
             {rows.map(({ key, member, team, entry }) => (
               <article key={key} className={`card flex flex-col gap-3 ${entry ? "transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md" : "border-dashed bg-slate-50/60"}`}>
                 <header className="flex items-start justify-between gap-3">
@@ -159,9 +159,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 )}
               </article>
             ))}
-          </div>
-        ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        </div>
+        {view === "table" && (
+        <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block">
           <table className="w-full min-w-[1080px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">ทีม</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
             <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{member.name.slice(0, 1)}</span><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">รายละเอียด →</Link></td></tr>)}</tbody>
           </table>
