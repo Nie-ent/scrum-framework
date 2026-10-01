@@ -29,16 +29,32 @@ export function StandupForm({
 }) {
   const [state, action] = useActionState(saveStandup, undefined);
   const [yesterday, setYesterday] = useState<Task[]>(initial.yesterdayTasks);
-  const [today, setToday] = useState<Task[]>(initial.todayTasks);
 
-  const unfinished = yesterday.filter((t) => t.text.trim() && !isDone(t));
-  const pending = unfinished.filter((t) => !today.some((p) => p.text.trim() === t.text.trim()));
+  // งานที่ยังไม่ถึง 100% ถูกยกไป "วันนี้จะทำอะไร" อัตโนมัติ — ผู้ใช้พิมพ์เองเฉพาะงานใหม่ (extra)
+  const initialUnfinished = new Set(initial.yesterdayTasks.filter((t) => !isDone(t)).map((t) => t.text.trim()));
+  const [extra, setExtra] = useState<Task[]>(() => initial.todayTasks.filter((t) => !initialUnfinished.has(t.text.trim())));
+  // งานค้างที่ผู้ใช้เลือกไม่ทำต่อวันนี้ (ถ้าเคยส่งแล้ว: งานค้างที่ไม่อยู่ในแผนที่บันทึกไว้ = เคยนำออก)
+  const [dropped, setDropped] = useState<Set<string>>(() => {
+    if (!submitted) return new Set();
+    const saved = new Set(initial.todayTasks.map((t) => t.text.trim()));
+    return new Set([...initialUnfinished].filter((text) => !saved.has(text)));
+  });
 
-  function carryUnfinished() {
-    const kept = today.filter((t) => t.text.trim());
+  const unfinished = yesterday
+    .filter((t) => t.text.trim() && !isDone(t))
     // เก็บ % ล่าสุดไว้ ครั้งถัดไปงานนี้จะเริ่มจาก % เดิม ไม่ต้องกรอกใหม่จาก 0
-    setToday([...kept, ...pending.map((t) => ({ text: t.text.trim(), progress: t.progress ?? 0 }))]);
-  }
+    .map((t) => ({ text: t.text.trim(), progress: t.progress ?? 0 }));
+  const carried = unfinished.filter((t) => !dropped.has(t.text) && !extra.some((e) => e.text.trim() === t.text));
+  const droppedCount = unfinished.filter((t) => dropped.has(t.text)).length;
+  const today = [...carried, ...extra];
+
+  const setDrop = (text: string, drop: boolean) =>
+    setDropped((prev) => {
+      const next = new Set(prev);
+      if (drop) next.add(text);
+      else next.delete(text);
+      return next;
+    });
 
   return (
     <form action={action} className="card space-y-6">
@@ -64,18 +80,50 @@ export function StandupForm({
             <p className="mb-2 text-xs text-slate-500">ยกมาจากแผนครั้งก่อนของทีมนี้ — อัปเดต % ความคืบหน้า (ติ๊ก ✓ = เสร็จ 100%) แล้วเพิ่มงานอื่นที่ทำได้</p>
           )}
           <TaskListEditor id="yesterdayTasks" items={yesterday} onChange={setYesterday} withProgress placeholder="เช่น ทำ API login" />
-          {pending.length > 0 && (
-            <button type="button" onClick={carryUnfinished} className="btn-ghost mt-2 min-h-8 px-3 py-1 text-xs">
-              ↓ ยกงานที่ยังไม่เสร็จ ({pending.length}) มาทำวันนี้
-            </button>
-          )}
         </div>
         <div>
           <label className="label" id="todayTasks-label" htmlFor="todayTasks">
             วันนี้จะทำอะไร <span className="font-normal text-slate-400">(Today)</span>
             <span className="text-rose-500"> *</span>
           </label>
-          <TaskListEditor id="todayTasks" items={today} onChange={setToday} placeholder="เช่น ต่อหน้า dashboard" />
+          {carried.length > 0 && (
+            <ul className="mb-2 space-y-1.5" aria-label="งานที่ยกมาจากครั้งก่อน">
+              {carried.map((t) => (
+                <li key={t.text} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-hidden="true" />
+                  <span className="min-w-0 flex-1 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-slate-700">{t.text}</span>
+                  <span className="badge badge-warning shrink-0">ทำต่อ · {t.progress}%</span>
+                  <button
+                    type="button"
+                    aria-label={`ไม่ทำ "${t.text}" ต่อวันนี้`}
+                    title="ไม่ทำต่อวันนี้"
+                    onClick={() => setDrop(t.text, true)}
+                    className="shrink-0 rounded-lg px-2 py-1 text-slate-400 transition hover:text-rose-600"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {(carried.length > 0 || droppedCount > 0) && (
+            <p className="mb-2 pl-4 text-xs text-slate-500">
+              งานที่ยังไม่ถึง 100% ถูกยกมาให้อัตโนมัติ
+              {droppedCount > 0 && (
+                <>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="font-medium text-indigo-600 hover:underline"
+                    onClick={() => unfinished.forEach((t) => setDrop(t.text, false))}
+                  >
+                    นำงานที่เอาออกกลับมา ({droppedCount})
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+          <TaskListEditor id="todayTasks" items={extra} onChange={setExtra} placeholder={carried.length > 0 ? "เพิ่มงานอื่นของวันนี้" : "เช่น ต่อหน้า dashboard"} />
           <p className="mt-1 pl-4 text-xs text-slate-400">งานเหล่านี้จะขึ้นเป็น &quot;ล่าสุดทำอะไรไป&quot; ในเช็กอินครั้งถัดไปของทีมนี้</p>
         </div>
       </div>

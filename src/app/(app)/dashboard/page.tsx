@@ -129,8 +129,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       {rows.length === 0 ? <EmptyState title="ยังไม่มีสมาชิกในขอบเขตนี้" description="เลือกทีมอื่น หรือตรวจสอบการกำหนดสมาชิกในหน้าจัดการระบบ" /> : <section className="space-y-4">
         <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">Team updates</p><h2 className="text-lg font-semibold text-slate-950">ความคืบหน้ารายคน</h2></div><p className="text-sm text-slate-500">เลือกชื่อเพื่อดูรายละเอียด</p></div>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <table className="w-full min-w-[820px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">ทีม</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{member.name.slice(0, 1)}</span><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">รายละเอียด →</Link></td></tr>)}</tbody>
+          <table className="w-full min-w-[1080px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">ทีม</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{member.name.slice(0, 1)}</span><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">รายละเอียด →</Link></td></tr>)}</tbody>
           </table>
         </div>
       </section>}
@@ -211,6 +211,23 @@ function TodayTasks({ value }: { value: unknown }) {
         </li>
       ))}
       {tasks.length > 3 && <li className="pl-3 text-xs text-slate-400">+ อีก {tasks.length - 3} task</li>}
+    </ul>
+  );
+}
+
+/** สรุปงานเมื่อวานในตาราง พร้อมสถานะล่าสุดของแต่ละงาน */
+function YesterdayTasks({ value }: { value: unknown }) {
+  const tasks = toTasks(value);
+  if (tasks.length === 0) return <>—</>;
+  return (
+    <ul className="space-y-0.5">
+      {tasks.slice(0, 2).map((task, index) => (
+        <li key={index} className="flex gap-1.5">
+          <span className={task.progress === 100 ? "text-emerald-600" : "text-slate-400"} aria-hidden="true">{task.progress === 100 ? "✓" : "○"}</span>
+          <span className="line-clamp-1">{task.text}</span>
+        </li>
+      ))}
+      {tasks.length > 2 && <li className="pl-3 text-xs text-slate-400">+ อีก {tasks.length - 2} งาน</li>}
     </ul>
   );
 }
