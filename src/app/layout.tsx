@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   title: { default: "Pace", template: "%s · Pace" },
   description: "Keep your team moving. — Daily scrum และภาพรวมทีม",
   applicationName: "Pace",
+  // iPhone: เปิดเต็มจอเมื่อเพิ่มลงหน้าจอโฮม
+  appleWebApp: { capable: true, title: "Pace", statusBarStyle: "default" },
 };
 
 // viewportFit: cover เพื่อให้ใช้ safe-area-inset กับแถบเมนูล่างบน iPhone ได้

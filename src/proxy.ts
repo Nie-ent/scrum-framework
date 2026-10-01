@@ -15,6 +15,7 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+// manifest.webmanifest ต้องเปิดได้โดยไม่ login — เบราว์เซอร์ดึงไฟล์นี้โดยไม่ส่ง cookie
 export const config = {
-  matcher: ["/((?!api/health|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico)$).*)"],
+  matcher: ["/((?!api/health|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|ico)$).*)"],
 };
