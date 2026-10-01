@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { logout } from "@/app/actions/auth";
 import { BottomNav, type NavIcon } from "@/components/bottom-nav";
 import { NavLink } from "@/components/nav-link";
 import { requireUser } from "@/lib/auth";
@@ -34,18 +33,17 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <NavLink key={item.href} href={item.href}>{item.label}</NavLink>
             ))}
           </nav>
-          <div className="flex min-w-0 items-center gap-3 lg:mt-auto lg:block lg:rounded-2xl lg:bg-slate-50 lg:p-3">
-            <div className="min-w-0 text-right leading-tight lg:text-left">
-              <div className="truncate text-sm font-semibold text-slate-800">{user.name}</div>
-              <div className="mt-0.5 hidden text-xs text-slate-500 sm:block">
-                {user.role.name} · Lv {level}
-                {user.memberships.length > 0 && ` · ${teamsLabel(user.memberships)}`}
-              </div>
+          {/* ชื่อผู้ใช้พาไปหน้าบัญชี — ปุ่มออกจากระบบอยู่ในหน้านั้น */}
+          <Link
+            href="/account"
+            className="min-w-0 rounded-xl text-right leading-tight transition hover:bg-slate-100 lg:mt-auto lg:rounded-2xl lg:bg-slate-50 lg:p-3 lg:text-left"
+          >
+            <div className="truncate text-sm font-semibold text-slate-800">{user.name}</div>
+            <div className="mt-0.5 hidden text-xs text-slate-500 sm:block">
+              {user.role.name} · Lv {level}
+              {user.memberships.length > 0 && ` · ${teamsLabel(user.memberships)}`}
             </div>
-            <form action={logout} className="shrink-0 lg:mt-3">
-              <button className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:text-rose-600 lg:w-full lg:px-0 lg:py-0 lg:text-left">ออกจากระบบ</button>
-            </form>
-          </div>
+          </Link>
         </div>
       </header>
       {/* เว้นที่ด้านล่างให้แถบเมนูมือถือ (รวม safe area ของ iPhone) */}
