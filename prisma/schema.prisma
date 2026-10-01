@@ -70,9 +70,9 @@ model Standup {
   teamId         String?
   team           Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   date           DateTime @db.Date
-  /// [{ text, done }] — ยกมาจาก todayTasks ของครั้งก่อน แล้วติ๊กว่าเสร็จหรือไม่
+  /// [{ text, progress }] — ยกมาจาก todayTasks ของครั้งก่อน แล้วอัปเดต % ความคืบหน้า (100 = เสร็จ)
   yesterdayTasks Json     @default("[]")
-  /// [{ text }]
+  /// [{ text, progress? }] — progress = % ตั้งต้นของงานที่ยกมาทำต่อ
   todayTasks     Json     @default("[]")
   blockers       String?
   notWorking     String?

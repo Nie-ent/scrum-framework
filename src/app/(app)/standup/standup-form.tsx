@@ -5,7 +5,7 @@ import { saveStandup } from "@/app/actions/standup";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { TEXT_SECTIONS, type TextSectionKey } from "@/components/standup-card";
 import { TaskListEditor, serializeTasks } from "@/components/task-list-editor";
-import type { Task } from "@/lib/tasks";
+import { isDone, type Task } from "@/lib/tasks";
 
 const PLACEHOLDERS: Record<TextSectionKey, string> = {
   blockers: "มีอะไรที่ต้องให้คนอื่นช่วยไหม (ไม่มีเว้นว่างได้)",
@@ -31,12 +31,13 @@ export function StandupForm({
   const [yesterday, setYesterday] = useState<Task[]>(initial.yesterdayTasks);
   const [today, setToday] = useState<Task[]>(initial.todayTasks);
 
-  const unfinished = yesterday.filter((t) => t.text.trim() && !t.done);
+  const unfinished = yesterday.filter((t) => t.text.trim() && !isDone(t));
   const pending = unfinished.filter((t) => !today.some((p) => p.text.trim() === t.text.trim()));
 
   function carryUnfinished() {
     const kept = today.filter((t) => t.text.trim());
-    setToday([...kept, ...pending.map((t) => ({ text: t.text.trim() }))]);
+    // เก็บ % ล่าสุดไว้ ครั้งถัดไปงานนี้จะเริ่มจาก % เดิม ไม่ต้องกรอกใหม่จาก 0
+    setToday([...kept, ...pending.map((t) => ({ text: t.text.trim(), progress: t.progress ?? 0 }))]);
   }
 
   return (
@@ -60,9 +61,9 @@ export function StandupForm({
             <span className="text-rose-500"> *</span>
           </label>
           {carriedOver && (
-            <p className="mb-2 text-xs text-slate-500">ยกมาจากแผนครั้งก่อนของทีมนี้ — ติ๊ก ✓ งานที่ทำเสร็จ แล้วเพิ่มงานอื่นที่ทำได้</p>
+            <p className="mb-2 text-xs text-slate-500">ยกมาจากแผนครั้งก่อนของทีมนี้ — อัปเดต % ความคืบหน้า (ติ๊ก ✓ = เสร็จ 100%) แล้วเพิ่มงานอื่นที่ทำได้</p>
           )}
-          <TaskListEditor id="yesterdayTasks" items={yesterday} onChange={setYesterday} checkable placeholder="เช่น ทำ API login เสร็จ" />
+          <TaskListEditor id="yesterdayTasks" items={yesterday} onChange={setYesterday} withProgress placeholder="เช่น ทำ API login" />
           {pending.length > 0 && (
             <button type="button" onClick={carryUnfinished} className="btn-ghost mt-2 min-h-8 px-3 py-1 text-xs">
               ↓ ยกงานที่ยังไม่เสร็จ ({pending.length}) มาทำวันนี้

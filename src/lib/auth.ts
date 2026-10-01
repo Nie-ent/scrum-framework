@@ -23,7 +23,8 @@ export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>
 /** ใช้ใน page / server action: ถ้าไม่ login หรือ level ไม่ถึงจะ redirect */
 export async function requireUser(minLevel = 0): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // มี session แต่ไม่พบบัญชี (ถูกปิด/ลบ) → ต้องล้าง cookie ก่อน ไม่งั้นจะ redirect วนกับ proxy
+  if (!user) redirect("/logout");
   if (user.role.level < minLevel) redirect("/standup");
   return user;
 }

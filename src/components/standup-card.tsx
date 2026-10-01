@@ -1,5 +1,5 @@
 import type { Standup } from "@prisma/client";
-import { toTasks } from "@/lib/tasks";
+import { averageProgress, isDone, toTasks } from "@/lib/tasks";
 
 export const TASK_SECTIONS = [
   { key: "yesterdayTasks", label: "ล่าสุดทำอะไรไป", hint: "Yesterday", tone: "slate" },
@@ -24,24 +24,59 @@ const TONES = {
   emerald: "border-emerald-400 bg-emerald-50/70",
 } as const;
 
+export function ProgressBar({ percent, className = "" }: { percent: number; className?: string }) {
+  return (
+    <span
+      className={`inline-block h-1.5 overflow-hidden rounded-full bg-slate-200 align-middle ${className}`}
+      role="progressbar"
+      aria-valuenow={percent}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <span className={`block h-full rounded-full ${percent >= 100 ? "bg-emerald-500" : "bg-indigo-500"}`} style={{ width: `${percent}%` }} />
+    </span>
+  );
+}
+
+/** showStatus = แสดง ✓/○ และ % ของแต่ละ task (ใช้กับ "ล่าสุดทำอะไรไป") */
 export function TaskListView({ value, showStatus = false }: { value: unknown; showStatus?: boolean }) {
   const tasks = toTasks(value);
   if (tasks.length === 0) return <p className="text-sm text-slate-400">—</p>;
   return (
     <ul className="space-y-0.5 text-sm">
-      {tasks.map((t, i) => (
-        <li key={i} className="flex gap-2">
-          {showStatus ? (
-            <span className={t.done ? "text-emerald-600" : "text-slate-400"} aria-label={t.done ? "เสร็จแล้ว" : "ยังไม่เสร็จ"}>
-              {t.done ? "✓" : "○"}
-            </span>
-          ) : (
-            <span className="text-indigo-400" aria-hidden="true">•</span>
-          )}
-          <span className={showStatus && !t.done ? "text-slate-500" : ""}>{t.text}</span>
-        </li>
-      ))}
+      {tasks.map((t, i) => {
+        const percent = t.progress ?? 0;
+        return (
+          <li key={i} className="flex gap-2">
+            {showStatus ? (
+              <span className={isDone(t) ? "text-emerald-600" : "text-slate-400"} aria-hidden="true">
+                {isDone(t) ? "✓" : "○"}
+              </span>
+            ) : (
+              <span className="text-indigo-400" aria-hidden="true">•</span>
+            )}
+            <span className={`min-w-0 flex-1 ${showStatus && !isDone(t) ? "text-slate-600" : ""}`}>{t.text}</span>
+            {showStatus ? (
+              <span className={`shrink-0 text-xs tabular-nums ${isDone(t) ? "text-emerald-600" : "text-slate-500"}`}>{percent}%</span>
+            ) : (
+              percent > 0 && <span className="shrink-0 text-xs text-slate-400">ทำต่อจาก {percent}%</span>
+            )}
+          </li>
+        );
+      })}
     </ul>
+  );
+}
+
+/** สรุป % เฉลี่ยของงานใน "ล่าสุดทำอะไรไป" */
+export function ProgressSummary({ value, className = "w-20" }: { value: unknown; className?: string }) {
+  const percent = averageProgress(toTasks(value));
+  if (percent === null) return <span className="text-slate-400">—</span>;
+  return (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+      <ProgressBar percent={percent} className={className} />
+      <span className={`text-xs font-semibold tabular-nums ${percent >= 100 ? "text-emerald-600" : "text-slate-600"}`}>{percent}%</span>
+    </span>
   );
 }
 
@@ -57,8 +92,11 @@ export function StandupSections({
     <div className="space-y-2">
       {TASK_SECTIONS.filter((s) => show(s.key)).map((s) => (
         <div key={s.key} className={`rounded-r-lg border-l-4 py-1 pl-3 pr-2 ${TONES[s.tone]}`}>
-          <div className="mb-0.5 text-xs font-medium text-slate-500">
-            {s.label} <span className="text-slate-400">· {s.hint}</span>
+          <div className="mb-0.5 flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
+            <span>
+              {s.label} <span className="text-slate-400">· {s.hint}</span>
+            </span>
+            {s.key === "yesterdayTasks" && <ProgressSummary value={standup[s.key]} className="w-14" />}
           </div>
           <TaskListView value={standup[s.key]} showStatus={s.key === "yesterdayTasks"} />
         </div>

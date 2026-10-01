@@ -72,7 +72,7 @@ async function main() {
           teamId: m.teamId,
           date,
           ...s,
-          yesterdayTasks: s.yesterdayTasks.map((text, j) => ({ text, done: j % 2 === 0 })),
+          yesterdayTasks: s.yesterdayTasks.map((text, j) => ({ text, progress: j % 2 === 0 ? 100 : 40 })),
           todayTasks: s.todayTasks.map((text) => ({ text })),
         },
       });

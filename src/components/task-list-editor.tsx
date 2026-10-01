@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type KeyboardEvent, type ClipboardEvent } from "react";
-import type { Task } from "@/lib/tasks";
+import { isDone, type Task } from "@/lib/tasks";
 
 /**
  * รายการ task แบบพิมพ์ต่อเนื่อง: Enter = ขึ้น task ใหม่, Backspace ในบรรทัดว่าง = ลบ,
@@ -11,17 +11,18 @@ export function TaskListEditor({
   id,
   items,
   onChange,
-  checkable = false,
+  withProgress = false,
   placeholder,
 }: {
   id: string;
   items: Task[];
   onChange: (items: Task[]) => void;
-  /** แสดง checkbox "เสร็จแล้ว" หน้าแต่ละ task */
-  checkable?: boolean;
+  /** แสดง checkbox "เสร็จแล้ว" และช่อง % ความคืบหน้าของแต่ละ task */
+  withProgress?: boolean;
   placeholder?: string;
 }) {
-  const rows = items.length > 0 ? items : [{ text: "", done: checkable ? false : undefined }];
+  const newTask = (text = ""): Task => (withProgress ? { text, progress: 0 } : { text });
+  const rows = items.length > 0 ? items : [newTask()];
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   // บรรทัดที่ต้อง focus หลังรายการเปลี่ยน (เพิ่ม/ลบ) — ทำหลัง render
   const pendingFocus = useRef<number | null>(null);
@@ -38,7 +39,6 @@ export function TaskListEditor({
     pendingFocus.current = null;
   });
 
-  const newTask = (text = ""): Task => (checkable ? { text, done: false } : { text });
   const update = (index: number, patch: Partial<Task>) =>
     onChange(rows.map((t, i) => (i === index ? { ...t, ...patch } : t)));
 
@@ -79,12 +79,12 @@ export function TaskListEditor({
     <ul className="space-y-1.5" aria-labelledby={`${id}-label`}>
       {rows.map((task, index) => (
         <li key={index} className="group/task flex items-center gap-2">
-          {checkable ? (
+          {withProgress ? (
             <input
               type="checkbox"
-              aria-label="ทำเสร็จแล้ว"
-              checked={task.done === true}
-              onChange={(e) => update(index, { done: e.target.checked })}
+              aria-label="ทำเสร็จแล้ว (100%)"
+              checked={isDone(task)}
+              onChange={(e) => update(index, { progress: e.target.checked ? 100 : 0 })}
               className="h-4 w-4 shrink-0 accent-emerald-600"
             />
           ) : (
@@ -101,8 +101,25 @@ export function TaskListEditor({
             onPaste={(e) => onPaste(e, index)}
             placeholder={index === 0 ? placeholder : "task ถัดไป…"}
             maxLength={500}
-            className={`input py-2 ${checkable && task.done ? "text-slate-400 line-through" : ""}`}
+            className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""}`}
           />
+          {withProgress && (
+            <label className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={100}
+                step={5}
+                aria-label="ความคืบหน้า (%)"
+                value={task.progress ?? 0}
+                onChange={(e) => update(index, { progress: clampPercent(e.target.value) })}
+                onFocus={(e) => e.target.select()}
+                className={`input w-16 px-2 py-2 text-right tabular-nums ${isDone(task) ? "border-emerald-300 text-emerald-700" : ""}`}
+              />
+              %
+            </label>
+          )}
           {rows.length > 1 && (
             <button
               type="button"
@@ -118,6 +135,11 @@ export function TaskListEditor({
       <li className="pl-4 text-xs text-slate-400">กด Enter เพื่อเพิ่ม task · Backspace ในบรรทัดว่างเพื่อลบ</li>
     </ul>
   );
+}
+
+function clampPercent(raw: string) {
+  const n = Math.round(Number(raw));
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
 }
 
 /** ส่งเฉพาะ task ที่มีข้อความ ไปกับ form ผ่าน hidden input */

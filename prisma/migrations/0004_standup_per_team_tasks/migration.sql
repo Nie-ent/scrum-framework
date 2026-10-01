@@ -6,10 +6,10 @@ ALTER TABLE "Standup"
   ADD COLUMN "todayTasks" JSONB NOT NULL DEFAULT '[]';
 
 -- แปลงข้อความเดิมเป็นรายการ task (1 บรรทัด = 1 task, ตัด bullet นำหน้า)
--- งานใน "ล่าสุดทำอะไรไป" เดิมถือว่าทำเสร็จแล้ว
+-- งานใน "ล่าสุดทำอะไรไป" เดิมถือว่าทำเสร็จแล้ว (progress 100%)
 UPDATE "Standup" SET
   "yesterdayTasks" = COALESCE((
-    SELECT jsonb_agg(jsonb_build_object('text', t, 'done', true) ORDER BY n)
+    SELECT jsonb_agg(jsonb_build_object('text', t, 'progress', 100) ORDER BY n)
     FROM (
       SELECT n, regexp_replace(btrim(line), '^[-*•]\s*', '') AS t
       FROM unnest(string_to_array("yesterday", E'\n')) WITH ORDINALITY AS l(line, n)
@@ -23,13 +23,13 @@ UPDATE "Standup" SET
     ) x WHERE t <> ''
   ), '[]'::jsonb);
 
--- ข้อมูลเก่าไม่รู้ว่าเป็นของทีมไหน: ให้ไปอยู่ทีมของเจ้าของ (เลือกทีมย่อยก่อน แล้วเรียงตามชื่อ)
+-- ข้อมูลเก่าไม่รู้ว่าเป็นของทีมไหน: ให้ไปอยู่ทีมของเจ้าของ (เลือกทีมใหญ่ก่อน แล้วเรียงตามชื่อ)
 -- คนที่ไม่มีทีมจะได้ teamId = null และยังดูได้ในประวัติรายคน
 UPDATE "Standup" s SET "teamId" = (
   SELECT m."teamId"
   FROM "TeamMember" m JOIN "Team" t ON t."id" = m."teamId"
   WHERE m."userId" = s."userId"
-  ORDER BY (t."parentId" IS NULL), t."name"
+  ORDER BY (t."parentId" IS NOT NULL), t."name"
   LIMIT 1
 );
 
