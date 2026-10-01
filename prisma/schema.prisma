@@ -49,16 +49,17 @@ model TeamMember {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
+  id           String             @id @default(cuid())
+  email        String             @unique
   name         String
   passwordHash String
-  active       Boolean      @default(true)
+  active       Boolean            @default(true)
   roleId       String
-  role         Role         @relation(fields: [roleId], references: [id])
+  role         Role               @relation(fields: [roleId], references: [id])
   memberships  TeamMember[]
   standups     Standup[]
-  createdAt    DateTime     @default(now())
+  pushSubs     PushSubscription[]
+  createdAt    DateTime           @default(now())
 }
 
 /// Daily scrum หนึ่งรายการต่อคน ต่อทีม ต่อวัน — กระดานของแต่ละทีมแยกกัน
@@ -83,4 +84,17 @@ model Standup {
   @@unique([userId, teamId, date])
   @@index([teamId, date])
   @@index([date])
+}
+
+/// เครื่อง/เบราว์เซอร์ที่ผู้ใช้เปิดรับ push notification (1 คนมีได้หลายเครื่อง)
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

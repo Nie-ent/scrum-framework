@@ -34,6 +34,15 @@ Role ตั้งต้น: Admin (100), Manager (80), Scrum Master (50), Team L
 
 ตั้งค่าอยู่ที่ `src/app/manifest.ts` · ไอคอนอยู่ใน `public/icon-*.png` · ยังต้องมีอินเทอร์เน็ตตอนใช้งาน (ไม่มี service worker)
 
+## แจ้งเตือนเช็กอิน (Push notification)
+
+ผู้ใช้เปิดเองที่หน้า **บัญชี → แจ้งเตือนเช็กอิน** (ตั้งค่าแยกรายเครื่อง) ระบบจะเตือนเฉพาะคนที่ยังไม่ได้เช็กอินของวันนั้น
+
+- เวลาเตือนกำหนดใน `vercel.json` (`0 2 * * 1-5` = 09:00 เวลาไทย จันทร์–ศุกร์) — แผน Hobby ของ Vercel รันได้วันละครั้งและเวลาอาจคลาดได้ภายในชั่วโมงนั้น
+- ต้องตั้ง env: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (สร้างด้วย `npx web-push generate-vapid-keys`), `VAPID_SUBJECT`, `CRON_SECRET`
+- ถ้าไม่ได้ใช้ Vercel (เช่น Docker) ให้ตั้ง cron ภายนอกเรียก `GET /api/cron/checkin-reminder` พร้อม header `Authorization: Bearer $CRON_SECRET`
+- iPhone รับแจ้งเตือนได้เมื่อติดตั้ง Pace ลงหน้าจอโฮมแล้ว (iOS 16.4+)
+
 ## รันด้วย Docker (แนะนำ)
 
 ```bash

@@ -1,6 +1,8 @@
 import { logout } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth";
 import { teamsLabel } from "@/lib/permissions";
+import { pushPublicKey } from "@/lib/push";
+import { NotificationSettings } from "./notification-settings";
 import { PasswordForm } from "./password-form";
 
 export default async function AccountPage() {
@@ -16,6 +18,7 @@ export default async function AccountPage() {
           {user.role.name} · Lv {user.role.level} · {teamsLabel(user.memberships)}
         </div>
       </div>
+      <NotificationSettings publicKey={pushPublicKey()} />
       <PasswordForm />
       <form action={logout} className="card flex items-center justify-between gap-3">
         <div>

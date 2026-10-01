@@ -15,7 +15,9 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-// manifest.webmanifest ต้องเปิดได้โดยไม่ login — เบราว์เซอร์ดึงไฟล์นี้โดยไม่ส่ง cookie
+// ไม่ผ่านการเช็ค session:
+// - manifest.webmanifest / sw.js: เบราว์เซอร์ดึงเองโดยอาจไม่มี cookie
+// - api/cron: ตรวจสิทธิ์ด้วย CRON_SECRET ใน route เอง
 export const config = {
-  matcher: ["/((?!api/health|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|ico)$).*)"],
+  matcher: ["/((?!api/health|api/cron|sw.js|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|ico)$).*)"],
 };
