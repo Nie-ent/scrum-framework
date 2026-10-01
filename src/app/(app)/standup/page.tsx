@@ -1,18 +1,41 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey, formatDateKey, keyToDate, todayKey } from "@/lib/dates";
+import { carryOver, toTasks } from "@/lib/tasks";
 import { StandupSections } from "@/components/standup-card";
+import { EmptyState } from "@/components/ui-state";
 import { StandupForm } from "./standup-form";
 
-export default async function StandupPage() {
+export default async function StandupPage({ searchParams }: PageProps<"/standup">) {
   const user = await requireUser();
+  const params = await searchParams;
   const today = todayKey();
+  const teams = user.memberships.map((m) => m.team);
 
-  const history = await prisma.standup.findMany({
-    where: { userId: user.id },
-    orderBy: { date: "desc" },
-    take: 15,
-  });
+  if (teams.length === 0) {
+    return (
+      <EmptyState
+        title="คุณยังไม่ได้อยู่ในทีมไหน"
+        description="Daily Scrum ส่งแยกตามทีม — ติดต่อผู้ดูแลระบบให้เพิ่มคุณเข้าทีมก่อน"
+      />
+    );
+  }
+
+  // คนที่อยู่หลายทีมเขียน scrum แยกกันต่อทีม
+  const team = teams.find((t) => t.id === params.team) ?? teams[0];
+  const [history, submittedToday] = await Promise.all([
+    prisma.standup.findMany({
+      where: { userId: user.id, teamId: team.id },
+      orderBy: { date: "desc" },
+      take: 15,
+    }),
+    prisma.standup.findMany({
+      where: { userId: user.id, date: keyToDate(today) },
+      select: { teamId: true },
+    }),
+  ]);
+  const doneTeams = new Set(submittedToday.map((s) => s.teamId));
   const current = history.find((s) => dateToKey(s.date) === today);
   const previous = history.find((s) => s.date < keyToDate(today));
 
@@ -25,24 +48,45 @@ export default async function StandupPage() {
             <h1 className="page-title">Daily Scrum</h1>
             <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
           </div>
-          <span className={`badge ${current ? "badge-success" : "badge-warning"}`}>{current ? "✓ เช็กอินแล้ว" : "รอเช็กอิน"}</span>
         </div>
+
+        {teams.length > 1 && (
+          <nav aria-label="เลือกทีม" className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
+            {teams.map((t) => (
+              <Link
+                key={t.id}
+                href={`/standup?team=${t.id}`}
+                aria-current={t.id === team.id ? "page" : undefined}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3 text-sm transition ${
+                  t.id === team.id ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"
+                }`}
+              >
+                {t.name}
+                <span className={`h-1.5 w-1.5 rounded-full ${doneTeams.has(t.id) ? "bg-emerald-500" : "bg-amber-400"}`} aria-label={doneTeams.has(t.id) ? "ส่งแล้ว" : "ยังไม่ส่ง"} />
+              </Link>
+            ))}
+          </nav>
+        )}
+
         <StandupForm
+          key={team.id}
+          teamId={team.id}
+          teamName={team.name}
           initial={{
-            // ถ้ายังไม่ได้ส่ง ดึงแผน "วันนี้" ของครั้งก่อนมาเป็นตั้งต้นของ "ล่าสุดทำอะไรไป"
-            yesterday: current?.yesterday ?? previous?.today ?? "",
-            today: current?.today ?? "",
+            yesterdayTasks: current ? toTasks(current.yesterdayTasks) : carryOver(toTasks(previous?.todayTasks)),
+            todayTasks: current ? toTasks(current.todayTasks) : [],
             blockers: current?.blockers ?? "",
             notWorking: current?.notWorking ?? "",
             workingWell: current?.workingWell ?? "",
           }}
+          carriedOver={!current && Boolean(previous)}
           submitted={Boolean(current)}
         />
       </section>
 
       <aside className="xl:border-l xl:border-slate-200 xl:pl-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-800">ประวัติของฉัน</h2>
+          <h2 className="font-semibold text-slate-800">ประวัติ · {team.name}</h2>
           <span className="badge badge-neutral">15 รายการล่าสุด</span>
         </div>
         <div className="space-y-3">
@@ -52,7 +96,7 @@ export default async function StandupPage() {
               <StandupSections standup={s} />
             </div>
           ))}
-          {history.length === 0 && <p className="text-sm text-slate-500">ยังไม่มีประวัติ</p>}
+          {history.length === 0 && <p className="text-sm text-slate-500">ยังไม่มีประวัติในทีมนี้</p>}
         </div>
       </aside>
     </div>

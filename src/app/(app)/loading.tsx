@@ -1,13 +1,16 @@
+import { LoadingRows } from "@/components/ui-state";
+
 export default function Loading() {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-8 w-48 rounded-lg bg-slate-200" />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="space-y-6" aria-busy="true" aria-live="polite">
+      <div className="animate-pulse"><div className="h-3 w-24 rounded bg-slate-200" /><div className="mt-3 h-9 w-52 rounded-xl bg-slate-200" /></div>
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4 animate-pulse">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-slate-200" />
+          <div key={i} className="h-28 rounded-2xl bg-slate-200" />
         ))}
       </div>
-      <div className="h-64 rounded-xl bg-slate-200" />
+      <LoadingRows />
+      <span className="sr-only">กำลังโหลดข้อมูล</span>
     </div>
   );
 }

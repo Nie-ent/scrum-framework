@@ -29,6 +29,7 @@ model Team {
   parent    Team?        @relation("TeamTree", fields: [parentId], references: [id], onDelete: Restrict)
   children  Team[]       @relation("TeamTree")
   members   TeamMember[]
+  standups  Standup[]
   createdAt DateTime     @default(now())
 
   @@index([parentId])
@@ -60,20 +61,26 @@ model User {
   createdAt    DateTime     @default(now())
 }
 
-/// Daily scrum หนึ่งรายการต่อคนต่อวัน
+/// Daily scrum หนึ่งรายการต่อคน ต่อทีม ต่อวัน — กระดานของแต่ละทีมแยกกัน
+/// teamId = null เฉพาะข้อมูลเก่าที่เจ้าของไม่มีทีม หรือทีมถูกลบไปแล้ว
 model Standup {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date        DateTime @db.Date
-  yesterday   String
-  today       String
-  blockers    String?
-  notWorking  String?
-  workingWell String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId         String?
+  team           Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  date           DateTime @db.Date
+  /// [{ text, done }] — ยกมาจาก todayTasks ของครั้งก่อน แล้วติ๊กว่าเสร็จหรือไม่
+  yesterdayTasks Json     @default("[]")
+  /// [{ text }]
+  todayTasks     Json     @default("[]")
+  blockers       String?
+  notWorking     String?
+  workingWell    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  @@unique([userId, date])
+  @@unique([userId, teamId, date])
+  @@index([teamId, date])
   @@index([date])
 }

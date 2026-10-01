@@ -53,19 +53,28 @@ async function main() {
   });
 
   const samples = [
-    { yesterday: "ทำ API login เสร็จ", today: "เชื่อมหน้า dashboard กับ API", blockers: "รอ spec จาก PO เรื่อง report", notWorking: "meeting ยาวเกิน 30 นาที", workingWell: "pair programming ช่วยให้เร็วขึ้น" },
-    { yesterday: "แก้ bug หน้า profile", today: "เขียน unit test ส่วน auth", workingWell: "code review เร็วดี" },
-    { yesterday: "เทส regression sprint 3", today: "เขียน test case ฟีเจอร์ใหม่", notWorking: "environment staging ล่มบ่อย" },
+    { yesterdayTasks: ["ทำ API login เสร็จ", "review PR #12"], todayTasks: ["เชื่อมหน้า dashboard กับ API", "แก้ bug หน้า profile"], blockers: "รอ spec จาก PO เรื่อง report", notWorking: "meeting ยาวเกิน 30 นาที", workingWell: "pair programming ช่วยให้เร็วขึ้น" },
+    { yesterdayTasks: ["แก้ bug หน้า profile"], todayTasks: ["เขียน unit test ส่วน auth"], workingWell: "code review เร็วดี" },
+    { yesterdayTasks: ["เทส regression sprint 3"], todayTasks: ["เขียน test case ฟีเจอร์ใหม่", "อัปเดต test plan"], notWorking: "environment staging ล่มบ่อย" },
   ];
+  // เขียนแยกต่อทีม: 1 รายการต่อคน ต่อทีม ต่อวัน
+  const memberships = await prisma.teamMember.findMany({ where: { userId: { in: users.map((u) => u.id) } } });
   for (let offset = -4; offset <= 0; offset++) {
     const date = new Date(`${dayKey(offset)}T00:00:00.000Z`);
-    for (const [i, user] of users.entries()) {
-      if (offset === 0 && i === users.length - 1) continue; // ให้มีคนยังไม่ส่งวันนี้
+    for (const [i, m] of memberships.entries()) {
+      if (offset === 0 && i % 3 === 2) continue; // ให้มีคนยังไม่ส่งวันนี้
       const s = samples[(i + offset + 10) % samples.length];
       await prisma.standup.upsert({
-        where: { userId_date: { userId: user.id, date } },
+        where: { userId_teamId_date: { userId: m.userId, teamId: m.teamId, date } },
         update: {},
-        create: { userId: user.id, date, ...s },
+        create: {
+          userId: m.userId,
+          teamId: m.teamId,
+          date,
+          ...s,
+          yesterdayTasks: s.yesterdayTasks.map((text, j) => ({ text, done: j % 2 === 0 })),
+          todayTasks: s.todayTasks.map((text) => ({ text })),
+        },
       });
     }
   }
