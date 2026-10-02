@@ -30,6 +30,7 @@ model Team {
   children  Team[]       @relation("TeamTree")
   members   TeamMember[]
   standups  Standup[]
+  tasks     Task[]
   createdAt DateTime     @default(now())
 
   @@index([parentId])
@@ -59,6 +60,8 @@ model User {
   memberships  TeamMember[]
   standups     Standup[]
   pushSubs     PushSubscription[]
+  tasks        Task[]             @relation("TaskAssignee")
+  createdTasks Task[]             @relation("TaskCreator")
   createdAt    DateTime           @default(now())
 }
 
@@ -97,4 +100,27 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+/// งานที่มอบหมายให้สมาชิกในทีม — เช็กอินอ้างถึงงานนี้ด้วย taskId แล้วอัปเดต progress กลับมาที่นี่
+model Task {
+  id          String    @id @default(cuid())
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assigneeId  String
+  assignee    User      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  /// คนที่สร้าง/มอบหมาย (null = บัญชีถูกลบไปแล้ว)
+  createdById String?
+  createdBy   User?     @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  /// 0–100, 100 = เสร็จ
+  progress    Int       @default(0)
+  dueDate     DateTime? @db.Date
+  doneAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([teamId, assigneeId])
+  @@index([assigneeId, progress])
 }

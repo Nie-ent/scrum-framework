@@ -32,3 +32,8 @@ export async function getVisibleTeams(viewer: CurrentUser): Promise<TeamRow[]> {
 export function teamWithChildren(teams: TeamRow[], teamId: string): TeamRow[] {
   return teams.filter((t) => t.id === teamId || t.parentId === teamId);
 }
+
+/** ทีมที่ viewer มอบหมาย/แก้ไขงานของคนอื่นได้ = ทีมที่ดูภาพรวมได้ (หัวหน้าทีม, หัวหน้าทีมแม่, Manager ขึ้นไป) */
+export async function getManageableTeamIds(viewer: CurrentUser): Promise<Set<string>> {
+  return new Set((await getVisibleTeams(viewer)).map((t) => t.id));
+}

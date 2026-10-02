@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey, formatDateKey, keyToDate, todayKey } from "@/lib/dates";
-import { carryOver, toTasks } from "@/lib/tasks";
+import { carryOver, toTasks, type Task } from "@/lib/tasks";
 import { StandupSections } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
 import { StandupForm } from "./standup-form";
@@ -24,7 +24,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
 
   // คนที่อยู่หลายทีมเขียน scrum แยกกันต่อทีม
   const team = teams.find((t) => t.id === params.team) ?? teams[0];
-  const [history, submittedToday] = await Promise.all([
+  const [history, submittedToday, myTasks] = await Promise.all([
     prisma.standup.findMany({
       where: { userId: user.id, teamId: team.id },
       orderBy: { date: "desc" },
@@ -34,7 +34,21 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
       where: { userId: user.id, date: keyToDate(today) },
       select: { teamId: true },
     }),
+    // งานที่ได้รับมอบหมายในทีมนี้ (รวมที่เสร็จแล้ว เพื่อใช้ตรวจ taskId ในเช็กอินเก่า)
+    prisma.task.findMany({
+      where: { assigneeId: user.id, teamId: team.id },
+      select: { id: true, title: true, progress: true },
+      orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    }),
   ]);
+  const taskById = new Map(myTasks.map((t) => [t.id, t]));
+  // บรรทัดที่อ้างถึงงาน: ใช้ชื่อและ % ล่าสุดของงานนั้น — งานที่ถูกลบไปแล้วกลายเป็นบรรทัดธรรมดา
+  const syncLinked = (tasks: Task[], useTaskProgress: boolean): Task[] =>
+    tasks.map(({ taskId, ...rest }) => {
+      const linked = taskId ? taskById.get(taskId) : undefined;
+      if (!linked) return rest;
+      return { ...rest, taskId, text: linked.title, ...(useTaskProgress ? { progress: linked.progress } : {}) };
+    });
   const doneTeams = new Set(submittedToday.map((s) => s.teamId));
   const current = history.find((s) => dateToKey(s.date) === today);
   const previous = history.find((s) => s.date < keyToDate(today));
@@ -73,14 +87,17 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
           teamId={team.id}
           teamName={team.name}
           initial={{
-            yesterdayTasks: current ? toTasks(current.yesterdayTasks) : carryOver(toTasks(previous?.todayTasks)),
-            todayTasks: current ? toTasks(current.todayTasks) : [],
+            yesterdayTasks: current
+              ? syncLinked(toTasks(current.yesterdayTasks), false)
+              : syncLinked(carryOver(toTasks(previous?.todayTasks)), true),
+            todayTasks: current ? syncLinked(toTasks(current.todayTasks), false) : [],
             blockers: current?.blockers ?? "",
             notWorking: current?.notWorking ?? "",
             workingWell: current?.workingWell ?? "",
           }}
           carriedOver={!current && Boolean(previous)}
           submitted={Boolean(current)}
+          assigned={myTasks.filter((t) => t.progress < 100)}
         />
       </section>
 

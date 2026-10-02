@@ -1,7 +1,8 @@
 import * as z from "zod";
 
 /** progress = % ที่งานสำเร็จแล้ว (0–100) — ใน todayTasks คือจุดเริ่มต้นของงานที่ยกมาทำต่อ */
-export type Task = { text: string; progress?: number };
+/** taskId = อ้างถึงงานที่มอบหมายไว้ (ตาราง Task) — บรรทัดที่พิมพ์เองไม่มี */
+export type Task = { text: string; progress?: number; taskId?: string };
 
 const TaskSchema = z
   .object({
@@ -9,10 +10,11 @@ const TaskSchema = z
     progress: z.number().int().min(0).max(100).optional(),
     /** รูปแบบเก่า: done = เสร็จ 100% */
     done: z.boolean().optional(),
+    taskId: z.string().min(1).max(40).optional(),
   })
-  .transform(({ text, progress, done }): Task => {
+  .transform(({ text, progress, done, taskId }): Task => {
     const value = progress ?? (done ? 100 : undefined);
-    return value === undefined ? { text } : { text, progress: value };
+    return { text, ...(value === undefined ? {} : { progress: value }), ...(taskId ? { taskId } : {}) };
   });
 export const TaskListSchema = z.array(TaskSchema).max(50);
 
@@ -26,7 +28,7 @@ export const isDone = (task: Task) => (task.progress ?? 0) >= 100;
 
 /** งานที่วางแผนไว้ครั้งก่อน → ตั้งต้น "ล่าสุดทำอะไรไป" ของวันนี้ (คง % เดิมของงานที่ทำต่อเนื่อง) */
 export function carryOver(previousToday: Task[]): Task[] {
-  return previousToday.map((t) => ({ text: t.text, progress: t.progress ?? 0 }));
+  return previousToday.map((t) => ({ text: t.text, progress: t.progress ?? 0, ...(t.taskId ? { taskId: t.taskId } : {}) }));
 }
 
 /** % เฉลี่ยของทุก task — null ถ้าไม่มี task */

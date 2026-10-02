@@ -78,6 +78,18 @@ async function main() {
       });
     }
   }
+  // งานที่หัวหน้ามอบหมาย (สร้างครั้งเดียว)
+  if ((await prisma.task.count()) === 0) {
+    const byEmail = Object.fromEntries(users.map((u) => [u.email, u.id]));
+    const lead = byEmail["lead@example.com"];
+    await prisma.task.createMany({
+      data: [
+        { teamId: web.id, assigneeId: byEmail["dev1@example.com"], createdById: lead, title: "ทำหน้า checkout ให้รองรับ PromptPay", progress: 40 },
+        { teamId: web.id, assigneeId: byEmail["dev2@example.com"], createdById: lead, title: "แก้ performance หน้า dashboard", dueDate: new Date(`${dayKey(3)}T00:00:00.000Z`) },
+        { teamId: qa.id, assigneeId: byEmail["qa@example.com"], createdById: lead, title: "เขียน test plan sprint 4", progress: 70 },
+      ],
+    });
+  }
   console.log("Demo data seeded");
 }
 

@@ -5,7 +5,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { keyToDate, todayKey } from "@/lib/dates";
-import { TaskListSchema } from "@/lib/tasks";
+import { TaskListSchema, type Task } from "@/lib/tasks";
 import type { FormState } from "./auth";
 
 const optional = z
@@ -54,13 +54,43 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
 
   // บันทึกได้เฉพาะของวันนี้ (ตาม APP_TIMEZONE) ส่งซ้ำ = แก้ไข
   const date = keyToDate(todayKey());
-  await prisma.standup.upsert({
-    where: { userId_teamId_date: { userId: user.id, teamId, date } },
-    create: { userId: user.id, teamId, date, ...data },
-    update: data,
-  });
+  // บรรทัดที่อ้างถึงงานที่มอบหมาย: ใช้ได้เฉพาะงานของตัวเองในทีมนี้ (กันการส่ง taskId ของคนอื่นมา)
+  const linkedIds = [...data.yesterdayTasks, ...data.todayTasks].flatMap((t) => (t.taskId ? [t.taskId] : []));
+  const owned = new Set(
+    linkedIds.length === 0
+      ? []
+      : (
+          await prisma.task.findMany({
+            where: { id: { in: linkedIds }, assigneeId: user.id, teamId },
+            select: { id: true },
+          })
+        ).map((t) => t.id),
+  );
+  const keepOwned = (tasks: Task[]): Task[] =>
+    tasks.map(({ taskId, ...rest }) => (taskId && owned.has(taskId) ? { ...rest, taskId } : rest));
+  const yesterdayTasks = keepOwned(data.yesterdayTasks);
+  const todayTasks = keepOwned(data.todayTasks);
+
+  await prisma.$transaction([
+    prisma.standup.upsert({
+      where: { userId_teamId_date: { userId: user.id, teamId, date } },
+      create: { userId: user.id, teamId, date, ...data, yesterdayTasks, todayTasks },
+      update: { ...data, yesterdayTasks, todayTasks },
+    }),
+    // % ที่อัปเดตใน "ล่าสุดทำอะไรไป" ไหลกลับไปที่งานที่มอบหมาย
+    ...yesterdayTasks
+      .filter((t) => t.taskId)
+      .map((t) => {
+        const progress = t.progress ?? 0;
+        return prisma.task.update({
+          where: { id: t.taskId! },
+          data: { progress, doneAt: progress >= 100 ? new Date() : null },
+        });
+      }),
+  ]);
 
   revalidatePath("/standup");
   revalidatePath("/dashboard");
+  revalidatePath("/tasks");
   return { ok: "บันทึก daily scrum ของวันนี้แล้ว" };
 }

@@ -96,13 +96,16 @@ export function TaskListEditor({
             }}
             id={index === 0 ? id : undefined}
             value={task.text}
+            // งานที่มอบหมาย: ชื่อมาจากงานนั้น แก้ที่นี่ไม่ได้ (อัปเดตได้เฉพาะ %)
+            readOnly={Boolean(task.taskId)}
+            title={task.taskId ? "งานที่ได้รับมอบหมาย" : undefined}
             onChange={(e) => update(index, { text: e.target.value })}
             onKeyDown={(e) => onKeyDown(e, index)}
             onPaste={(e) => onPaste(e, index)}
             placeholder={index === 0 ? placeholder : "task ถัดไป…"}
             maxLength={500}
             enterKeyHint="next"
-            className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""}`}
+            className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""} ${task.taskId ? "border-indigo-200 bg-indigo-50/50" : ""}`}
           />
           {withProgress && (
             <label className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
@@ -121,7 +124,7 @@ export function TaskListEditor({
               %
             </label>
           )}
-          {rows.length > 1 && (
+          {(rows.length > 1 || task.taskId) && (
             <button
               type="button"
               aria-label="ลบ task"
