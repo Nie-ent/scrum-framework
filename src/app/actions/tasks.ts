@@ -67,9 +67,10 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
   return { ok: data.assigneeId === user.id ? "เพิ่มงานแล้ว" : "มอบหมายงานแล้ว" };
 }
 
-async function loadTask(user: CurrentUser, id: string) {
+/** includeDeleted = ใช้ตอนกดเลิกทำ (ปกติงานที่ลบแล้วถือว่าไม่มี) */
+async function loadTask(user: CurrentUser, id: string, includeDeleted = false) {
   const task = await prisma.task.findUnique({ where: { id } });
-  if (!task) return null;
+  if (!task || (task.deletedAt && !includeDeleted)) return null;
   const canManage = (await getManageableTeamIds(user)).has(task.teamId);
   return { task, canManage, isAssignee: task.assigneeId === user.id };
 }
@@ -89,12 +90,29 @@ export async function setTaskProgress(formData: FormData) {
 }
 
 /** ลบได้: หัวหน้าทีม หรือเจ้าของงานที่สร้างให้ตัวเอง */
-export async function deleteTask(formData: FormData) {
-  const user = await requireUser();
-  const found = await loadTask(user, String(formData.get("id")));
-  if (!found) return;
+async function canDelete(user: CurrentUser, id: string, includeDeleted = false) {
+  const found = await loadTask(user, id, includeDeleted);
+  if (!found) return null;
   const ownTask = found.isAssignee && found.task.createdById === user.id;
-  if (!found.canManage && !ownTask) return;
-  await prisma.task.delete({ where: { id: found.task.id } });
+  return found.canManage || ownTask ? found.task : null;
+}
+
+/** ลบแบบซ่อนไว้ (deletedAt) เพื่อให้กดเลิกทำได้ */
+export async function deleteTask(formData: FormData): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  const task = await canDelete(user, String(formData.get("id")));
+  if (!task) return { ok: false };
+  await prisma.task.update({ where: { id: task.id }, data: { deletedAt: new Date() } });
   done();
+  return { ok: true };
+}
+
+/** เลิกทำการลบ — คืนได้ภายใน 1 วันหลังลบ */
+export async function restoreTask(formData: FormData): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  const task = await canDelete(user, String(formData.get("id")), true);
+  if (!task?.deletedAt || Date.now() - task.deletedAt.getTime() > 24 * 60 * 60 * 1000) return { ok: false };
+  await prisma.task.update({ where: { id: task.id }, data: { deletedAt: null } });
+  done();
+  return { ok: true };
 }

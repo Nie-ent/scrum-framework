@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { deleteTask, setTaskProgress } from "@/app/actions/tasks";
+import { setTaskProgress } from "@/app/actions/tasks";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey, formatDateKey, todayKey } from "@/lib/dates";
 import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
 import { ProgressBar } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
-import { SwipeDeleteTask } from "./swipe-delete-task";
+import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-delete";
 import { TaskForm } from "./task-form";
 import { Avatar } from "@/components/avatar";
 
@@ -41,7 +41,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
       : Promise.resolve([]),
     prisma.task.findMany({
       // หัวหน้าทีมเห็นงานของทุกคนในทีม — สมาชิกเห็นงานของตัวเอง
-      where: { teamId: team.id, ...(canManage ? {} : { assigneeId: user.id }) },
+      where: { teamId: team.id, deletedAt: null, ...(canManage ? {} : { assigneeId: user.id }) },
       include: { assignee: { select: { id: true, name: true, avatarUpdatedAt: true } }, createdBy: { select: { id: true, name: true } } },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
@@ -90,12 +90,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           ) : (
             <span className="text-xs font-semibold tabular-nums text-slate-600">{t.progress}%</span>
           )}
-          {canDelete(t) && (
-            <form action={deleteTask}>
-              <input type="hidden" name="id" value={t.id} />
-              <button aria-label={`ลบงาน ${t.title}`} title="ลบงาน" className="rounded-lg px-2 py-1 text-slate-400 transition hover:text-rose-600">×</button>
-            </form>
-          )}
+          {canDelete(t) && <DeleteTaskButton id={t.id} title={t.title} />}
         </div>
 </div>
     );
@@ -104,12 +99,13 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const renderTask = (t: TaskRow) => {
     return (
       <li key={t.id}>
-        {canDelete(t) ? <SwipeDeleteTask taskId={t.id}>{row(t)}</SwipeDeleteTask> : row(t)}
+        {canDelete(t) ? <SwipeDeleteTask id={t.id} title={t.title}>{row(t)}</SwipeDeleteTask> : row(t)}
       </li>
     );
   };
 
   return (
+    <UndoDeleteProvider>
     <div className="space-y-6">
       <div className="page-header">
         <div>
@@ -178,5 +174,6 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         </details>
       )}
     </div>
+    </UndoDeleteProvider>
   );
 }

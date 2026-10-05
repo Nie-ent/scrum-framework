@@ -61,7 +61,7 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
       ? []
       : (
           await prisma.task.findMany({
-            where: { id: { in: linkedIds }, assigneeId: user.id, teamId },
+            where: { id: { in: linkedIds }, assigneeId: user.id, teamId, deletedAt: null },
             select: { id: true },
           })
         ).map((t) => t.id),

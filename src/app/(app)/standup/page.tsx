@@ -36,7 +36,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     }),
     // งานที่ได้รับมอบหมายในทีมนี้ (รวมที่เสร็จแล้ว เพื่อใช้ตรวจ taskId ในเช็กอินเก่า)
     prisma.task.findMany({
-      where: { assigneeId: user.id, teamId: team.id },
+      where: { assigneeId: user.id, teamId: team.id, deletedAt: null },
       select: { id: true, title: true, progress: true },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
