@@ -47,7 +47,9 @@ export async function uploadAvatar(formData: FormData): Promise<{ ok: boolean; e
     await saveAvatarImage(user.id, data, mimeType);
   } catch (e) {
     console.error(e);
-    return { ok: false, error: "อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง" };
+    // ใส่รหัสสถานะจาก Storage ไว้ท้ายข้อความ ช่วยให้แจ้งปัญหาได้ตรงจุด
+    const status = /failed: (\d{3})/.exec(String(e))?.[1];
+    return { ok: false, error: `อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง${status ? ` (Storage ${status})` : ""}` };
   }
   await prisma.user.update({ where: { id: user.id }, data: { avatarUpdatedAt: new Date() } });
   revalidatePath("/", "layout");
