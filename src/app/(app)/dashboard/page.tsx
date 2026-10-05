@@ -9,6 +9,7 @@ import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
 import { ProgressSummary, StandupSections } from "@/components/standup-card";
+import { Avatar } from "@/components/avatar";
 
 const TREND_DAYS = 7;
 
@@ -144,7 +145,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <article key={key} className={`card flex flex-col gap-3 ${entry ? "transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md" : "border-dashed bg-slate-50/60"}`}>
                 <header className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{member.name.slice(0, 1)}</span>
+                    <Avatar user={member} size={36} />
                     <div className="min-w-0">
                       <Link href={`/dashboard/member/${member.id}`} className="block truncate font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link>
                       <p className="truncate text-xs text-slate-500">{member.role.name} · {team.name}</p>
@@ -163,7 +164,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         {view === "table" && (
         <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block">
           <table className="w-full min-w-[1080px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">ทีม</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{member.name.slice(0, 1)}</span><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">รายละเอียด →</Link></td></tr>)}</tbody>
+            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">รายละเอียด →</Link></td></tr>)}</tbody>
           </table>
         </div>
         )}

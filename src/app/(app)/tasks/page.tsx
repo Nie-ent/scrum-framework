@@ -8,6 +8,7 @@ import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
 import { ProgressBar } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
 import { TaskForm } from "./task-form";
+import { Avatar } from "@/components/avatar";
 
 export const metadata: Metadata = { title: "งาน" };
 
@@ -40,7 +41,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
     prisma.task.findMany({
       // หัวหน้าทีมเห็นงานของทุกคนในทีม — สมาชิกเห็นงานของตัวเอง
       where: { teamId: team.id, ...(canManage ? {} : { assigneeId: user.id }) },
-      include: { assignee: { select: { id: true, name: true } }, createdBy: { select: { id: true, name: true } } },
+      include: { assignee: { select: { id: true, name: true, avatarUpdatedAt: true } }, createdBy: { select: { id: true, name: true } } },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
   ]);
@@ -51,12 +52,13 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
   // หัวหน้าทีม: จัดกลุ่มตามคน — สมาชิก: กลุ่มเดียว
   const groups = canManage
-    ? [...new Map(open.map((t) => [t.assignee.id, t.assignee.name])).entries()].map(([id, name]) => ({
-        id,
-        name,
-        tasks: open.filter((t) => t.assignee.id === id),
+    ? [...new Map(open.map((t) => [t.assignee.id, t.assignee])).values()].map((assignee) => ({
+        id: assignee.id,
+        name: assignee.name,
+        person: assignee,
+        tasks: open.filter((t) => t.assignee.id === assignee.id),
       }))
-    : [{ id: user.id, name: "งานของฉัน", tasks: open }];
+    : [{ id: user.id, name: "งานของฉัน", person: user, tasks: open }];
 
   type TaskRow = (typeof tasks)[number];
   const canDelete = (t: TaskRow) => canManage || (t.assignee.id === user.id && t.createdBy?.id === user.id);
@@ -142,7 +144,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         groups.map((g) => (
           <section key={g.id} className="card">
             <div className="mb-1 flex items-center justify-between gap-2">
-              <h2 className="font-semibold text-slate-900">{g.name}</h2>
+              <h2 className="flex items-center gap-2.5 font-semibold text-slate-900"><Avatar user={g.person} size={28} />{g.name}</h2>
               <span className="badge badge-neutral">{g.tasks.length} งาน</span>
             </div>
             <ul className="divide-y divide-slate-100">{g.tasks.map(renderTask)}</ul>

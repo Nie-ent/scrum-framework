@@ -7,6 +7,7 @@ import { getVisibleTeams } from "@/lib/teams";
 import { dateToKey, formatDateKey } from "@/lib/dates";
 import { StandupSections } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
+import { Avatar } from "@/components/avatar";
 
 export default async function MemberPage({ params }: PageProps<"/dashboard/member/[id]">) {
   const viewer = await requireOverviewAccess();
@@ -33,11 +34,14 @@ export default async function MemberPage({ params }: PageProps<"/dashboard/membe
   return (
     <div className="space-y-4">
       <Link href="/dashboard" className="text-sm text-slate-500 hover:text-indigo-600">← กลับภาพรวม</Link>
-      <div>
+      <div className="flex items-center gap-4">
+        <Avatar user={member} size={56} />
+        <div>
         <h1 className="text-2xl font-semibold">{member.name}</h1>
         <p className="text-sm text-slate-500">
           {member.role.name} · Lv {member.role.level} · {teamsLabel(member.memberships)} · {member.email}
         </p>
+        </div>
       </div>
       <div className="space-y-3">
         {member.standups.map((s) => (

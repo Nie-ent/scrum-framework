@@ -50,19 +50,22 @@ model TeamMember {
 }
 
 model User {
-  id           String             @id @default(cuid())
-  email        String             @unique
-  name         String
-  passwordHash String
-  active       Boolean            @default(true)
-  roleId       String
-  role         Role               @relation(fields: [roleId], references: [id])
-  memberships  TeamMember[]
-  standups     Standup[]
-  pushSubs     PushSubscription[]
-  tasks        Task[]             @relation("TaskAssignee")
-  createdTasks Task[]             @relation("TaskCreator")
-  createdAt    DateTime           @default(now())
+  id              String             @id @default(cuid())
+  email           String             @unique
+  name            String
+  passwordHash    String
+  active          Boolean            @default(true)
+  roleId          String
+  role            Role               @relation(fields: [roleId], references: [id])
+  memberships     TeamMember[]
+  standups        Standup[]
+  pushSubs        PushSubscription[]
+  /// มีค่าเมื่อมีรูปโปรไฟล์ — ใช้เป็นเวอร์ชันใน URL รูป (?v=) เพื่อให้ cache ได้นานแต่เปลี่ยนรูปแล้วเห็นทันที
+  avatarUpdatedAt DateTime?
+  avatar          Avatar?
+  tasks           Task[]             @relation("TaskAssignee")
+  createdTasks    Task[]             @relation("TaskCreator")
+  createdAt       DateTime           @default(now())
 }
 
 /// Daily scrum หนึ่งรายการต่อคน ต่อทีม ต่อวัน — กระดานของแต่ละทีมแยกกัน
@@ -123,4 +126,13 @@ model Task {
 
   @@index([teamId, assigneeId])
   @@index([assigneeId, progress])
+}
+
+/// รูปโปรไฟล์ (ย่อเป็น 256×256 ในเบราว์เซอร์ก่อนอัปโหลด) — แยกตารางเพื่อไม่ให้ query ผู้ใช้ทั่วไปดึงไฟล์รูปมาด้วย
+model Avatar {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Bytes
+  mimeType  String
+  updatedAt DateTime @updatedAt
 }

@@ -4,6 +4,7 @@ import { BottomNav, type NavIcon } from "@/components/bottom-nav";
 import { NavLink } from "@/components/nav-link";
 import { requireUser } from "@/lib/auth";
 import { canAdmin, canViewOverview, teamsLabel } from "@/lib/permissions";
+import { Avatar } from "@/components/avatar";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -37,12 +38,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           {/* ชื่อผู้ใช้พาไปหน้าบัญชี — ปุ่มออกจากระบบอยู่ในหน้านั้น */}
           <Link
             href="/account"
-            className="min-w-0 rounded-xl text-right leading-tight transition hover:bg-slate-100 lg:mt-auto lg:rounded-2xl lg:bg-slate-50 lg:p-3 lg:text-left"
+            className="flex min-w-0 items-center gap-2.5 rounded-xl leading-tight transition hover:bg-slate-100 lg:mt-auto lg:rounded-2xl lg:bg-slate-50 lg:p-3"
           >
+            <Avatar user={user} size={32} />
+            <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-slate-800">{user.name}</div>
             <div className="mt-0.5 hidden text-xs text-slate-500 sm:block">
               {user.role.name} · Lv {level}
               {user.memberships.length > 0 && ` · ${teamsLabel(user.memberships)}`}
+            </div>
             </div>
           </Link>
         </div>
