@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type KeyboardEvent, type ClipboardEvent } from "react";
 import { isDone, type Task } from "@/lib/tasks";
+import { SwipeToDelete } from "./swipe-to-delete";
 
 /**
  * รายการ task แบบพิมพ์ต่อเนื่อง: Enter = ขึ้น task ใหม่, Backspace ในบรรทัดว่าง = ลบ,
@@ -78,7 +79,14 @@ export function TaskListEditor({
   return (
     <ul className="space-y-1.5" aria-labelledby={`${id}-label`}>
       {rows.map((task, index) => (
-        <li key={index} className="group/task flex items-center gap-1.5 sm:gap-2">
+        <li key={index}>
+          {/* มือถือ: ปัดขวาเพื่อลบบรรทัด (เมาส์ใช้ปุ่ม ×) — padding กันไม่ให้ขอบ focus ของช่องกรอกถูกตัด */}
+          <SwipeToDelete
+            label="ลบ task"
+            disabled={!(rows.length > 1 || task.taskId)}
+            onDelete={() => onChange(rows.filter((_, i) => i !== index))}
+          >
+          <div className="group/task flex items-center gap-1.5 p-1 sm:gap-2">
           {withProgress ? (
             <input
               type="checkbox"
@@ -134,6 +142,8 @@ export function TaskListEditor({
               ×
             </button>
           )}
+          </div>
+          </SwipeToDelete>
         </li>
       ))}
       <li className="pl-4 text-xs text-slate-400">กด Enter เพื่อเพิ่ม task<span className="hidden sm:inline"> · Backspace ในบรรทัดว่างเพื่อลบ</span></li>

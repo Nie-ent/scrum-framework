@@ -7,6 +7,7 @@ import { dateToKey, formatDateKey, todayKey } from "@/lib/dates";
 import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
 import { ProgressBar } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
+import { SwipeDeleteTask } from "./swipe-delete-task";
 import { TaskForm } from "./task-form";
 import { Avatar } from "@/components/avatar";
 
@@ -64,11 +65,11 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const canDelete = (t: TaskRow) => canManage || (t.assignee.id === user.id && t.createdBy?.id === user.id);
   const canUpdate = (t: TaskRow) => canManage || t.assignee.id === user.id;
 
-  const renderTask = (t: TaskRow) => {
+  const row = (t: TaskRow) => {
     const dueKey = t.dueDate ? dateToKey(t.dueDate) : null;
     const late = dueKey !== null && dueKey < today && t.progress < 100;
     return (
-      <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
         <div className="min-w-0 flex-1 basis-56">
           <p className={`font-medium ${t.progress >= 100 ? "text-slate-400 line-through" : "text-slate-800"}`}>{t.title}</p>
           {t.description && <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-500">{t.description}</p>}
@@ -96,6 +97,14 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             </form>
           )}
         </div>
+</div>
+    );
+  };
+
+  const renderTask = (t: TaskRow) => {
+    return (
+      <li key={t.id}>
+        {canDelete(t) ? <SwipeDeleteTask taskId={t.id}>{row(t)}</SwipeDeleteTask> : row(t)}
       </li>
     );
   };
