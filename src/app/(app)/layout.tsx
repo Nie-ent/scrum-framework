@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BottomNav, type NavIcon } from "@/components/bottom-nav";
 import { NavLink } from "@/components/nav-link";
 import { requireUser } from "@/lib/auth";
-import { canAdmin, canViewOverview, teamsLabel } from "@/lib/permissions";
+import { canAdmin, canViewOverview } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -44,8 +44,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-slate-800">{user.name}</div>
             <div className="mt-0.5 hidden text-xs text-slate-500 sm:block">
-              {user.role.name} · Lv {level}
-              {user.memberships.length > 0 && ` · ${teamsLabel(user.memberships)}`}
+              {user.role.name}
             </div>
             </div>
           </Link>

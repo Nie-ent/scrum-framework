@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { deleteAvatarImage, saveAvatarImage } from "@/lib/avatar-store";
 import type { FormState } from "./auth";
 
 const MAX_AVATAR_BYTES = 300 * 1024;
@@ -42,25 +43,22 @@ export async function uploadAvatar(formData: FormData): Promise<{ ok: boolean; e
   const mimeType = detectImageType(data);
   if (!mimeType) return { ok: false, error: "รองรับเฉพาะรูป JPG, PNG หรือ WebP" };
 
-  const now = new Date();
-  await prisma.$transaction([
-    prisma.avatar.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id, data, mimeType },
-      update: { data, mimeType },
-    }),
-    prisma.user.update({ where: { id: user.id }, data: { avatarUpdatedAt: now } }),
-  ]);
+  try {
+    await saveAvatarImage(user.id, data, mimeType);
+  } catch (e) {
+    console.error(e);
+    return { ok: false, error: "อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง" };
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { avatarUpdatedAt: new Date() } });
   revalidatePath("/", "layout");
   return { ok: true };
 }
 
 export async function removeAvatar(): Promise<{ ok: boolean }> {
   const user = await requireUser();
-  await prisma.$transaction([
-    prisma.avatar.deleteMany({ where: { userId: user.id } }),
-    prisma.user.update({ where: { id: user.id }, data: { avatarUpdatedAt: null } }),
-  ]);
+  // ซ่อนรูปก่อน แล้วค่อยลบไฟล์ — ถ้าลบไฟล์ไม่สำเร็จ ผู้ใช้ก็ไม่เห็นรูปแล้ว
+  await prisma.user.update({ where: { id: user.id }, data: { avatarUpdatedAt: null } });
+  await deleteAvatarImage(user.id).catch((e) => console.error(e));
   revalidatePath("/", "layout");
   return { ok: true };
 }
