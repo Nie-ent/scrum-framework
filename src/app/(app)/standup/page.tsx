@@ -23,7 +23,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     return (
       <EmptyState
         title="คุณยังไม่ได้อยู่ในทีมไหน"
-        description="Daily Scrum ส่งแยกตามทีม — ติดต่อผู้ดูแลระบบให้เพิ่มคุณเข้าทีมก่อน"
+        description="Daily Scrum ส่งแยกตามทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน"
+        action={{ href: "/teams", label: "ไปหน้า ทีม" }}
       />
     );
   }

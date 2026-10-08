@@ -11,6 +11,8 @@ const ROLES = [
   { name: "Team Lead", level: 50, description: "ดูภาพรวมทีมตัวเอง" },
   { name: "Developer", level: 10, description: "ส่ง daily scrum" },
   { name: "QA", level: 10, description: "ส่ง daily scrum" },
+  // role ตั้งต้นของคนที่สมัครเอง
+  { name: "Member", level: 10, description: "ผู้ใช้ทั่วไป" },
 ];
 
 async function main() {

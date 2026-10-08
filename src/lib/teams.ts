@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import type { CurrentUser } from "./auth";
-import { canLead } from "./permissions";
+import { canAdmin, canLead } from "./permissions";
 
 export type TeamRow = { id: string; name: string; parentId: string | null };
 
@@ -32,4 +32,16 @@ export function teamWithChildren(teams: TeamRow[], teamId: string): TeamRow[] {
 /** ทีมที่ viewer มอบหมาย/แก้ไขงานของคนอื่นได้ = ทีมที่ดูภาพรวมได้ (หัวหน้า/เจ้าของทีม หรือของทีมแม่) */
 export async function getManageableTeamIds(viewer: CurrentUser): Promise<Set<string>> {
   return new Set((await getVisibleTeams(viewer)).map((t) => t.id));
+}
+
+/**
+ * สิทธิ์จัดการทีม (สมาชิก/คำเชิญ) — สิทธิ์ของทีมแม่ใช้กับทีมย่อยด้วย
+ * owner = แก้สิทธิ์/ลบสมาชิก/ตั้งค่าทีมได้ (รวมผู้ดูแลแพลตฟอร์ม) · lead = เชิญสมาชิกทั่วไปได้
+ */
+export async function getTeamControl(viewer: CurrentUser, teamId: string) {
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true, parentId: true } });
+  if (!team) return null;
+  const mine = viewer.memberships.filter((m) => m.teamId === team.id || m.teamId === team.parentId);
+  const owner = canAdmin(viewer.role.level) || mine.some((m) => m.access === "OWNER");
+  return { team, owner, lead: owner || mine.some(canLead), member: viewer.memberships.some((m) => m.teamId === team.id) };
 }

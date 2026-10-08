@@ -9,11 +9,13 @@ import { Avatar } from "@/components/avatar";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const level = user.role.level;
-  const nav: { href: string; label: string; short: string; icon: NavIcon; show: boolean }[] = [
+  // mobile: false = ไม่อยู่ในแถบเมนูล่าง (ที่จำกัด) — เข้าได้จากหน้า บัญชี
+  const nav: { href: string; label: string; short: string; icon: NavIcon; show: boolean; mobile?: boolean }[] = [
     { href: "/standup", label: "Daily Scrum", short: "เช็กอิน", icon: "checkin", show: true },
     { href: "/tasks", label: "งาน", short: "งาน", icon: "tasks", show: true },
     { href: "/files", label: "ไฟล์สำคัญ", short: "ไฟล์", icon: "files", show: true },
     { href: "/dashboard", label: "ภาพรวมทีม", short: "ภาพรวม", icon: "overview", show: canViewOverview(user) },
+    { href: "/teams", label: "ทีม", short: "ทีม", icon: "teams", show: true, mobile: false },
     { href: "/admin", label: "Admin", short: "จัดการ", icon: "admin", show: canAdmin(level) },
     { href: "/account", label: "บัญชี", short: "บัญชี", icon: "account", show: true },
   ];
@@ -53,7 +55,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </header>
       {/* เว้นที่ด้านล่างให้แถบเมนูมือถือ (รวม safe area ของ iPhone) */}
       <main className="min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-10"><div className="mx-auto max-w-7xl">{children}</div></main>
-      <BottomNav items={items.map(({ href, short, icon }) => ({ href, label: short, icon }))} />
+      <BottomNav items={items.filter((item) => item.mobile !== false).map(({ href, short, icon }) => ({ href, label: short, icon }))} />
     </div>
   );
 }

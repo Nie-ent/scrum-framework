@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { logout } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth";
 import { teamsLabel } from "@/lib/permissions";
@@ -20,6 +21,13 @@ export default async function AccountPage() {
           summary: `${[...new Set(user.memberships.map((m) => m.title ?? user.role.name))].join(", ") || user.role.name} · ${teamsLabel(user.memberships)}`,
         }}
       />
+      <Link href="/teams" className="card flex items-center justify-between gap-3 transition hover:border-indigo-200">
+        <div>
+          <h2 className="font-semibold text-slate-900">ทีมของฉัน</h2>
+          <p className="text-sm text-slate-500">ดูทีมที่อยู่ รับคำเชิญ สร้างทีม และเชิญคนเข้าทีม</p>
+        </div>
+        <span className="shrink-0 text-indigo-600" aria-hidden="true">→</span>
+      </Link>
       <NotificationSettings publicKey={pushPublicKey()} />
       <PasswordForm />
       <form action={logout} className="card flex items-center justify-between gap-3">

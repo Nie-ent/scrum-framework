@@ -13,9 +13,11 @@ const dayKey = (offset) => {
 async function main() {
   const role = (name) => prisma.role.findUniqueOrThrow({ where: { name } });
   // ทีมใหญ่ Alpha → ทีมย่อย Alpha Web / Alpha QA
-  const tribe = await prisma.team.upsert({ where: { name: "Alpha" }, update: {}, create: { name: "Alpha" } });
-  const subTeam = (name) =>
-    prisma.team.upsert({ where: { name }, update: {}, create: { name, parentId: tribe.id } });
+  // ชื่อทีมไม่ unique ทั้งระบบแล้ว (ซ้ำได้ข้ามลูกค้า) จึงหาเองก่อนสร้าง
+  const team = async (name, parentId = null) =>
+    (await prisma.team.findFirst({ where: { name, parentId } })) ?? (await prisma.team.create({ data: { name, parentId } }));
+  const tribe = await team("Alpha");
+  const subTeam = (name) => team(name, tribe.id);
   const web = await subTeam("Alpha Web");
   const qa = await subTeam("Alpha QA");
   const passwordHash = await bcrypt.hash("password123", 10);

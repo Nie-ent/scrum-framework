@@ -1,15 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, decryptSession } from "@/lib/session";
 
-// ตรวจแค่ว่ามี session ที่ถูกต้อง — การเช็คสิทธิ์ตาม role level ทำใน page/action (requireUser)
+// หน้าที่เปิดได้โดยไม่ต้อง login
+const GUEST_ONLY = ["/login", "/signup", "/forgot-password"]; // login แล้วเข้าไม่ได้ (ส่งกลับหน้าแรก)
+const PUBLIC_PREFIXES = ["/reset-password/", "/verify-email/", "/invite/"]; // เปิดได้ทั้งสองสถานะ
+
+// ตรวจแค่ว่ามี session ที่ถูกต้อง — การเช็คสิทธิ์ทำใน page/action (requireUser)
 export async function proxy(request: NextRequest) {
   const session = await decryptSession(request.cookies.get(SESSION_COOKIE)?.value);
-  const isLogin = request.nextUrl.pathname === "/login";
+  const { pathname } = request.nextUrl;
+  const guestOnly = GUEST_ONLY.includes(pathname);
+  const isPublic = PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
-  if (!session && !isLogin) {
+  if (!session && !guestOnly && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (session && isLogin) {
+  if (session && guestOnly) {
     return NextResponse.redirect(new URL("/", request.url));
   }
   return NextResponse.next();

@@ -1,20 +1,23 @@
-import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { AuthShell } from "@/components/auth-shell";
+import { isSignupOpen } from "@/lib/invites";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "เข้าสู่ระบบ" };
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: PageProps<"/login">) {
+  const { next } = await searchParams;
+  const nextPath = typeof next === "string" ? next : undefined;
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#e0e7ff_0,_transparent_32rem)] px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <Image src="/logo.png" alt="Pace" width={64} height={64} priority className="mx-auto mb-3" />
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">Pace</h1>
-          <p className="text-sm text-slate-500">Keep your team moving.</p>
-        </div>
-        <LoginForm />
-      </div>
-    </main>
+    <AuthShell>
+      <LoginForm next={nextPath} />
+      <p className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-slate-500">
+        <Link href="/forgot-password" className="hover:text-indigo-700">ลืมรหัสผ่าน?</Link>
+        {(isSignupOpen() || nextPath) && (
+          <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} className="font-medium text-indigo-600 hover:text-indigo-800">สมัครบัญชีใหม่</Link>
+        )}
+      </p>
+    </AuthShell>
   );
 }

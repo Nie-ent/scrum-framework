@@ -22,18 +22,21 @@ model Role {
   createdAt   DateTime @default(now())
 }
 
-/// ทีมซ้อนได้ 2 ชั้น: ทีมใหญ่ (parentId = null) → ทีมย่อย
+/// ทีมซ้อนได้ 2 ชั้น: ทีมใหญ่ (parentId = null) = workspace ของลูกค้าแต่ละราย → ทีมย่อย
+/// ชื่อทีมใหญ่ซ้ำกันได้ (คนละลูกค้า) — ชื่อทีมย่อยห้ามซ้ำภายในทีมใหญ่เดียวกัน
 model Team {
   id        String       @id @default(cuid())
-  name      String       @unique
+  name      String
   parentId  String?
   parent    Team?        @relation("TeamTree", fields: [parentId], references: [id], onDelete: Restrict)
   children  Team[]       @relation("TeamTree")
   members   TeamMember[]
   standups  Standup[]
   tasks     Task[]
+  invites   Invite[]
   createdAt DateTime     @default(now())
 
+  @@unique([parentId, name])
   @@index([parentId])
 }
 
@@ -70,6 +73,8 @@ model User {
   name            String
   passwordHash    String
   active          Boolean            @default(true)
+  /// null = ยังไม่ได้ยืนยันว่าเป็นเจ้าของอีเมลนี้ (สมัครเองและยังไม่กดลิงก์ยืนยัน) — รับคำเชิญในแอปไม่ได้จนกว่าจะยืนยัน
+  emailVerifiedAt DateTime?
   roleId          String
   role            Role               @relation(fields: [roleId], references: [id])
   memberships     TeamMember[]
@@ -83,6 +88,9 @@ model User {
   comments        Comment[]
   attachments     Attachment[]       @relation("AttachmentUploader")
   markedFiles     Attachment[]       @relation("AttachmentMarker")
+  sentInvites     Invite[]           @relation("InviteSender")
+  acceptedInvites Invite[]           @relation("InviteAccepter")
+  authTokens      AuthToken[]
   createdAt       DateTime           @default(now())
 }
 
@@ -167,6 +175,51 @@ model Comment {
 
   @@index([taskId, createdAt])
   @@index([standupId, createdAt])
+}
+
+/// คำเชิญเข้าทีม — รับได้ 2 ทาง: เปิดลิงก์ที่มี token (ใช้ได้ครั้งเดียว) หรือกดรับในแอปเมื่อ login ด้วยอีเมลที่ถูกเชิญและยืนยันอีเมลแล้ว
+/// คำเชิญที่รับแล้วเก็บไว้ ใช้เป็น "คนที่เคยเชิญ" ให้เลือกเชิญเข้าทีมอื่นได้โดยไม่ต้องพิมพ์อีเมลใหม่
+model Invite {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId       String
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  /// ตัวพิมพ์เล็กเสมอ
+  email        String
+  access       TeamAccess @default(MEMBER)
+  title        String?
+  invitedById  String?
+  invitedBy    User?      @relation("InviteSender", fields: [invitedById], references: [id], onDelete: SetNull)
+  /// SHA-256 ของ token ในลิงก์ — ไม่เก็บ token จริง
+  tokenHash    String     @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?
+  acceptedBy   User?      @relation("InviteAccepter", fields: [acceptedById], references: [id], onDelete: SetNull)
+  revokedAt    DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([teamId])
+  @@index([email])
+  @@index([invitedById])
+}
+
+enum AuthTokenType {
+  PASSWORD_RESET
+  EMAIL_VERIFY
+}
+
+/// token ใช้ครั้งเดียวที่ส่งทางอีเมล (ตั้งรหัสผ่านใหม่ / ยืนยันอีเมล) — เก็บเฉพาะ SHA-256
+model AuthToken {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      AuthTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
 }
 
 /// ไฟล์แนบของงาน (taskId) หรือของความคิดเห็น (commentId) — ตัวไฟล์อยู่ใน Supabase Storage ที่ `path`
