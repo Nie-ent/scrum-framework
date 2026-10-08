@@ -10,6 +10,9 @@ import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
 import { ProgressSummary, StandupSections } from "@/components/standup-card";
 import { Avatar } from "@/components/avatar";
+import { CommentThread } from "@/components/comments";
+import { withComments } from "@/lib/comments";
+import { isFileStorageConfigured } from "@/lib/file-store";
 
 const TREND_DAYS = 7;
 
@@ -17,6 +20,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const viewer = await requireOverviewAccess();
   const params = await searchParams;
   const today = todayKey();
+  const canAttach = isFileStorageConfigured();
   const dateKey = isDateKey(params.date) ? params.date : today;
   const allTeams = canViewAllTeams(viewer.role.level);
   const teams = await getVisibleTeams(viewer);
@@ -36,6 +40,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     }),
     prisma.standup.findMany({
       where: { teamId: { in: scopeIds }, date: { gte: keyToDate(trendStart), lte: keyToDate(dateKey) } },
+      include: { comments: withComments },
     }),
   ]);
 
@@ -154,7 +159,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   {entry ? <span className={`shrink-0 ${entry.blockers ? "badge badge-danger" : "badge badge-success"}`}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning shrink-0">ยังไม่ส่ง</span>}
                 </header>
                 {entry ? (
-                  <StandupSections standup={entry} only={["yesterdayTasks", "todayTasks", "blockers"]} />
+                  <>
+                    <StandupSections standup={entry} only={["yesterdayTasks", "todayTasks", "blockers"]} />
+                    <CommentThread canAttach={canAttach} target={{ standupId: entry.id }} comments={entry.comments} viewerId={viewer.id} canModerate subject={`เช็กอินของ ${member.name}`} />
+                  </>
                 ) : (
                   <p className="text-sm text-slate-400">ยังไม่ได้เช็กอินของวันนี้</p>
                 )}
@@ -164,7 +172,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         {view === "table" && (
         <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block">
           <table className="w-full min-w-[1080px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">ทีม</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">รายละเอียด →</Link></td></tr>)}</tbody>
+            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{entry && entry.comments.length > 0 && <span className="mr-2 font-medium text-slate-500">💬 {entry.comments.length}</span>}รายละเอียด →</Link></td></tr>)}</tbody>
           </table>
         </div>
         )}

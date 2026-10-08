@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { createSession, deleteSession } from "@/lib/session";
 
-export type FormState = { error?: string; ok?: string } | undefined;
+/** id = รายการที่เพิ่งสร้าง (ใช้ต่อ เช่น แนบไฟล์ให้งาน/ความคิดเห็นนั้น) */
+export type FormState = { error?: string; ok?: string; id?: string } | undefined;
 
 const LoginSchema = z.object({
   email: z.email().trim().toLowerCase(),

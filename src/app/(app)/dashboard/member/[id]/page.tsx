@@ -8,10 +8,14 @@ import { dateToKey, formatDateKey } from "@/lib/dates";
 import { StandupSections } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
 import { Avatar } from "@/components/avatar";
+import { CommentThread } from "@/components/comments";
+import { withComments } from "@/lib/comments";
+import { isFileStorageConfigured } from "@/lib/file-store";
 
 export default async function MemberPage({ params }: PageProps<"/dashboard/member/[id]">) {
   const viewer = await requireOverviewAccess();
   const { id } = await params;
+  const canAttach = isFileStorageConfigured();
 
   // หัวหน้าทีมดูได้เฉพาะคนในทีม/ทีมย่อยที่ตัวเองดูแล และเห็นเฉพาะ scrum ที่เขียนให้ทีมเหล่านั้น
   const all = canViewAllTeams(viewer.role.level);
@@ -23,7 +27,7 @@ export default async function MemberPage({ params }: PageProps<"/dashboard/membe
       memberships: { include: { team: true }, orderBy: { team: { name: "asc" } } },
       standups: {
         where: all ? {} : { teamId: { in: visibleIds } },
-        include: { team: { select: { name: true } } },
+        include: { team: { select: { name: true } }, comments: withComments },
         orderBy: [{ date: "desc" }, { team: { name: "asc" } }],
         take: 30,
       },
@@ -51,6 +55,7 @@ export default async function MemberPage({ params }: PageProps<"/dashboard/membe
               <span className="badge badge-neutral">{s.team?.name ?? "ไม่ระบุทีม"}</span>
             </div>
             <StandupSections standup={s} />
+            <div className="mt-2"><CommentThread canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={viewer.id} canModerate subject={`เช็กอิน ${formatDateKey(dateToKey(s.date))}`} open={s.comments.length > 0} /></div>
           </div>
         ))}
         {member.standups.length === 0 && <EmptyState title="ยังไม่มี Daily Scrum" description="เมื่อสมาชิกส่งเช็กอิน ข้อมูลล่าสุดจะแสดงที่นี่" />}

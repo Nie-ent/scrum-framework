@@ -53,7 +53,7 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
   });
   if (!assignee || !assignee.user.active) return { error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
 
-  await prisma.task.create({ data: { ...data, createdById: user.id } });
+  const task = await prisma.task.create({ data: { ...data, createdById: user.id } });
 
   // แจ้งคนรับงาน (ถ้าเปิดแจ้งเตือนไว้) — ไม่ให้การแจ้งเตือนที่ล้มเหลวทำให้การมอบหมายพัง
   if (data.assigneeId !== user.id) {
@@ -64,7 +64,7 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
     }).catch(() => undefined);
   }
   done();
-  return { ok: data.assigneeId === user.id ? "เพิ่มงานแล้ว" : "มอบหมายงานแล้ว" };
+  return { ok: data.assigneeId === user.id ? "เพิ่มงานแล้ว" : "มอบหมายงานแล้ว", id: task.id };
 }
 
 /** includeDeleted = ใช้ตอนกดเลิกทำ (ปกติงานที่ลบแล้วถือว่าไม่มี) */

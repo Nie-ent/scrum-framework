@@ -12,6 +12,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const nav: { href: string; label: string; short: string; icon: NavIcon; show: boolean }[] = [
     { href: "/standup", label: "Daily Scrum", short: "เช็กอิน", icon: "checkin", show: true },
     { href: "/tasks", label: "งาน", short: "งาน", icon: "tasks", show: true },
+    { href: "/files", label: "ไฟล์สำคัญ", short: "ไฟล์", icon: "files", show: true },
     { href: "/dashboard", label: "ภาพรวมทีม", short: "ภาพรวม", icon: "overview", show: canViewOverview(user) },
     { href: "/admin", label: "Admin", short: "จัดการ", icon: "admin", show: canAdmin(level) },
     { href: "/account", label: "บัญชี", short: "บัญชี", icon: "account", show: true },

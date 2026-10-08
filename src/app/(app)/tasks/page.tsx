@@ -10,6 +10,12 @@ import { EmptyState } from "@/components/ui-state";
 import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-delete";
 import { TaskForm } from "./task-form";
 import { Avatar } from "@/components/avatar";
+import { CommentThread } from "@/components/comments";
+import { withComments } from "@/lib/comments";
+import { toFileItems, withAttachments } from "@/lib/attachments";
+import { AttachButton, AttachmentList } from "@/components/attachments";
+import { LinkedText } from "@/components/comments";
+import { isFileStorageConfigured } from "@/lib/file-store";
 
 export const metadata: Metadata = { title: "งาน" };
 
@@ -30,6 +36,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   }
   const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
   const canManage = manageableIds.has(team.id);
+  const canAttach = isFileStorageConfigured();
 
   const [members, tasks] = await Promise.all([
     canManage
@@ -40,9 +47,14 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         })
       : Promise.resolve([]),
     prisma.task.findMany({
-      // หัวหน้าทีมเห็นงานของทุกคนในทีม — สมาชิกเห็นงานของตัวเอง
-      where: { teamId: team.id, deletedAt: null, ...(canManage ? {} : { assigneeId: user.id }) },
-      include: { assignee: { select: { id: true, name: true, avatarUpdatedAt: true } }, createdBy: { select: { id: true, name: true } } },
+      // ทุกคนในทีมเห็นงานของกันและกัน (อ่าน + แสดงความคิดเห็น) — แก้ไขได้เฉพาะงานตัวเองหรือหัวหน้าทีม
+      where: { teamId: team.id, deletedAt: null },
+      include: {
+        assignee: { select: { id: true, name: true, avatarUpdatedAt: true } },
+        createdBy: { select: { id: true, name: true } },
+        comments: withComments,
+        attachments: withAttachments,
+      },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
   ]);
@@ -51,15 +63,16 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const finished = tasks.filter((t) => t.progress >= 100).sort((a, b) => (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0));
   const overdue = open.filter((t) => t.dueDate && dateToKey(t.dueDate) < today).length;
 
-  // หัวหน้าทีม: จัดกลุ่มตามคน — สมาชิก: กลุ่มเดียว
-  const groups = canManage
-    ? [...new Map(open.map((t) => [t.assignee.id, t.assignee])).values()].map((assignee) => ({
-        id: assignee.id,
-        name: assignee.name,
-        person: assignee,
-        tasks: open.filter((t) => t.assignee.id === assignee.id),
-      }))
-    : [{ id: user.id, name: "งานของฉัน", person: user, tasks: open }];
+  // จัดกลุ่มตามคน — งานของตัวเองขึ้นก่อน
+  const groups = [...new Map(open.map((t) => [t.assignee.id, t.assignee])).values()]
+    .map((assignee) => ({
+      id: assignee.id,
+      name: assignee.id === user.id ? "งานของฉัน" : assignee.name,
+      person: assignee,
+      tasks: open.filter((t) => t.assignee.id === assignee.id),
+    }))
+    .sort((a, b) => Number(b.id === user.id) - Number(a.id === user.id));
+  const mine = open.filter((t) => t.assignee.id === user.id);
 
   type TaskRow = (typeof tasks)[number];
   const canDelete = (t: TaskRow) => canManage || (t.assignee.id === user.id && t.createdBy?.id === user.id);
@@ -72,7 +85,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
         <div className="min-w-0 flex-1 basis-56">
           <p className={`font-medium ${t.progress >= 100 ? "text-slate-400 line-through" : "text-slate-800"}`}>{t.title}</p>
-          {t.description && <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-500">{t.description}</p>}
+          {t.description && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-500"><LinkedText text={t.description} /></p>}
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
             {dueKey && <span className={`badge ${late ? "badge-danger" : "badge-neutral"}`}>{late ? "เลยกำหนด · " : "ส่ง "}{formatDateKey(dueKey)}</span>}
             {t.createdBy && t.createdBy.id !== t.assignee.id && <span>มอบหมายโดย {t.createdBy.name}</span>}
@@ -100,6 +113,12 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
     return (
       <li key={t.id}>
         {canDelete(t) ? <SwipeDeleteTask id={t.id} title={t.title}>{row(t)}</SwipeDeleteTask> : row(t)}
+        {/* อยู่นอกแถบปัดลบ เพื่อให้เลือกข้อความ/พิมพ์ได้โดยไม่ไปเริ่มการปัด */}
+        <div className="space-y-1 pb-3">
+          <AttachmentList files={toFileItems(t.attachments, user.id)} canModerate={canManage} />
+          {canAttach && (canUpdate(t) || t.createdBy?.id === user.id) && <AttachButton target={{ taskId: t.id }} />}
+          <CommentThread canAttach={canAttach} target={{ taskId: t.id }} comments={t.comments} viewerId={user.id} canModerate={canManage} subject={t.title} />
+        </div>
       </li>
     );
   };
@@ -112,7 +131,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           <p className="eyebrow">Team tasks</p>
           <h1 className="page-title">งาน</h1>
           <p className="page-subtitle">
-            {team.name} · ค้างอยู่ {open.length} งาน
+            {team.name} · ค้างอยู่ {open.length} งาน{!canManage && mine.length !== open.length && ` (ของฉัน ${mine.length})`}
             {overdue > 0 && <span className="text-rose-600"> · เลยกำหนด {overdue}</span>}
           </p>
         </div>
@@ -140,11 +159,11 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           <p className="eyebrow">{canManage ? "Assign" : "New task"}</p>
           <h2 className="font-semibold text-slate-900">{canManage ? "มอบหมายงานให้สมาชิก" : "เพิ่มงานของฉัน"}</h2>
         </div>
-        <TaskForm key={team.id} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
+        <TaskForm key={team.id} canAttach={canAttach} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
       </section>
 
       {open.length === 0 ? (
-        <EmptyState title="ไม่มีงานค้าง" description={canManage ? "มอบหมายงานให้สมาชิกจากฟอร์มด้านบน งานจะไปขึ้นในเช็กอินของคนนั้น" : "เมื่อหัวหน้าทีมมอบหมายงาน งานจะแสดงที่นี่และในหน้าเช็กอิน"} />
+        <EmptyState title="ไม่มีงานค้าง" description={canManage ? "มอบหมายงานให้สมาชิกจากฟอร์มด้านบน งานจะไปขึ้นในเช็กอินของคนนั้น" : "งานของคุณและของเพื่อนร่วมทีมจะแสดงที่นี่ งานของคุณจะขึ้นในหน้าเช็กอินด้วย"} />
       ) : (
         groups.map((g) => (
           <section key={g.id} className="card">
@@ -165,7 +184,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
               <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                 <span className="text-slate-500 line-through">{t.title}</span>
                 <span className="text-xs text-slate-400">
-                  {canManage && `${t.assignee.name} · `}
+                  {`${t.assignee.name} · `}
                   {t.doneAt ? formatDateKey(dateToKey(t.doneAt)) : ""}
                 </span>
               </li>
