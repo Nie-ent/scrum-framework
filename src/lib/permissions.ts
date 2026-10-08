@@ -1,31 +1,32 @@
 /**
- * สิทธิ์ระดับระบบตัดสินจาก Role.level (ตัวเลขยิ่งมากสิทธิ์ยิ่งสูง)
- * ส่วนสิทธิ์ดูภาพรวมทีมมาจากการเป็นหัวหน้าทีม (TeamMember.isLead) — ดู src/lib/teams.ts
+ * สิทธิ์มี 2 ระดับ
+ * - ระดับทีม: TeamMember.access (OWNER / LEAD / MEMBER) — ใครเห็นภาพรวมและมอบหมายงานของทีมไหน (ดู src/lib/teams.ts)
+ * - ระดับระบบ: Role.level ≥ ADMIN = ผู้ดูแลแพลตฟอร์ม เข้าหน้า /admin ได้ (ไม่ได้ให้สิทธิ์เห็นข้อมูลในทีม)
  */
 export const LEVEL = {
-  /** ส่ง daily scrum ของตัวเองได้ */
+  /** role ตั้งต้นของผู้ใช้ทั่วไป */
   MEMBER: 10,
-  /** ดูภาพรวมทุกทีม */
-  MANAGER: 80,
-  /** จัดการผู้ใช้ / role / ทีม */
+  /** จัดการผู้ใช้ / role / ทีม ทั้งระบบ */
   ADMIN: 100,
 } as const;
 
-type Viewer = { role: { level: number }; memberships: { isLead: boolean }[] };
+type Access = "OWNER" | "LEAD" | "MEMBER";
+type Membership = { access: Access };
+type Viewer = { memberships: Membership[] };
 
-export const canViewAllTeams = (level: number) => level >= LEVEL.MANAGER;
 export const canAdmin = (level: number) => level >= LEVEL.ADMIN;
-export const canViewOverview = (user: Viewer) =>
-  canViewAllTeams(user.role.level) || user.memberships.some((m) => m.isLead);
+/** OWNER / LEAD เห็นภาพรวมและมอบหมายงานในทีมนั้น (รวมทีมย่อย) */
+export const canLead = (m: Membership) => m.access !== "MEMBER";
+export const canViewOverview = (user: Viewer) => user.memberships.some(canLead);
 
 export function levelLabel(level: number) {
-  if (level >= LEVEL.ADMIN) return "Admin";
-  if (level >= LEVEL.MANAGER) return "Manager";
-  return "Member";
+  return level >= LEVEL.ADMIN ? "Admin" : "Member";
 }
 
-/** "Alpha ★, Web" — ★ = หัวหน้าทีม */
-export function teamsLabel(memberships: { isLead: boolean; team: { name: string } }[]) {
+export const ACCESS_LABEL: Record<Access, string> = { OWNER: "เจ้าของทีม", LEAD: "หัวหน้าทีม", MEMBER: "สมาชิก" };
+
+/** "Alpha ★, Web" — ★ = หัวหน้า/เจ้าของทีม */
+export function teamsLabel(memberships: (Membership & { team: { name: string } })[]) {
   if (memberships.length === 0) return "ไม่มีทีม";
-  return memberships.map((m) => `${m.team.name}${m.isLead ? " ★" : ""}`).join(", ");
+  return memberships.map((m) => `${m.team.name}${canLead(m) ? " ★" : ""}`).join(", ");
 }

@@ -51,7 +51,7 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
     where: { userId_teamId: { userId: data.assigneeId, teamId: data.teamId } },
     include: { team: { select: { name: true } }, user: { select: { active: true, pushSubs: true } } },
   });
-  if (!assignee || !assignee.user.active) return { error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
+  if (!assignee || !assignee.participates || !assignee.user.active) return { error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
 
   const task = await prisma.task.create({ data: { ...data, createdById: user.id } });
 

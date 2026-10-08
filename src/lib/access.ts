@@ -1,6 +1,6 @@
 import "server-only";
 import type { CurrentUser } from "./auth";
-import { canViewAllTeams } from "./permissions";
+import { canAdmin } from "./permissions";
 import { getManageableTeamIds } from "./teams";
 
 /**
@@ -8,9 +8,9 @@ import { getManageableTeamIds } from "./teams";
  * read = คนในทีมเดียวกันหรือคนที่ดูแลทีมนั้น · manage = คนที่ดูแลทีม (ลบของคนอื่นได้)
  */
 export async function teamAccess(user: CurrentUser, target: { teamId: string | null; ownerId: string }) {
-  // เช็กอินเก่าที่ไม่มีทีม: เห็นได้เฉพาะเจ้าของและ Manager ขึ้นไป
+  // เช็กอินเก่าที่ไม่มีทีม: เห็นได้เฉพาะเจ้าของและผู้ดูแลแพลตฟอร์ม
   if (!target.teamId) {
-    const manage = canViewAllTeams(user.role.level);
+    const manage = canAdmin(user.role.level);
     return { read: manage || target.ownerId === user.id, manage };
   }
   const manage = (await getManageableTeamIds(user)).has(target.teamId);

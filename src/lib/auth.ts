@@ -29,7 +29,7 @@ export async function requireUser(minLevel = 0): Promise<CurrentUser> {
   return user;
 }
 
-/** หน้าภาพรวม: Manager ขึ้นไป หรือเป็นหัวหน้าอย่างน้อย 1 ทีม */
+/** หน้าภาพรวม: ต้องเป็นหัวหน้า/เจ้าของอย่างน้อย 1 ทีม */
 export async function requireOverviewAccess(): Promise<CurrentUser> {
   const user = await requireUser();
   if (!canViewOverview(user)) redirect("/standup");

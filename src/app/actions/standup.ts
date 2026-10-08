@@ -50,7 +50,7 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
   const { teamId, ...data } = parsed.data;
 
   // ส่งได้เฉพาะทีมที่ตัวเองเป็นสมาชิก
-  if (!user.memberships.some((m) => m.teamId === teamId)) return { error: "คุณไม่ได้อยู่ในทีมนี้" };
+  if (!user.memberships.some((m) => m.teamId === teamId && m.participates)) return { error: "คุณไม่ได้อยู่ในทีมนี้" };
 
   // บันทึกได้เฉพาะของวันนี้ (ตาม APP_TIMEZONE) ส่งซ้ำ = แก้ไข
   const date = keyToDate(todayKey());

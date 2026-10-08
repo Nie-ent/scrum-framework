@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "./db";
 import type { CurrentUser } from "./auth";
-import { canViewAllTeams } from "./permissions";
+import { canLead } from "./permissions";
 
 export type TeamRow = { id: string; name: string; parentId: string | null };
 
@@ -12,20 +12,16 @@ export function sortTeamTree<T extends TeamRow>(teams: T[]): T[] {
   return roots.flatMap((root) => [root, ...teams.filter((t) => t.parentId === root.id)]);
 }
 
-/**
- * ทีมที่ viewer ดูภาพรวมได้
- * - Manager ขึ้นไป: ทุกทีม
- * - หัวหน้าทีม: ทีมที่ตัวเองเป็นหัวหน้า + ทีมย่อยของทีมนั้น
- */
+/** ทีมที่ viewer ดูภาพรวมได้ = ทีมที่ตัวเองเป็นหัวหน้า/เจ้าของ + ทีมย่อยของทีมนั้น */
 export async function getVisibleTeams(viewer: CurrentUser): Promise<TeamRow[]> {
-  const all = await prisma.team.findMany({
+  const leadOf = viewer.memberships.filter(canLead).map((m) => m.teamId);
+  if (leadOf.length === 0) return [];
+  const teams = await prisma.team.findMany({
+    where: { OR: [{ id: { in: leadOf } }, { parentId: { in: leadOf } }] },
     select: { id: true, name: true, parentId: true },
     orderBy: { name: "asc" },
   });
-  if (canViewAllTeams(viewer.role.level)) return sortTeamTree(all);
-
-  const leadOf = new Set(viewer.memberships.filter((m) => m.isLead).map((m) => m.teamId));
-  return sortTeamTree(all.filter((t) => leadOf.has(t.id) || (t.parentId !== null && leadOf.has(t.parentId))));
+  return sortTeamTree(teams);
 }
 
 /** ทีมนั้น + ทีมย่อย (เฉพาะที่อยู่ใน teams) */
@@ -33,7 +29,7 @@ export function teamWithChildren(teams: TeamRow[], teamId: string): TeamRow[] {
   return teams.filter((t) => t.id === teamId || t.parentId === teamId);
 }
 
-/** ทีมที่ viewer มอบหมาย/แก้ไขงานของคนอื่นได้ = ทีมที่ดูภาพรวมได้ (หัวหน้าทีม, หัวหน้าทีมแม่, Manager ขึ้นไป) */
+/** ทีมที่ viewer มอบหมาย/แก้ไขงานของคนอื่นได้ = ทีมที่ดูภาพรวมได้ (หัวหน้า/เจ้าของทีม หรือของทีมแม่) */
 export async function getManageableTeamIds(viewer: CurrentUser): Promise<Set<string>> {
   return new Set((await getVisibleTeams(viewer)).map((t) => t.id));
 }

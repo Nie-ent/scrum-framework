@@ -18,11 +18,11 @@ export async function GET(request: Request) {
   // คนที่เปิดแจ้งเตือนไว้ + ทีมที่อยู่ + เช็กอินของวันนี้
   const today = keyToDate(todayKey());
   const users = await prisma.user.findMany({
-    where: { active: true, pushSubs: { some: {} }, memberships: { some: {} } },
+    where: { active: true, pushSubs: { some: {} }, memberships: { some: { participates: true } } },
     select: {
       id: true,
       pushSubs: true,
-      memberships: { select: { team: { select: { id: true, name: true } } }, orderBy: { team: { name: "asc" } } },
+      memberships: { where: { participates: true }, select: { team: { select: { id: true, name: true } } }, orderBy: { team: { name: "asc" } } },
       standups: { where: { date: today }, select: { teamId: true } },
     },
   });

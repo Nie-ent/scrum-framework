@@ -16,7 +16,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
   const user = await requireUser();
   const params = await searchParams;
   const today = todayKey();
-  const teams = user.memberships.map((m) => m.team);
+  // ทีมที่ต้องเช็กอิน — ไม่รวมทีมที่อยู่ในฐานะผู้ดูแลอย่างเดียว
+  const teams = user.memberships.filter((m) => m.participates).map((m) => m.team);
 
   if (teams.length === 0) {
     return (

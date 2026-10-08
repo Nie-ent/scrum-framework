@@ -13,13 +13,12 @@ export default async function RolesPage() {
     <div className="space-y-4">
       <div className="card text-sm text-slate-600">
         <p className="mb-2 font-medium text-slate-800">Level กำหนดสิทธิ์ระดับระบบ</p>
-        <ul className="grid gap-1 sm:grid-cols-3">
-          <li><b>≥ {LEVEL.MEMBER}</b> Member — ส่ง daily scrum ของตัวเอง</li>
-          <li><b>≥ {LEVEL.MANAGER}</b> Manager — ดูภาพรวมทุกทีม</li>
-          <li><b>≥ {LEVEL.ADMIN}</b> Admin — จัดการผู้ใช้ / role / ทีม</li>
+        <ul className="grid gap-1 sm:grid-cols-2">
+          <li><b>≥ {LEVEL.MEMBER}</b> Member — ผู้ใช้ทั่วไป</li>
+          <li><b>≥ {LEVEL.ADMIN}</b> Admin — จัดการผู้ใช้ / role / ทีม ทั้งระบบ</li>
         </ul>
         <p className="mt-2">
-          หัวหน้าทีมกำหนดรายทีมที่เมนู <b>ผู้ใช้</b> (ติ๊ก ★ หัวหน้า) — เห็นภาพรวมทีมนั้นและทีมย่อยทั้งหมด
+          การเห็นภาพรวมและมอบหมายงานกำหนด <b>รายทีม</b> ที่เมนู <b>ผู้ใช้</b> (ติ๊ก ★ หัวหน้า) — เห็นทีมนั้นและทีมย่อย · ชื่อ role ใช้เป็นชื่อบทบาทตั้งต้นของคนนั้นในทีม
         </p>
       </div>
 

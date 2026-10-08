@@ -11,7 +11,8 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/// Role ที่กำหนดได้เอง — `level` ใช้ตัดสินสิทธิ์ (ดู src/lib/permissions.ts)
+/// Role ระดับระบบ — `level` ≥ 100 = ผู้ดูแลแพลตฟอร์ม (ดู src/lib/permissions.ts)
+/// สิทธิ์ในทีมอยู่ที่ TeamMember.access และชื่อบทบาทในทีมอยู่ที่ TeamMember.title
 model Role {
   id          String   @id @default(cuid())
   name        String   @unique
@@ -36,14 +37,28 @@ model Team {
   @@index([parentId])
 }
 
-/// สมาชิกทีม — คนหนึ่งอยู่ได้หลายทีม, isLead = หัวหน้าของทีมนี้ (เห็นภาพรวมทีมนี้ + ทีมย่อย)
+/// สิทธิ์ของสมาชิกในทีมนั้น (ไม่ใช่สิทธิ์ระดับระบบ)
+/// OWNER = เจ้าของทีม จัดการสมาชิก/ตั้งค่าทีมได้ · LEAD = เห็นภาพรวมและมอบหมายงานในทีมนี้ + ทีมย่อย · MEMBER = สมาชิกทั่วไป
+enum TeamAccess {
+  OWNER
+  LEAD
+  MEMBER
+}
+
+/// สมาชิกทีม — คนหนึ่งอยู่ได้หลายทีม สิทธิ์และชื่อบทบาทกำหนดแยกต่อทีม
 model TeamMember {
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  teamId    String
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  isLead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId       String
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  access       TeamAccess @default(MEMBER)
+  /// ชื่อบทบาทในทีมนี้ที่ตั้งเองได้ เช่น Dev, PM, PO, Scrum Master (ไม่มีผลต่อสิทธิ์)
+  title        String?
+  /// false = ดูแล/สังเกตการณ์อย่างเดียว ไม่ต้องเช็กอินและไม่ถูกนับในภาพรวม
+  participates Boolean    @default(true)
+  /// เลิกใช้แล้ว — ใช้ access แทน (คงคอลัมน์ไว้ให้ถอยกลับได้ จะลบใน migration ถัดไป)
+  isLead       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
 
   @@id([userId, teamId])
   @@index([teamId])

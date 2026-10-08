@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOverviewAccess } from "@/lib/auth";
-import { canViewAllTeams } from "@/lib/permissions";
 import { getVisibleTeams } from "@/lib/teams";
 import { toTasks } from "@/lib/tasks";
 import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
@@ -22,19 +22,21 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const today = todayKey();
   const canAttach = isFileStorageConfigured();
   const dateKey = isDateKey(params.date) ? params.date : today;
-  const allTeams = canViewAllTeams(viewer.role.level);
   const teams = await getVisibleTeams(viewer);
+  if (teams.length === 0) redirect("/standup");
 
-  // Manager เลือก "ทุกทีม" ได้ (teamId = ""), หัวหน้าทีมเริ่มที่ทีมแรกที่ตัวเองดูได้
+  // ดูได้ทีละทีมเสมอ — ไม่ได้เลือก (หรือเลือกทีมที่ไม่มีสิทธิ์) = ทีมแรกที่ดูได้
   const requested = typeof params.team === "string" ? params.team : undefined;
-  const teamId = teams.some((t) => t.id === requested) ? requested! : allTeams ? "" : teams[0]?.id ?? "";
+  const team = teams.find((t) => t.id === requested) ?? teams[0];
+  const teamId = team.id;
   // กระดานแยกตามทีม: เห็นเฉพาะ scrum ที่เขียนให้ทีมที่เลือก (ไม่รวมทีมแม่/ทีมย่อย)
-  const scopeIds = (teamId ? teams.filter((t) => t.id === teamId) : teams).map((t) => t.id);
+  const scopeIds = [teamId];
 
   const trendStart = shiftKey(dateKey, -(TREND_DAYS - 1));
   const [memberships, standups] = await Promise.all([
     prisma.teamMember.findMany({
-      where: { teamId: { in: scopeIds }, user: { active: true } },
+      // เฉพาะคนที่ต้องเช็กอิน — ไม่นับคนที่อยู่ในทีมในฐานะผู้ดูแลอย่างเดียว
+      where: { teamId: { in: scopeIds }, participates: true, user: { active: true } },
       include: { team: true, user: { include: { role: true } } },
       orderBy: [{ team: { name: "asc" } }, { user: { name: "asc" } }],
     }),
@@ -45,11 +47,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   ]);
 
   // 1 แถว = 1 คนในทีมนั้น (คนที่อยู่หลายทีมจะมีแถวแยกต่อทีมเมื่อดู "ทุกทีม")
-  const rows = memberships.map(({ user, team }) => {
+  const rows = memberships.map(({ user, team, title }) => {
     const own = standups.filter((s) => s.userId === user.id && s.teamId === team.id);
     return {
       key: `${user.id}:${team.id}`,
       member: user,
+      title: title ?? user.role.name,
       team,
       entry: own.find((s) => dateToKey(s.date) === dateKey),
       days: new Set(own.map((s) => dateToKey(s.date))),
@@ -66,8 +69,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   // มุมมองรายคน: ตาราง (ค่าเริ่มต้น) หรือการ์ดแบบ grid — เก็บใน URL เพื่อให้คงอยู่เมื่อเปลี่ยนวัน/ทีม
   const view = params.view === "grid" ? "grid" : "table";
   const viewParam = view === "grid" ? "&view=grid" : "";
-  const href = (date: string, nextView = viewParam) => `/dashboard?date=${date}${teamId ? `&team=${teamId}` : ""}${nextView}`;
-  const scopeLabel = teams.find((t) => t.id === teamId)?.name ?? "ทุกทีม";
+  const href = (date: string, nextView = viewParam) => `/dashboard?date=${date}&team=${teamId}${nextView}`;
+  const scopeLabel = team.name;
 
   return (
     <div className="space-y-6">
@@ -86,7 +89,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             {view === "grid" && <input type="hidden" name="view" value="grid" />}
             <input aria-label="วันที่" type="date" name="date" defaultValue={dateKey} max={today} className="input min-h-10 min-w-0 flex-1 py-1.5 sm:w-auto sm:flex-none" />
             <select aria-label="ทีม" name="team" defaultValue={teamId} className="input min-h-10 min-w-0 flex-1 py-1.5 sm:w-auto sm:flex-none">
-              {allTeams && <option value="">ทุกทีม</option>}
               {teams.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.parentId && teams.some((p) => p.id === t.parentId) ? "\u00a0\u00a0└ " : ""}
@@ -118,16 +120,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           {blockers.length > 0 && <>
           <h3 className="mb-2 text-sm font-semibold text-rose-700">Blockers ที่ต้องช่วยปลดล็อก</h3>
           <ul className="space-y-2">
-            {blockers.map(({ key, member, team, entry }) => (
+            {blockers.map(({ key, member, entry }) => (
               <li key={key} className="text-sm">
-                <span className="font-medium">{member.name}</span>
-                {!teamId && <span className="text-slate-400"> · {team.name}</span>}:{" "}
+                <span className="font-medium">{member.name}</span>:{" "}
                 <span className="whitespace-pre-wrap">{entry!.blockers}</span>
               </li>
             ))}
           </ul>
           </>}
-          {missing.length > 0 && <div className={blockers.length > 0 ? "mt-4 border-t border-rose-100 pt-4" : ""}><h3 className="mb-2 text-sm font-semibold text-slate-700">ยังไม่ส่ง ({missing.length})</h3><div className="flex flex-wrap gap-2">{missing.map(({ key, member, team }) => <Link key={key} href={`/dashboard/member/${member.id}`} className="badge badge-neutral hover:bg-slate-200">{member.name}{!teamId && ` · ${team.name}`}</Link>)}</div></div>}
+          {missing.length > 0 && <div className={blockers.length > 0 ? "mt-4 border-t border-rose-100 pt-4" : ""}><h3 className="mb-2 text-sm font-semibold text-slate-700">ยังไม่ส่ง ({missing.length})</h3><div className="flex flex-wrap gap-2">{missing.map(({ key, member }) => <Link key={key} href={`/dashboard/member/${member.id}`} className="badge badge-neutral hover:bg-slate-200">{member.name}</Link>)}</div></div>}
         </section>
       )}
 
@@ -146,14 +147,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </div></div>
         {/* มือถือแสดงการ์ดเสมอ (ตารางกว้างเกินจอ) — จอใหญ่เลือกได้ระหว่างตาราง/การ์ด */}
         <div className={`grid gap-4 md:grid-cols-2 2xl:grid-cols-3 ${view === "grid" ? "" : "md:hidden"}`}>
-            {rows.map(({ key, member, team, entry }) => (
+            {rows.map(({ key, member, title, team, entry }) => (
               <article key={key} className={`card flex flex-col gap-3 ${entry ? "transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md" : "border-dashed bg-slate-50/60"}`}>
                 <header className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <Avatar user={member} size={36} />
                     <div className="min-w-0">
                       <Link href={`/dashboard/member/${member.id}`} className="block truncate font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link>
-                      <p className="truncate text-xs text-slate-500">{member.role.name} · {team.name}</p>
+                      <p className="truncate text-xs text-slate-500">{title} · {team.name}</p>
                     </div>
                   </div>
                   {entry ? <span className={`shrink-0 ${entry.blockers ? "badge badge-danger" : "badge badge-success"}`}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning shrink-0">ยังไม่ส่ง</span>}
@@ -172,7 +173,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         {view === "table" && (
         <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block">
           <table className="w-full min-w-[1080px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">ทีม</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{member.role.name}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{entry && entry.comments.length > 0 && <span className="mr-2 font-medium text-slate-500">💬 {entry.comments.length}</span>}รายละเอียด →</Link></td></tr>)}</tbody>
+            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, title, team, entry }) => <tr key={key} className="transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{title}</p></div></div></td><td className="px-4 py-3 text-slate-500">{team.name}</td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{entry && entry.comments.length > 0 && <span className="mr-2 font-medium text-slate-500">💬 {entry.comments.length}</span>}รายละเอียด →</Link></td></tr>)}</tbody>
           </table>
         </div>
         )}
@@ -192,11 +193,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ key, member, team, days }) => (
+            {rows.map(({ key, member, days }) => (
               <tr key={key} className="border-t border-slate-100">
                 <td className="py-1.5 pr-4">
                   <Link href={`/dashboard/member/${member.id}`} className="hover:text-indigo-600">{member.name}</Link>
-                  {!teamId && <span className="text-xs text-slate-400"> · {team.name}</span>}
                 </td>
                 {trendKeys.map((k) => (
                   <td key={k} className="text-center">

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { teamsLabel } from "@/lib/permissions";
+import { canLead, teamsLabel } from "@/lib/permissions";
 import { sortTeamTree } from "@/lib/teams";
 import { UserForm } from "../forms";
 
@@ -41,7 +41,7 @@ export default async function UsersPage() {
                 email: user.email,
                 roleId: user.roleId,
                 active: user.active,
-                memberships: user.memberships.map((m) => ({ teamId: m.teamId, isLead: m.isLead })),
+                memberships: user.memberships.map((m) => ({ teamId: m.teamId, lead: canLead(m) })),
               }}
               roles={roles}
               teams={teamTree}

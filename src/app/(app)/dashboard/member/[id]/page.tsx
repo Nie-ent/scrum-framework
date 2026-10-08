@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOverviewAccess } from "@/lib/auth";
-import { canViewAllTeams, teamsLabel } from "@/lib/permissions";
+import { teamsLabel } from "@/lib/permissions";
 import { getVisibleTeams } from "@/lib/teams";
 import { dateToKey, formatDateKey } from "@/lib/dates";
 import { StandupSections } from "@/components/standup-card";
@@ -18,15 +18,15 @@ export default async function MemberPage({ params }: PageProps<"/dashboard/membe
   const canAttach = isFileStorageConfigured();
 
   // หัวหน้าทีมดูได้เฉพาะคนในทีม/ทีมย่อยที่ตัวเองดูแล และเห็นเฉพาะ scrum ที่เขียนให้ทีมเหล่านั้น
-  const all = canViewAllTeams(viewer.role.level);
-  const visibleIds = all ? [] : (await getVisibleTeams(viewer)).map((t) => t.id);
+  const visibleIds = (await getVisibleTeams(viewer)).map((t) => t.id);
   const member = await prisma.user.findFirst({
-    where: { id, ...(all ? {} : { memberships: { some: { teamId: { in: visibleIds } } } }) },
+    where: { id, memberships: { some: { teamId: { in: visibleIds } } } },
     include: {
       role: true,
-      memberships: { include: { team: true }, orderBy: { team: { name: "asc" } } },
+      // แสดงเฉพาะทีมที่ viewer ดูแล — ไม่เปิดเผยว่าคนนี้อยู่ทีมอื่นของลูกค้ารายอื่น
+      memberships: { where: { teamId: { in: visibleIds } }, include: { team: true }, orderBy: { team: { name: "asc" } } },
       standups: {
-        where: all ? {} : { teamId: { in: visibleIds } },
+        where: { teamId: { in: visibleIds } },
         include: { team: { select: { name: true } }, comments: withComments },
         orderBy: [{ date: "desc" }, { team: { name: "asc" } }],
         take: 30,
@@ -43,7 +43,7 @@ export default async function MemberPage({ params }: PageProps<"/dashboard/membe
         <div>
         <h1 className="text-2xl font-semibold">{member.name}</h1>
         <p className="text-sm text-slate-500">
-          {member.role.name} · Lv {member.role.level} · {teamsLabel(member.memberships)} · {member.email}
+          {[...new Set(member.memberships.map((m) => m.title ?? member.role.name))].join(", ")} · {teamsLabel(member.memberships)} · {member.email}
         </p>
         </div>
       </div>

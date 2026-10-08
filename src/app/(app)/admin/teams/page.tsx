@@ -9,7 +9,7 @@ export default async function TeamsPage() {
       orderBy: { name: "asc" },
       include: {
         _count: { select: { members: true, children: true } },
-        members: { where: { isLead: true }, include: { user: { select: { name: true } } } },
+        members: { where: { access: { not: "MEMBER" } }, include: { user: { select: { name: true } } } },
       },
     }),
   );

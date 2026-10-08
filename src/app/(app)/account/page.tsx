@@ -17,7 +17,7 @@ export default async function AccountPage() {
           name: user.name,
           email: user.email,
           avatarUpdatedAt: user.avatarUpdatedAt,
-          summary: `${user.role.name} · Lv ${user.role.level} · ${teamsLabel(user.memberships)}`,
+          summary: `${[...new Set(user.memberships.map((m) => m.title ?? user.role.name))].join(", ") || user.role.name} · ${teamsLabel(user.memberships)}`,
         }}
       />
       <NotificationSettings publicKey={pushPublicKey()} />

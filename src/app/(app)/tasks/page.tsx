@@ -41,7 +41,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const [members, tasks] = await Promise.all([
     canManage
       ? prisma.teamMember.findMany({
-          where: { teamId: team.id, user: { active: true } },
+          where: { teamId: team.id, participates: true, user: { active: true } },
           select: { user: { select: { id: true, name: true } } },
           orderBy: { user: { name: "asc" } },
         })

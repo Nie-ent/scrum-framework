@@ -144,7 +144,13 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
   if ((await prisma.team.count({ where: { id: { in: teamIds } } })) !== teamIds.length) {
     return { error: "ไม่พบบางทีม กรุณารีเฟรชหน้า" };
   }
-  const memberships = teamIds.map((teamId) => ({ teamId, isLead: leadIds.has(teamId) }));
+  // ชื่อบทบาทในทีมตั้งต้น = ชื่อ role (แก้รายทีมได้ภายหลัง)
+  const memberships = teamIds.map((teamId) => ({
+    teamId,
+    access: leadIds.has(teamId) ? ("LEAD" as const) : ("MEMBER" as const),
+    isLead: leadIds.has(teamId),
+    title: role.name,
+  }));
 
   if (id) {
     const target = await prisma.user.findUnique({ where: { id }, include: { role: true } });
@@ -160,10 +166,19 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
   const passwordHash = password ? await bcrypt.hash(password, 10) : undefined;
   try {
     if (id) {
+      // แก้เฉพาะส่วนที่เปลี่ยน: ทีมที่อยู่ต่อจะคงชื่อบทบาท/สถานะผู้ดูแลเดิมไว้ และเจ้าของทีมยังเป็นเจ้าของ
+      const existing = new Map((await prisma.teamMember.findMany({ where: { userId: id } })).map((m) => [m.teamId, m]));
       await prisma.$transaction([
         prisma.user.update({ where: { id }, data: { ...data, passwordHash } }),
-        prisma.teamMember.deleteMany({ where: { userId: id } }),
-        prisma.teamMember.createMany({ data: memberships.map((m) => ({ ...m, userId: id })) }),
+        prisma.teamMember.deleteMany({ where: { userId: id, teamId: { notIn: teamIds } } }),
+        ...memberships.map((m) => {
+          const access = existing.get(m.teamId)?.access === "OWNER" && m.isLead ? ("OWNER" as const) : m.access;
+          return prisma.teamMember.upsert({
+            where: { userId_teamId: { userId: id, teamId: m.teamId } },
+            create: { ...m, userId: id },
+            update: { access, isLead: m.isLead },
+          });
+        }),
       ]);
     } else {
       await prisma.user.create({

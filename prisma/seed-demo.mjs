@@ -42,7 +42,7 @@ async function main() {
       await prisma.teamMember.upsert({
         where: { userId_teamId: { userId: user.id, teamId } },
         update: {},
-        create: { userId: user.id, teamId, isLead },
+        create: { userId: user.id, teamId, isLead, access: isLead ? "LEAD" : "MEMBER", title: p.role },
       });
     }
   }

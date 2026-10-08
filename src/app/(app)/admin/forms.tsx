@@ -71,7 +71,7 @@ type UserValue = {
   email: string;
   roleId: string;
   active: boolean;
-  memberships: { teamId: string; isLead: boolean }[];
+  memberships: { teamId: string; lead: boolean }[];
 };
 
 export function UserForm({
@@ -85,7 +85,7 @@ export function UserForm({
   teams: TeamOption[];
 }) {
   const [state, action] = useActionState(saveUser, undefined);
-  const member = new Map(user?.memberships.map((m) => [m.teamId, m.isLead]));
+  const member = new Map(user?.memberships.map((m) => [m.teamId, m.lead]));
   return (
     <form action={action} className="grid gap-3 md:grid-cols-3">
       {user && <input type="hidden" name="id" value={user.id} />}
