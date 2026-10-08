@@ -5,7 +5,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { isDateKey, keyToDate } from "@/lib/dates";
-import { sendPush } from "@/lib/push";
+import { notify } from "@/lib/notify";
 import { getManageableTeamIds } from "@/lib/teams";
 import type { FormState } from "./auth";
 
@@ -49,19 +49,18 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
   }
   const assignee = await prisma.teamMember.findUnique({
     where: { userId_teamId: { userId: data.assigneeId, teamId: data.teamId } },
-    include: { team: { select: { name: true } }, user: { select: { active: true, pushSubs: true } } },
+    include: { team: { select: { name: true } }, user: { select: { active: true } } },
   });
   if (!assignee || !assignee.participates || !assignee.user.active) return { error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
 
   const task = await prisma.task.create({ data: { ...data, createdById: user.id } });
 
-  // แจ้งคนรับงาน (ถ้าเปิดแจ้งเตือนไว้) — ไม่ให้การแจ้งเตือนที่ล้มเหลวทำให้การมอบหมายพัง
   if (data.assigneeId !== user.id) {
-    await sendPush(assignee.user.pushSubs, {
+    await notify([{ userId: data.assigneeId }], {
       title: `งานใหม่จาก ${user.name}`,
       body: `${data.title} · ทีม ${assignee.team.name}`,
       url: `/tasks?team=${data.teamId}`,
-    }).catch(() => undefined);
+    });
   }
   done();
   return { ok: data.assigneeId === user.id ? "เพิ่มงานแล้ว" : "มอบหมายงานแล้ว", id: task.id };

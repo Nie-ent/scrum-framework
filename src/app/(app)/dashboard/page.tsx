@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOverviewAccess } from "@/lib/auth";
@@ -10,9 +11,12 @@ import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
 import { ProgressSummary, StandupSections } from "@/components/standup-card";
 import { Avatar } from "@/components/avatar";
+import { Icon } from "@/components/icons";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
+
+export const metadata: Metadata = { title: "ภาพรวมทีม" };
 
 const TREND_DAYS = 7;
 
@@ -173,7 +177,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         {view === "table" && (
         <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block">
           <table className="w-full min-w-[940px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะ Daily Scrum ของทีม {scopeLabel}</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, title, entry }) => <tr key={key} className="align-top transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{title}</p></div></div></td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3"><div className="pt-0.5">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</div></td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{entry && entry.comments.length > 0 && <span className="mr-2 font-medium text-slate-500">💬 {entry.comments.length}</span>}รายละเอียด →</Link></td></tr>)}</tbody>
+            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, title, entry }) => <tr key={key} className="align-top transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{title}</p></div></div></td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3"><div className="pt-0.5">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</div></td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{entry && entry.comments.length > 0 && <span className="mr-2 inline-flex items-center gap-1 align-middle font-medium text-slate-500"><Icon name="comment" className="h-3.5 w-3.5" />{entry.comments.length}</span>}รายละเอียด →</Link></td></tr>)}</tbody>
           </table>
         </div>
         )}

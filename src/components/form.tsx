@@ -7,14 +7,16 @@ export function SubmitButton({
   children,
   className = "btn",
   pendingText = "กำลังบันทึก...",
+  disabled = false,
 }: {
   children: React.ReactNode;
   className?: string;
   pendingText?: string;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className={className} disabled={pending}>
+    <button type="submit" className={className} disabled={pending || disabled}>
       {pending ? pendingText : children}
     </button>
   );

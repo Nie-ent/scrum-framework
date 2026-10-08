@@ -3,6 +3,7 @@ import type { CommentRow, CommentTarget } from "@/lib/comments";
 import { formatDateTime } from "@/lib/dates";
 import { Avatar } from "@/components/avatar";
 import { CommentForm } from "@/components/comment-form";
+import { Icon } from "@/components/icons";
 import { AttachmentList } from "@/components/attachments";
 import { toFileItems } from "@/lib/attachments";
 
@@ -52,7 +53,7 @@ export function CommentThread({
   return (
     <details open={open} className="group/thread">
       <summary className={`inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg text-xs font-medium transition hover:text-indigo-700 ${comments.length > 0 ? "text-indigo-600" : "text-slate-400"}`}>
-        <span aria-hidden="true">💬</span>
+        <Icon name="comment" />
         {comments.length > 0 ? `ความคิดเห็น ${comments.length}` : "แสดงความคิดเห็น"}
       </summary>
       <div className="mt-2 space-y-3 rounded-xl bg-slate-50 p-3">

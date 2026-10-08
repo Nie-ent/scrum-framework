@@ -18,6 +18,10 @@ export function LoginForm({ next }: { next?: string }) {
         <label className="label" htmlFor="password">รหัสผ่าน</label>
         <input className="input" id="password" name="password" type="password" autoComplete="current-password" required />
       </div>
+      <label className="flex items-center gap-2 text-sm text-slate-600">
+        <input type="checkbox" name="remember" defaultChecked className="h-4 w-4 rounded border-slate-300 accent-indigo-600" />
+        จดจำฉันไว้ในเครื่องนี้ <span className="text-slate-400">(30 วัน)</span>
+      </label>
       <FormMessage state={state} />
       <SubmitButton className="btn w-full" pendingText="กำลังเข้าสู่ระบบ...">เข้าสู่ระบบ</SubmitButton>
     </form>

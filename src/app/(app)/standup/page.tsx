@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey, formatDateKey, keyToDate, todayKey } from "@/lib/dates";
@@ -11,6 +12,8 @@ import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
 import { getManageableTeamIds } from "@/lib/teams";
+
+export const metadata: Metadata = { title: "Daily Scrum" };
 
 export default async function StandupPage({ searchParams }: PageProps<"/standup">) {
   const user = await requireUser();

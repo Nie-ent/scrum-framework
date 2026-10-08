@@ -169,7 +169,8 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
       // แก้เฉพาะส่วนที่เปลี่ยน: ทีมที่อยู่ต่อจะคงชื่อบทบาท/สถานะผู้ดูแลเดิมไว้ และเจ้าของทีมยังเป็นเจ้าของ
       const existing = new Map((await prisma.teamMember.findMany({ where: { userId: id } })).map((m) => [m.teamId, m]));
       await prisma.$transaction([
-        prisma.user.update({ where: { id }, data: { ...data, passwordHash } }),
+        // รีเซ็ตรหัสผ่านให้ = session เดิมของคนนั้นใช้ไม่ได้
+        prisma.user.update({ where: { id }, data: { ...data, passwordHash, ...(passwordHash ? { passwordChangedAt: new Date() } : {}) } }),
         prisma.teamMember.deleteMany({ where: { userId: id, teamId: { notIn: teamIds } } }),
         ...memberships.map((m) => {
           const access = existing.get(m.teamId)?.access === "OWNER" && m.isLead ? ("OWNER" as const) : m.access;
@@ -182,7 +183,8 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
       ]);
     } else {
       await prisma.user.create({
-        data: { ...data, passwordHash: passwordHash!, memberships: { create: memberships } },
+        // ผู้ดูแลสร้างให้ = ถือว่ายืนยันอีเมลแล้ว
+        data: { ...data, passwordHash: passwordHash!, emailVerifiedAt: new Date(), memberships: { create: memberships } },
       });
     }
   } catch (e) {

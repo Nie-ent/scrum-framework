@@ -7,7 +7,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { appUrl, sendEmail } from "@/lib/email";
+import { purgeAttachments } from "@/lib/attachment-store";
 import { INVITE_DAYS, joinFromInvite, openInvite } from "@/lib/invites";
+import { notify } from "@/lib/notify";
 import { getTeamControl } from "@/lib/teams";
 import { hashToken, inDays, newToken } from "@/lib/tokens";
 import type { FormState } from "./auth";
@@ -100,6 +102,13 @@ export async function inviteMember(_: FormState, formData: FormData): Promise<Fo
     body: `${user.name} เชิญคุณเข้าร่วมทีม ${control.team.name} บน Pace\nคำเชิญนี้ใช้ได้ ${INVITE_DAYS} วัน`,
     action: { label: "รับคำเชิญ", url: link },
   });
+  // คนที่มีบัญชีอยู่แล้ว: ขึ้นกระดิ่งในแอปให้กดรับได้เลย
+  const invitee = await prisma.user.findUnique({ where: { email }, select: { id: true, emailVerifiedAt: true } });
+  if (invitee?.emailVerifiedAt) {
+    await prisma.notification.create({
+      data: { userId: invitee.id, title: `${user.name} เชิญคุณเข้าทีม ${control.team.name}`, body: "กดเพื่อดูและรับคำเชิญ", url: "/teams" },
+    });
+  }
   done(teamId);
   // id = ลิงก์คำเชิญ แสดงให้คัดลอกครั้งเดียว (ใน database เก็บเฉพาะ hash)
   return { ok: emailed ? `ส่งคำเชิญไปที่ ${email} แล้ว` : "สร้างคำเชิญแล้ว — คัดลอกลิงก์ด้านล่างส่งให้เขา (ถ้าเขามีบัญชีที่ยืนยันอีเมลแล้ว จะเห็นคำเชิญในแอปเลย)", id: link };
@@ -183,4 +192,33 @@ export async function removeMember(_: FormState, formData: FormData): Promise<Fo
   done(teamId);
   if (self) redirect("/teams");
   return { ok: "เอาออกจากทีมแล้ว" };
+}
+
+/**
+ * ลบทีมถาวร — เฉพาะเจ้าของทีม และต้องพิมพ์ชื่อทีมยืนยัน
+ * ลบสมาชิกภาพ งาน เช็กอิน ความคิดเห็น คำเชิญ และไฟล์แนบของทีมนี้ทั้งหมด (บัญชีผู้ใช้ไม่ถูกลบ)
+ */
+export async function deleteTeam(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const teamId = String(formData.get("teamId") ?? "");
+  const control = await getTeamControl(user, teamId);
+  if (!control?.owner) return { error: "เฉพาะเจ้าของทีมลบทีมได้" };
+  if (String(formData.get("confirm") ?? "").trim() !== control.team.name) return { error: "พิมพ์ชื่อทีมให้ตรงเพื่อยืนยันการลบ" };
+  if ((await prisma.team.count({ where: { parentId: teamId } })) > 0) return { error: "ทีมนี้ยังมีทีมย่อย — ลบทีมย่อยก่อน" };
+
+  const members = await prisma.teamMember.findMany({ where: { teamId, userId: { not: user.id } }, select: { userId: true } });
+  // ไฟล์ใน Storage ลบก่อน (ถ้า Storage มีปัญหา แถวที่เหลือจะถูก cron เก็บกวาดทีหลัง)
+  await purgeAttachments({
+    OR: [{ task: { teamId } }, { comment: { task: { teamId } } }, { comment: { standup: { teamId } } }],
+  }).catch((e) => console.error(e));
+  await prisma.$transaction([
+    prisma.standup.deleteMany({ where: { teamId } }),
+    prisma.team.delete({ where: { id: teamId } }),
+  ]);
+  await notify(
+    members.map((m) => ({ userId: m.userId })),
+    { title: `ทีม ${control.team.name} ถูกลบ`, body: `${user.name} ลบทีมนี้แล้ว`, url: "/teams" },
+  );
+  done();
+  redirect(control.team.parentId ? `/teams/${control.team.parentId}` : "/teams");
 }

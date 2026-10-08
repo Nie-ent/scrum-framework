@@ -5,7 +5,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey } from "@/lib/dates";
-import { sendPush } from "@/lib/push";
+import { notify } from "@/lib/notify";
 import { teamAccess } from "@/lib/access";
 import { purgeAttachments } from "@/lib/attachment-store";
 import type { FormState } from "./auth";
@@ -70,26 +70,15 @@ export async function addComment(_: FormState, formData: FormData): Promise<Form
 
   const comment = await prisma.comment.create({ data: { ...target.where, authorId: user.id, body: parsed.data.body } });
 
-  // แจ้งเจ้าของและคนที่เคยคอมเมนต์ในเธรดนี้ — การแจ้งเตือนที่ล้มเหลวไม่ทำให้คอมเมนต์พัง
+  // แจ้งเจ้าของและคนที่เคยคอมเมนต์ในเธรดนี้
   const earlier = await prisma.comment.findMany({ where: target.where, select: { authorId: true }, distinct: ["authorId"] });
   const recipientIds = [...new Set([target.ownerId, ...earlier.map((c) => c.authorId)])].filter((id) => id !== user.id);
-  if (recipientIds.length > 0) {
-    const recipients = await prisma.user.findMany({
-      where: { id: { in: recipientIds }, active: true, pushSubs: { some: {} } },
-      select: { id: true, pushSubs: true },
-    });
-    const text = parsed.data.body || "📎 แนบไฟล์";
-    const body = text.length > 120 ? `${text.slice(0, 120)}…` : text;
-    await Promise.all(
-      recipients.map((r) =>
-        sendPush(r.pushSubs, {
-          title: `${user.name} แสดงความคิดเห็น`,
-          body: `${r.id === target.ownerId || parsed.data.taskId ? `${target.label}: ` : ""}${body}`,
-          url: target.url(r.id),
-        }).catch(() => undefined),
-      ),
-    );
-  }
+  const text = parsed.data.body || "📎 แนบไฟล์";
+  const body = text.length > 120 ? `${text.slice(0, 120)}…` : text;
+  await notify(
+    recipientIds.map((id) => ({ userId: id, url: target.url(id) })),
+    { title: `${user.name} แสดงความคิดเห็น`, body: `${parsed.data.taskId ? `${target.label}: ` : ""}${body}`, url: target.url(target.ownerId) },
+  );
   done();
   return { ok: "ส่งแล้ว", id: comment.id };
 }

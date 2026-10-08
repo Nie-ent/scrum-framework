@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { resendVerification } from "@/app/actions/auth";
-import { createSubTeam, createTeam, inviteMember, removeMember, updateMember } from "@/app/actions/teams";
+import { createSubTeam, createTeam, deleteTeam, inviteMember, removeMember, updateMember } from "@/app/actions/teams";
 import { FormMessage, SubmitButton } from "@/components/form";
 
 const TITLE_HINT = "เช่น Dev, PM, PO, Scrum Master";
@@ -153,6 +153,29 @@ export function VerifyEmailButton() {
     <form action={action} className="flex flex-wrap items-center gap-2">
       <SubmitButton className="btn-ghost min-h-9 px-3 py-1 text-xs" pendingText="กำลังส่ง...">ส่งลิงก์ยืนยันอีเมล</SubmitButton>
       <FormMessage state={state} />
+    </form>
+  );
+}
+
+/** ลบทีมถาวร — ต้องพิมพ์ชื่อทีมให้ตรงก่อนปุ่มจะกดได้ */
+export function DeleteTeamForm({ teamId, teamName }: { teamId: string; teamName: string }) {
+  const [state, action] = useActionState(deleteTeam, undefined);
+  const [typed, setTyped] = useState("");
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="teamId" value={teamId} />
+      <div>
+        <label className="label" htmlFor="delete-confirm">พิมพ์ <b className="font-semibold text-slate-900">{teamName}</b> เพื่อยืนยัน</label>
+        <input id="delete-confirm" name="confirm" className="input max-w-sm" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
+      </div>
+      <FormMessage state={state} />
+      <SubmitButton
+        className="inline-flex min-h-10 items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-200 disabled:pointer-events-none disabled:opacity-40"
+        pendingText="กำลังลบ..."
+        disabled={typed.trim() !== teamName}
+      >
+        ลบทีมนี้ถาวร
+      </SubmitButton>
     </form>
   );
 }

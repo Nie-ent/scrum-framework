@@ -3,9 +3,14 @@ import { logout } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth";
 import { teamsLabel } from "@/lib/permissions";
 import { pushPublicKey } from "@/lib/push";
+import type { Metadata } from "next";
+import { isEmailConfigured } from "@/lib/email";
+import { EmailSettings } from "./email-settings";
 import { NotificationSettings } from "./notification-settings";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
+
+export const metadata: Metadata = { title: "บัญชีของฉัน" };
 
 export default async function AccountPage() {
   const user = await requireUser();
@@ -29,6 +34,7 @@ export default async function AccountPage() {
         <span className="shrink-0 text-indigo-600" aria-hidden="true">→</span>
       </Link>
       <NotificationSettings publicKey={pushPublicKey()} />
+      <EmailSettings email={user.email} verified={Boolean(user.emailVerifiedAt)} enabled={user.emailNotifications} canSend={isEmailConfigured()} />
       <PasswordForm />
       <form action={logout} className="card flex items-center justify-between gap-3">
         <div>

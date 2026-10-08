@@ -10,7 +10,7 @@ import { openInvite } from "@/lib/invites";
 import { ACCESS_LABEL } from "@/lib/permissions";
 import { getTeamControl } from "@/lib/teams";
 import { Avatar } from "@/components/avatar";
-import { InviteForm, MemberForm, SubTeamForm } from "../forms";
+import { DeleteTeamForm, InviteForm, MemberForm, SubTeamForm } from "../forms";
 
 export const metadata: Metadata = { title: "จัดการทีม" };
 
@@ -125,6 +125,18 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
             </ul>
           )}
           {owner && <SubTeamForm teamId={team.id} />}
+        </section>
+      )}
+
+      {owner && (
+        <section className="card border-rose-200">
+          <p className="eyebrow text-rose-600">Danger zone</p>
+          <h2 className="font-semibold text-slate-900">ลบทีม</h2>
+          <p className="mb-4 mt-1 text-sm text-slate-500">
+            ลบทีมนี้พร้อมงาน เช็กอิน ความคิดเห็น ไฟล์แนบ และคำเชิญทั้งหมดของทีม <b className="font-semibold text-rose-700">กู้คืนไม่ได้</b> · บัญชีของสมาชิกไม่ถูกลบ
+            {children.length > 0 && " · ต้องลบทีมย่อยทั้งหมดก่อน"}
+          </p>
+          <DeleteTeamForm teamId={team.id} teamName={team.name} />
         </section>
       )}
     </div>

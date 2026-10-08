@@ -68,51 +68,56 @@ model TeamMember {
 }
 
 model User {
-  id              String             @id @default(cuid())
-  email           String             @unique
-  name            String
-  passwordHash    String
-  active          Boolean            @default(true)
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  name               String
+  passwordHash       String
+  active             Boolean            @default(true)
   /// null = ยังไม่ได้ยืนยันว่าเป็นเจ้าของอีเมลนี้ (สมัครเองและยังไม่กดลิงก์ยืนยัน) — รับคำเชิญในแอปไม่ได้จนกว่าจะยืนยัน
-  emailVerifiedAt DateTime?
-  roleId          String
-  role            Role               @relation(fields: [roleId], references: [id])
-  memberships     TeamMember[]
-  standups        Standup[]
-  pushSubs        PushSubscription[]
+  emailVerifiedAt    DateTime?
+  /// session ที่ออกก่อนเวลานี้ใช้ไม่ได้ — เปลี่ยน/รีเซ็ตรหัสผ่านแล้วเครื่องอื่นหลุดออก
+  passwordChangedAt  DateTime?
+  /// รับอีเมลแจ้งเตือน (งานใหม่ ความคิดเห็น) — ส่งเฉพาะเมื่อยืนยันอีเมลแล้ว
+  emailNotifications Boolean            @default(true)
+  notifications      Notification[]
+  roleId             String
+  role               Role               @relation(fields: [roleId], references: [id])
+  memberships        TeamMember[]
+  standups           Standup[]
+  pushSubs           PushSubscription[]
   /// มีค่าเมื่อมีรูปโปรไฟล์ — ใช้เป็นเวอร์ชันใน URL รูป (?v=) เพื่อให้ cache ได้นานแต่เปลี่ยนรูปแล้วเห็นทันที
-  avatarUpdatedAt DateTime?
-  avatar          Avatar?
-  tasks           Task[]             @relation("TaskAssignee")
-  createdTasks    Task[]             @relation("TaskCreator")
-  comments        Comment[]
-  attachments     Attachment[]       @relation("AttachmentUploader")
-  markedFiles     Attachment[]       @relation("AttachmentMarker")
-  sentInvites     Invite[]           @relation("InviteSender")
-  acceptedInvites Invite[]           @relation("InviteAccepter")
-  authTokens      AuthToken[]
-  createdAt       DateTime           @default(now())
+  avatarUpdatedAt    DateTime?
+  avatar             Avatar?
+  tasks              Task[]             @relation("TaskAssignee")
+  createdTasks       Task[]             @relation("TaskCreator")
+  comments           Comment[]
+  attachments        Attachment[]       @relation("AttachmentUploader")
+  markedFiles        Attachment[]       @relation("AttachmentMarker")
+  sentInvites        Invite[]           @relation("InviteSender")
+  acceptedInvites    Invite[]           @relation("InviteAccepter")
+  authTokens         AuthToken[]
+  createdAt          DateTime           @default(now())
 }
 
 /// Daily scrum หนึ่งรายการต่อคน ต่อทีม ต่อวัน — กระดานของแต่ละทีมแยกกัน
 /// teamId = null เฉพาะข้อมูลเก่าที่เจ้าของไม่มีทีม หรือทีมถูกลบไปแล้ว
 model Standup {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   teamId         String?
-  team           Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  date           DateTime @db.Date
+  team           Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  date           DateTime  @db.Date
   /// [{ text, progress }] — ยกมาจาก todayTasks ของครั้งก่อน แล้วอัปเดต % ความคืบหน้า (100 = เสร็จ)
-  yesterdayTasks Json     @default("[]")
+  yesterdayTasks Json      @default("[]")
   /// [{ text, progress? }] — progress = % ตั้งต้นของงานที่ยกมาทำต่อ
-  todayTasks     Json     @default("[]")
+  todayTasks     Json      @default("[]")
   blockers       String?
   notWorking     String?
   workingWell    String?
   comments       Comment[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([userId, teamId, date])
   @@index([teamId, date])
@@ -134,26 +139,26 @@ model PushSubscription {
 
 /// งานที่มอบหมายให้สมาชิกในทีม — เช็กอินอ้างถึงงานนี้ด้วย taskId แล้วอัปเดต progress กลับมาที่นี่
 model Task {
-  id          String    @id @default(cuid())
+  id          String       @id @default(cuid())
   teamId      String
-  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
   assigneeId  String
-  assignee    User      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  assignee    User         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
   /// คนที่สร้าง/มอบหมาย (null = บัญชีถูกลบไปแล้ว)
   createdById String?
-  createdBy   User?     @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy   User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   title       String
   description String?
   /// 0–100, 100 = เสร็จ
-  progress    Int       @default(0)
-  dueDate     DateTime? @db.Date
+  progress    Int          @default(0)
+  dueDate     DateTime?    @db.Date
   doneAt      DateTime?
   /// ลบแบบซ่อนไว้ก่อน เพื่อให้กด "เลิกทำ" ได้ — query ทั่วไปต้องกรอง deletedAt = null
   deletedAt   DateTime?
   comments    Comment[]
   attachments Attachment[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([teamId, assigneeId])
   @@index([assigneeId, progress])
@@ -161,13 +166,13 @@ model Task {
 
 /// ความคิดเห็นใต้งาน (taskId) หรือใต้เช็กอิน (standupId) — ต้องมีอย่างใดอย่างหนึ่งเท่านั้น (CHECK ใน migration)
 model Comment {
-  id        String   @id @default(cuid())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  taskId    String?
-  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  standupId String?
-  standup   Standup? @relation(fields: [standupId], references: [id], onDelete: Cascade)
+  id          String       @id @default(cuid())
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  standupId   String?
+  standup     Standup?     @relation(fields: [standupId], references: [id], onDelete: Cascade)
   /// ว่างได้เมื่อความคิดเห็นมีแต่ไฟล์แนบ
   body        String
   attachments Attachment[]
@@ -201,6 +206,29 @@ model Invite {
   @@index([teamId])
   @@index([email])
   @@index([invitedById])
+}
+
+/// แจ้งเตือนในแอป (กระดิ่ง) — แถวเกิดเร็วและอ่านตามลำดับเวลา จึงใช้เลขรันเป็น id
+model Notification {
+  id        BigInt    @id @default(autoincrement())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  /// path ภายในแอปที่จะเปิดเมื่อกด (ขึ้นต้นด้วย /)
+  url       String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+/// ตัวนับจำกัดความถี่ (login / สมัคร / ลืมรหัสผ่าน) ต่อ key เช่น "login:ip:1.2.3.4" — ดู src/lib/rate-limit.ts
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
 }
 
 enum AuthTokenType {

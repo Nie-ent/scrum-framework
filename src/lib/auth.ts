@@ -15,6 +15,8 @@ export const getCurrentUser = cache(async () => {
     include: { role: true, memberships: { include: { team: true }, orderBy: { team: { name: "asc" } } } },
   });
   if (!user || !user.active) return null;
+  // session ที่ออกก่อนเปลี่ยนรหัสผ่านใช้ไม่ได้ (เผื่อ 1 วินาที เพราะ iat ปัดเป็นวินาที)
+  if (user.passwordChangedAt && session.issuedAt * 1000 < user.passwordChangedAt.getTime() - 1000) return null;
   return user;
 });
 

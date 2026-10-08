@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { deleteAttachment, setAttachmentImportant } from "@/app/actions/attachments";
 import { MAX_FILES_PER_UPLOAD, formatBytes, type AttachmentTarget, type FileItem } from "@/lib/attachments";
 import { checkFiles, uploadFiles } from "@/lib/upload-client";
+import { Icon } from "@/components/icons";
 
 type Menu = { file: FileItem; x: number; y: number };
 
@@ -66,7 +67,7 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
               title={f.important ? "ไฟล์สำคัญ — เก็บไว้ถาวร" : `ไฟล์ชั่วคราว — จะถูกลบในอีก ${f.daysLeft} วัน (คลิกขวาเพื่อ mark ว่าสำคัญ)`}
               className="flex min-w-0 items-center gap-1.5 py-1.5 pl-2.5 pr-1 hover:text-indigo-700"
             >
-              <span aria-hidden="true">{f.important ? "⭐" : f.isImage ? "🖼️" : "📎"}</span>
+              {f.important ? <Icon name="star" filled className="h-3.5 w-3.5 text-amber-500" /> : <Icon name={f.isImage ? "image" : "paperclip"} className="h-3.5 w-3.5 text-slate-400" />}
               <span className="truncate font-medium text-slate-800">{f.name}</span>
               <span className="shrink-0 text-slate-400">
                 {formatBytes(f.size)}
@@ -82,9 +83,9 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
                 const box = e.currentTarget.getBoundingClientRect();
                 openMenu(f, box.left, box.bottom + 4);
               }}
-              className="shrink-0 rounded-r-xl px-2 py-1.5 text-slate-400 transition hover:text-slate-700"
+              className="shrink-0 rounded-r-xl px-1.5 py-1.5 text-slate-400 transition hover:text-slate-700"
             >
-              ⋯
+              <Icon name="dots" />
             </button>
           </li>
         ))}
@@ -104,10 +105,11 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
             className={item}
             onClick={() => run(() => setAttachmentImportant(menu.file.id, !menu.file.important), "บันทึกไม่สำเร็จ")}
           >
-            {menu.file.important ? "☆ เลิก mark ว่าสำคัญ" : "⭐ Mark ว่าสำคัญ (เก็บไว้)"}
+            <Icon name="star" filled={!menu.file.important} className={`h-4 w-4 ${menu.file.important ? "text-slate-400" : "text-amber-500"}`} />
+            {menu.file.important ? "เลิก mark ว่าสำคัญ" : "Mark ว่าสำคัญ (เก็บไว้)"}
           </button>
-          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}`} target="_blank" rel="noopener noreferrer">↗ เปิดไฟล์</a>
-          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}?download=1`}>↓ ดาวน์โหลด</a>
+          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}`} target="_blank" rel="noopener noreferrer"><Icon name="open" className="h-4 w-4 text-slate-400" />เปิดไฟล์</a>
+          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}?download=1`}><Icon name="download" className="h-4 w-4 text-slate-400" />ดาวน์โหลด</a>
           {(canModerate || menu.file.mine) && (
             <button
               type="button"
@@ -115,7 +117,7 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
               className={`${item} text-rose-700 hover:bg-rose-50`}
               onClick={() => run(() => deleteAttachment(menu.file.id), "ลบไฟล์ไม่สำเร็จ")}
             >
-              × ลบไฟล์
+              <Icon name="trash" />ลบไฟล์
             </button>
           )}
         </div>,
@@ -131,7 +133,7 @@ export function FilePicker({
   onChange,
   label = "แนบไฟล์",
   text,
-  className = "btn-ghost min-h-10 shrink-0 px-3 text-sm",
+  className = "btn-ghost min-h-10 shrink-0 gap-1.5 px-3 text-sm",
 }: {
   files: File[];
   onChange: (files: File[], error: string | null) => void;
@@ -156,7 +158,8 @@ export function FilePicker({
         }}
       />
       <button type="button" className={className} onClick={() => input.current?.click()} aria-label={label} title={label}>
-        📎{text ? ` ${text}` : files.length > 0 ? ` ${files.length}` : ""}
+        <Icon name="paperclip" />
+        {text ?? (files.length > 0 ? files.length : null)}
       </button>
     </>
   );

@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { createSession, deleteSession } from "@/lib/session";
 import { appUrl, isEmailConfigured, sendEmail } from "@/lib/email";
 import { isSignupOpen, openInvite } from "@/lib/invites";
+import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
 import { hashToken, inHours, newToken } from "@/lib/tokens";
 
 /** id = รายการที่เพิ่งสร้าง (ใช้ต่อ เช่น แนบไฟล์ให้งาน/ความคิดเห็นนั้น) */
@@ -24,12 +25,16 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
     password: formData.get("password"),
   });
   if (!parsed.success) return { error: "กรุณากรอกอีเมลและรหัสผ่านให้ถูกต้อง" };
+  // กันเดารหัสผ่าน: จำกัดทั้งต่อบัญชีและต่อ IP ใน 15 นาที
+  const ip = await clientIp();
+  const allowed = (await rateLimit(`login:acct:${parsed.data.email}`, 10, 900)) && (await rateLimit(`login:ip:${ip}`, 40, 900));
+  if (!allowed) return { error: TOO_MANY };
 
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
   const valid = user && user.active && (await bcrypt.compare(parsed.data.password, user.passwordHash));
   if (!valid) return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" };
 
-  await createSession(user.id);
+  await createSession(user.id, formData.get("remember") === "on");
   redirect(safeNext(formData.get("next")));
 }
 
@@ -48,6 +53,7 @@ export async function signup(_: FormState, formData: FormData): Promise<FormStat
   const parsed = SignupSchema.safeParse({ name: formData.get("name"), email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const next = safeNext(formData.get("next"));
+  if (!(await rateLimit(`signup:ip:${await clientIp()}`, 5, 3600))) return { error: TOO_MANY };
 
   // ปิดสมัครเองอยู่ก็ยังสมัครได้ถ้ามาจากลิงก์คำเชิญที่ยังใช้ได้
   if (!isSignupOpen()) {
@@ -121,6 +127,7 @@ export async function requestPasswordReset(_: FormState, formData: FormData): Pr
   const parsed = z.email().trim().toLowerCase().safeParse(formData.get("email"));
   if (!parsed.success) return { error: "อีเมลไม่ถูกต้อง" };
   if (!isEmailConfigured()) return { error: "ระบบยังไม่ได้ตั้งค่าการส่งอีเมล — ติดต่อผู้ดูแลระบบให้รีเซ็ตรหัสผ่านให้" };
+  if (!(await rateLimit(`forgot:ip:${await clientIp()}`, 8, 3600))) return { error: TOO_MANY };
   const user = await prisma.user.findUnique({ where: { email: parsed.data } });
   if (user?.active) {
     // กันส่งรัว: 1 ฉบับต่อ 2 นาที ต่อบัญชี
@@ -158,7 +165,7 @@ export async function resetPassword(_: FormState, formData: FormData): Promise<F
   // เปิดลิงก์จากอีเมลได้ = เป็นเจ้าของอีเมลนี้จริง
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash: await bcrypt.hash(parsed.data.next, 10) },
+    data: { passwordHash: await bcrypt.hash(parsed.data.next, 10), passwordChangedAt: new Date() },
   });
   if (!user.emailVerifiedAt) await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
   await createSession(userId);
@@ -191,7 +198,9 @@ export async function changePassword(_: FormState, formData: FormData): Promise<
   }
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(parsed.data.next, 10) },
+    data: { passwordHash: await bcrypt.hash(parsed.data.next, 10), passwordChangedAt: new Date() },
   });
-  return { ok: "เปลี่ยนรหัสผ่านเรียบร้อย" };
+  // เครื่องอื่นหลุดออก — เครื่องนี้ออก session ใหม่ให้ใช้ต่อได้
+  await createSession(user.id);
+  return { ok: "เปลี่ยนรหัสผ่านเรียบร้อย — เครื่องอื่นที่เข้าสู่ระบบไว้จะถูกออกจากระบบ" };
 }

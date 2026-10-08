@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui-state";
 import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-delete";
 import { TaskForm } from "./task-form";
 import { Avatar } from "@/components/avatar";
+import { Icon } from "@/components/icons";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { toFileItems, withAttachments } from "@/lib/attachments";
@@ -135,6 +136,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             {overdue > 0 && <span className="text-rose-600"> · เลยกำหนด {overdue}</span>}
           </p>
         </div>
+        <Link href={`/files?team=${team.id}`} className="btn-ghost gap-1.5"><Icon name="star" className="h-4 w-4 text-amber-500" filled />ไฟล์สำคัญ</Link>
       </div>
 
       {teams.length > 1 && (
@@ -181,12 +183,16 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           <summary className="cursor-pointer text-sm font-semibold text-slate-700">เสร็จแล้ว ({finished.length})</summary>
           <ul className="mt-2 divide-y divide-slate-100">
             {finished.slice(0, 30).map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                <span className="text-slate-500 line-through">{t.title}</span>
-                <span className="text-xs text-slate-400">
-                  {`${t.assignee.name} · `}
-                  {t.doneAt ? formatDateKey(dateToKey(t.doneAt)) : ""}
-                </span>
+              <li key={t.id} className="py-2 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-slate-500 line-through">{t.title}</span>
+                  <span className="text-xs text-slate-400">
+                    {`${t.assignee.name} · `}
+                    {t.doneAt ? formatDateKey(dateToKey(t.doneAt)) : ""}
+                  </span>
+                </div>
+                <AttachmentList files={toFileItems(t.attachments, user.id)} canModerate={canManage} />
+                {t.comments.length > 0 && <CommentThread canAttach={canAttach} target={{ taskId: t.id }} comments={t.comments} viewerId={user.id} canModerate={canManage} subject={t.title} />}
               </li>
             ))}
           </ul>
