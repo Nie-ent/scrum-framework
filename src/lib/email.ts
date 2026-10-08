@@ -4,7 +4,15 @@ import "server-only";
  * ส่งอีเมลผ่าน Resend (REST API) — ต้องตั้ง RESEND_API_KEY และ EMAIL_FROM (ผู้ส่งบนโดเมนที่ verify กับ Resend แล้ว)
  * ไม่ตั้ง = ไม่ส่งอีเมล: คำเชิญใช้การคัดลอกลิงก์/กดรับในแอปแทน และลืมรหัสผ่านต้องให้ผู้ดูแลรีเซ็ตให้
  */
-export const isEmailConfigured = () => Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+export const isEmailConfigured = () => Boolean(process.env.RESEND_API_KEY?.trim() && emailFrom());
+
+/**
+ * ผู้ส่งในรูป `email@example.com` หรือ `Name <email@example.com>` — ตัดช่องว่างและเครื่องหมายคำพูดที่ครอบมา
+ * (ค่าที่วางใน dashboard มักติด "..." มาด้วย ซึ่ง Resend ปฏิเสธว่า Invalid `from` field)
+ */
+function emailFrom() {
+  return (process.env.EMAIL_FROM ?? "").trim().replace(/^(["'])([^]*)\1$/, "$2").trim();
+}
 
 /** URL หลักของเว็บ สำหรับสร้างลิงก์ในอีเมลและลิงก์คำเชิญ */
 export function appUrl(path = "") {
@@ -28,9 +36,9 @@ export async function sendEmail(mail: { to: string; subject: string; heading: st
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY?.trim()}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM,
+        from: emailFrom(),
         to: [mail.to],
         subject: mail.subject,
         html,
