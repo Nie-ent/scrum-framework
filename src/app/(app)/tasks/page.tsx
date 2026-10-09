@@ -85,7 +85,10 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
     return (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
         <div className="min-w-0 flex-1 basis-56">
-          <p className={`font-medium ${t.progress >= 100 ? "text-slate-400 line-through" : "text-slate-800"}`}>{t.title}</p>
+          <p className={`font-medium ${t.progress >= 100 ? "text-slate-400 line-through" : "text-slate-800"}`}>
+            {t.number !== null && <span className="mr-1.5 font-normal tabular-nums text-slate-400">#{t.number}</span>}
+            {t.title}
+          </p>
           {t.description && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-500"><LinkedText text={t.description} /></p>}
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
             {dueKey && <span className={`badge ${late ? "badge-danger" : "badge-neutral"}`}>{late ? "เลยกำหนด · " : "ส่ง "}{formatDateKey(dueKey)}</span>}
@@ -186,7 +189,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             {finished.slice(0, 30).map((t) => (
               <li key={t.id} className="py-2 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-slate-500 line-through">{t.title}</span>
+                  <span className="text-slate-500 line-through">{t.number !== null && <span className="mr-1.5 tabular-nums text-slate-400 no-underline">#{t.number}</span>}{t.title}</span>
                   <span className="text-xs text-slate-400">
                     {`${t.assignee.name} · `}
                     {t.doneAt ? formatDateKey(dateToKey(t.doneAt)) : ""}

@@ -222,3 +222,24 @@ export async function deleteTeam(_: FormState, formData: FormData): Promise<Form
   done();
   redirect(control.team.parentId ? `/teams/${control.team.parentId}` : "/teams");
 }
+
+/** ตั้งลิงก์ห้องประชุมประจำทีม (เว้นว่าง = ลบ) — เฉพาะเจ้าของทีม · รับเฉพาะ https */
+export async function setMeetingUrl(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const teamId = String(formData.get("teamId") ?? "");
+  if (!(await getTeamControl(user, teamId))?.owner) return { error: "เฉพาะเจ้าของทีมตั้งลิงก์ห้องประชุมได้" };
+  const raw = String(formData.get("meetingUrl") ?? "").trim();
+  let meetingUrl: string | null = null;
+  if (raw) {
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== "https:" || raw.length > 500) throw new Error("invalid");
+      meetingUrl = url.toString();
+    } catch {
+      return { error: "ใส่ลิงก์ที่ขึ้นต้นด้วย https:// เช่น https://meet.google.com/abc-defg-hij" };
+    }
+  }
+  await prisma.team.update({ where: { id: teamId }, data: { meetingUrl } });
+  done(teamId);
+  return { ok: meetingUrl ? "บันทึกลิงก์ห้องประชุมแล้ว" : "ลบลิงก์ห้องประชุมแล้ว" };
+}

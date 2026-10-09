@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { resendVerification } from "@/app/actions/auth";
-import { createSubTeam, createTeam, deleteTeam, inviteMember, removeMember, updateMember } from "@/app/actions/teams";
+import { createSubTeam, createTeam, deleteTeam, inviteMember, removeMember, setMeetingUrl, updateMember } from "@/app/actions/teams";
 import { FormMessage, SubmitButton } from "@/components/form";
 
 const TITLE_HINT = "เช่น Dev, PM, PO, Scrum Master";
@@ -176,6 +176,21 @@ export function DeleteTeamForm({ teamId, teamName }: { teamId: string; teamName:
       >
         ลบทีมนี้ถาวร
       </SubmitButton>
+    </form>
+  );
+}
+
+export function MeetingUrlForm({ teamId, meetingUrl }: { teamId: string; meetingUrl: string | null }) {
+  const [state, action] = useActionState(setMeetingUrl, undefined);
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="teamId" value={teamId} />
+      <div className="min-w-0 flex-1 basis-64">
+        <label className="label" htmlFor="meeting-url">ลิงก์ห้องประชุม <span className="font-normal text-slate-400">(เว้นว่าง = ไม่ใช้)</span></label>
+        <input id="meeting-url" name="meetingUrl" type="url" inputMode="url" className="input" maxLength={500} defaultValue={meetingUrl ?? ""} placeholder="https://meet.google.com/abc-defg-hij" />
+      </div>
+      <SubmitButton className="btn-ghost">บันทึก</SubmitButton>
+      <div className="basis-full empty:hidden"><FormMessage state={state} /></div>
     </form>
   );
 }

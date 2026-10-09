@@ -28,7 +28,7 @@ export function StandupForm({
   carriedOver: boolean;
   submitted: boolean;
   /** งานที่ได้รับมอบหมายในทีมนี้และยังไม่เสร็จ */
-  assigned: { id: string; title: string; progress: number }[];
+  assigned: AssignedTask[];
 }) {
   const [state, action] = useActionState(saveStandup, undefined);
   const [yesterday, setYesterday] = useState<Task[]>(initial.yesterdayTasks);
@@ -46,16 +46,18 @@ export function StandupForm({
   const unfinished = yesterday
     .filter((t) => t.text.trim() && !isDone(t))
     // เก็บ % ล่าสุดไว้ ครั้งถัดไปงานนี้จะเริ่มจาก % เดิม ไม่ต้องกรอกใหม่จาก 0
-    .map((t): Task => ({ text: t.text.trim(), progress: t.progress ?? 0, ...(t.taskId ? { taskId: t.taskId } : {}) }));
+    .map((t): Task => ({ text: t.text.trim(), progress: t.progress ?? 0, ...(t.taskId ? { taskId: t.taskId } : {}), ...(t.editable ? { editable: true } : {}) }));
   const carried = unfinished.filter((t) => !dropped.has(t.text) && !extra.some((e) => e.text.trim() === t.text));
   const droppedCount = unfinished.filter((t) => dropped.has(t.text)).length;
   const today = [...carried, ...extra];
 
   // งานที่มอบหมายซึ่งยังไม่อยู่ในเช็กอินนี้ — แตะเพื่อเพิ่ม
+  // เทียบทั้ง id และชื่อ: บรรทัดที่เพิ่งพิมพ์ยังไม่มี id จนกว่าจะโหลดหน้าใหม่
   const used = new Set([...yesterday, ...today].flatMap((t) => (t.taskId ? [t.taskId] : [])));
-  const available = assigned.filter((t) => !used.has(t.id));
+  const usedText = new Set([...yesterday, ...today].map((t) => t.text.trim()));
+  const available = assigned.filter((t) => !used.has(t.id) && !usedText.has(t.title));
   const filled = (list: Task[]) => list.filter((t) => t.text.trim());
-  const fromAssigned = (t: (typeof assigned)[number]): Task => ({ text: t.title, taskId: t.id, progress: t.progress });
+  const fromAssigned = (t: AssignedTask): Task => ({ text: t.title, taskId: t.id, progress: t.progress, ...(t.editable ? { editable: true } : {}) });
 
   const setDrop = (text: string, drop: boolean) =>
     setDropped((prev) => {
@@ -89,7 +91,7 @@ export function StandupForm({
             <p className="mb-2 text-xs text-slate-500">ยกมาจากแผนครั้งก่อนของทีมนี้ — อัปเดต % ความคืบหน้า (ติ๊ก ✓ = เสร็จ 100%) แล้วเพิ่มงานอื่นที่ทำได้</p>
           )}
           <TaskListEditor id="yesterdayTasks" items={yesterday} onChange={setYesterday} withProgress placeholder="เช่น ทำ API login" />
-          <AssignedChips tasks={available} label="ทำงานที่ได้รับมอบหมายไปแล้ว?" onPick={(t) => setYesterday([...filled(yesterday), fromAssigned(t)])} />
+          <AssignedChips tasks={available} label="งานค้างของฉันที่ยังไม่อยู่ในเช็กอินนี้ — แตะเพื่อรายงานความคืบหน้า" onPick={(t) => setYesterday([...filled(yesterday), fromAssigned(t)])} />
         </div>
         <div>
           <label className="label" id="todayTasks-label" htmlFor="todayTasks">
@@ -134,8 +136,8 @@ export function StandupForm({
             </p>
           )}
           <TaskListEditor id="todayTasks" items={extra} onChange={setExtra} placeholder={carried.length > 0 ? "เพิ่มงานอื่นของวันนี้" : "เช่น ต่อหน้า dashboard"} />
-          <AssignedChips tasks={available} label="งานที่ได้รับมอบหมาย — แตะเพื่อใส่ในแผนวันนี้" onPick={(t) => setExtra([...filled(extra), fromAssigned(t)])} />
-          <p className="mt-1 pl-4 text-xs text-slate-400">งานเหล่านี้จะขึ้นเป็น &quot;ล่าสุดทำอะไรไป&quot; ในเช็กอินครั้งถัดไปของทีมนี้</p>
+          <AssignedChips tasks={available} label="งานค้างของฉัน — แตะเพื่อใส่ในแผนวันนี้" onPick={(t) => setExtra([...filled(extra), fromAssigned(t)])} />
+          <p className="mt-1 pl-4 text-xs text-slate-400">งานที่พิมพ์ใหม่จะถูกเพิ่มเป็นงานของคุณในหน้า งาน และขึ้นเป็น &quot;ล่าสุดทำอะไรไป&quot; ในเช็กอินครั้งถัดไป</p>
         </div>
       </div>
 
@@ -169,21 +171,20 @@ export function StandupForm({
   );
 }
 
-function AssignedChips({
-  tasks,
-  label,
-  onPick,
-}: {
-  tasks: { id: string; title: string; progress: number }[];
-  label: string;
-  onPick: (task: { id: string; title: string; progress: number }) => void;
-}) {
+type AssignedTask = { id: string; title: string; progress: number; editable?: boolean };
+
+/** แสดงงานค้างเป็นปุ่มให้แตะเพิ่ม — เกิน CHIP_LIMIT ซ่อนส่วนที่เหลือไว้หลังปุ่ม "ดูทั้งหมด" */
+const CHIP_LIMIT = 6;
+
+function AssignedChips({ tasks, label, onPick }: { tasks: AssignedTask[]; label: string; onPick: (task: AssignedTask) => void }) {
+  const [showAll, setShowAll] = useState(false);
   if (tasks.length === 0) return null;
+  const shown = showAll ? tasks : tasks.slice(0, CHIP_LIMIT);
   return (
     <div className="mt-2 pl-4">
       <p className="mb-1.5 text-xs font-medium text-slate-500">{label}</p>
       <div className="flex flex-wrap gap-1.5">
-        {tasks.map((t) => (
+        {shown.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -195,6 +196,11 @@ function AssignedChips({
             {t.progress > 0 && <span className="shrink-0 text-indigo-400">{t.progress}%</span>}
           </button>
         ))}
+        {tasks.length > CHIP_LIMIT && (
+          <button type="button" onClick={() => setShowAll(!showAll)} className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:text-indigo-700">
+            {showAll ? "ย่อ" : `ดูทั้งหมด (${tasks.length})`}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -38,33 +38,51 @@ export function ProgressBar({ percent, className = "" }: { percent: number; clas
   );
 }
 
+/** รายการยาวเกินนี้จะพับส่วนที่เหลือไว้ เพื่อให้การ์ดเช็กอินอ่านง่ายเมื่อมีงานเยอะ */
+const VISIBLE_TASKS = 5;
+
 /** showStatus = แสดง ✓/○ และ % ของแต่ละ task (ใช้กับ "ล่าสุดทำอะไรไป") */
 export function TaskListView({ value, showStatus = false }: { value: unknown; showStatus?: boolean }) {
   const tasks = toTasks(value);
   if (tasks.length === 0) return <p className="text-sm text-slate-400">—</p>;
+  const row = (t: (typeof tasks)[number], i: number) => {
+    const percent = t.progress ?? 0;
+    return (
+      <li key={i} className="flex gap-2">
+        {showStatus ? (
+          <span className={isDone(t) ? "text-emerald-600" : "text-slate-400"} aria-hidden="true">
+            {isDone(t) ? "✓" : "○"}
+          </span>
+        ) : (
+          <span className="text-indigo-400" aria-hidden="true">•</span>
+        )}
+        <span className={`min-w-0 flex-1 break-words ${showStatus && isDone(t) ? "text-slate-500" : ""}`}>{t.text}</span>
+        {showStatus ? (
+          <span className={`shrink-0 text-xs tabular-nums ${isDone(t) ? "text-emerald-600" : "text-slate-500"}`}>{percent}%</span>
+        ) : (
+          percent > 0 && <span className="shrink-0 text-xs text-slate-400">ทำต่อจาก {percent}%</span>
+        )}
+      </li>
+    );
+  };
+  // งานที่ยังไม่เสร็จขึ้นก่อน — เป็นส่วนที่คนอ่านต้องการเห็นที่สุด
+  const ordered = showStatus ? [...tasks.filter((t) => !isDone(t)), ...tasks.filter(isDone)] : tasks;
+  const head = ordered.slice(0, VISIBLE_TASKS);
+  const rest = ordered.slice(VISIBLE_TASKS);
+  const doneInRest = rest.filter(isDone).length;
   return (
-    <ul className="space-y-0.5 text-sm">
-      {tasks.map((t, i) => {
-        const percent = t.progress ?? 0;
-        return (
-          <li key={i} className="flex gap-2">
-            {showStatus ? (
-              <span className={isDone(t) ? "text-emerald-600" : "text-slate-400"} aria-hidden="true">
-                {isDone(t) ? "✓" : "○"}
-              </span>
-            ) : (
-              <span className="text-indigo-400" aria-hidden="true">•</span>
-            )}
-            <span className={`min-w-0 flex-1 ${showStatus && !isDone(t) ? "text-slate-600" : ""}`}>{t.text}</span>
-            {showStatus ? (
-              <span className={`shrink-0 text-xs tabular-nums ${isDone(t) ? "text-emerald-600" : "text-slate-500"}`}>{percent}%</span>
-            ) : (
-              percent > 0 && <span className="shrink-0 text-xs text-slate-400">ทำต่อจาก {percent}%</span>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className="space-y-0.5 text-sm">{head.map(row)}</ul>
+      {rest.length > 0 && (
+        <details className="group/more text-sm">
+          <summary className="mt-0.5 cursor-pointer list-none text-xs font-medium text-indigo-600 marker:hidden hover:text-indigo-800">
+            <span className="group-open/more:hidden">+ อีก {rest.length} งาน{showStatus && doneInRest > 0 && ` (เสร็จแล้ว ${doneInRest})`}</span>
+            <span className="hidden group-open/more:inline">ย่อรายการ</span>
+          </summary>
+          <ul className="mt-0.5 space-y-0.5">{rest.map((t, i) => row(t, i + VISIBLE_TASKS))}</ul>
+        </details>
+      )}
+    </>
   );
 }
 

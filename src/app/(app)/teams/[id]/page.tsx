@@ -10,7 +10,7 @@ import { openInvite } from "@/lib/invites";
 import { ACCESS_LABEL } from "@/lib/permissions";
 import { getTeamControl } from "@/lib/teams";
 import { Avatar } from "@/components/avatar";
-import { DeleteTeamForm, InviteForm, MemberForm, SubTeamForm } from "../forms";
+import { DeleteTeamForm, InviteForm, MeetingUrlForm, MemberForm, SubTeamForm } from "../forms";
 
 export const metadata: Metadata = { title: "จัดการทีม" };
 
@@ -109,6 +109,17 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
           ))}
         </ul>
       </section>
+
+      {owner && (
+        <section className="card">
+          <h2 className="mb-1 font-semibold text-slate-900">ห้องประชุมของทีม</h2>
+          <p className="mb-3 text-sm text-slate-500">
+            วางลิงก์ Google Meet, Zoom หรือห้องประชุมอื่นที่ทีมใช้ประจำ สมาชิกจะเห็นปุ่ม &quot;เข้าห้องประชุม&quot; ในหน้า Daily Scrum และภาพรวมทีม
+            {team.parentId && " · ถ้าเว้นว่าง จะใช้ลิงก์ของทีมแม่"}
+          </p>
+          <MeetingUrlForm teamId={team.id} meetingUrl={team.meetingUrl} />
+        </section>
+      )}
 
       {!team.parentId && (
         <section className="card">

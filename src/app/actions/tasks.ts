@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { isDateKey, keyToDate, todayKey } from "@/lib/dates";
 import { notify } from "@/lib/notify";
+import { nextTaskNumbers } from "@/lib/task-store";
 import { toTasks } from "@/lib/tasks";
 import { getManageableTeamIds } from "@/lib/teams";
 import type { FormState } from "./auth";
@@ -55,7 +56,8 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
   });
   if (!assignee || !assignee.participates || !assignee.user.active) return { error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
 
-  const task = await prisma.task.create({ data: { ...data, createdById: user.id } });
+  const [number] = await nextTaskNumbers(data.teamId);
+  const task = await prisma.task.create({ data: { ...data, number, createdById: user.id } });
 
   if (data.assigneeId !== user.id) {
     await notify([{ userId: data.assigneeId }], {

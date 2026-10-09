@@ -104,16 +104,16 @@ export function TaskListEditor({
             }}
             id={index === 0 ? id : undefined}
             value={task.text}
-            // งานที่มอบหมาย: ชื่อมาจากงานนั้น แก้ที่นี่ไม่ได้ (อัปเดตได้เฉพาะ %)
-            readOnly={Boolean(task.taskId)}
-            title={task.taskId ? "งานที่ได้รับมอบหมาย" : undefined}
+            // งานที่คนอื่นมอบหมาย: ชื่อมาจากงานนั้น แก้ที่นี่ไม่ได้ (อัปเดตได้เฉพาะ %)
+            readOnly={Boolean(task.taskId) && !task.editable}
+            title={task.taskId && !task.editable ? "งานที่ได้รับมอบหมาย" : undefined}
             onChange={(e) => update(index, { text: e.target.value })}
             onKeyDown={(e) => onKeyDown(e, index)}
             onPaste={(e) => onPaste(e, index)}
             placeholder={index === 0 ? placeholder : "task ถัดไป…"}
             maxLength={500}
             enterKeyHint="next"
-            className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""} ${task.taskId ? "border-indigo-200 bg-indigo-50/50" : ""}`}
+            className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""} ${task.taskId && !task.editable ? "border-indigo-200 bg-indigo-50/50" : ""}`}
           />
           {withProgress && (
             <label className="flex shrink-0 items-center gap-1 text-xs text-slate-500">
@@ -158,5 +158,10 @@ function clampPercent(raw: string) {
 
 /** ส่งเฉพาะ task ที่มีข้อความ ไปกับ form ผ่าน hidden input */
 export function serializeTasks(items: Task[]) {
-  return JSON.stringify(items.filter((t) => t.text.trim()).map((t) => ({ ...t, text: t.text.trim() })));
+  return JSON.stringify(
+    items
+      .filter((t) => t.text.trim())
+      // editable ใช้ฝั่งฟอร์มเท่านั้น ไม่ส่งไปบันทึก
+      .map((t) => ({ text: t.text.trim(), ...(t.progress === undefined ? {} : { progress: t.progress }), ...(t.taskId ? { taskId: t.taskId } : {}) })),
+  );
 }

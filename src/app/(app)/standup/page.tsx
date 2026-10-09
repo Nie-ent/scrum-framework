@@ -12,7 +12,8 @@ import { Avatar } from "@/components/avatar";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
-import { getManageableTeamIds } from "@/lib/teams";
+import { getManageableTeamIds, getMeetingUrl } from "@/lib/teams";
+import { Icon } from "@/components/icons";
 
 export const metadata: Metadata = { title: "Daily Scrum" };
 
@@ -35,7 +36,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
 
   // คนที่อยู่หลายทีมเขียน scrum แยกกันต่อทีม
   const team = teams.find((t) => t.id === params.team) ?? teams[0];
-  const [history, submittedToday, myTasks, teammates, manageableIds] = await Promise.all([
+  const [history, submittedToday, myTasks, teammates, manageableIds, meetingUrl] = await Promise.all([
     prisma.standup.findMany({
       where: { userId: user.id, teamId: team.id },
       include: { comments: withComments },
@@ -49,7 +50,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     // งานที่ได้รับมอบหมายในทีมนี้ (รวมที่เสร็จแล้ว เพื่อใช้ตรวจ taskId ในเช็กอินเก่า)
     prisma.task.findMany({
       where: { assigneeId: user.id, teamId: team.id, deletedAt: null },
-      select: { id: true, title: true, progress: true },
+      select: { id: true, title: true, progress: true, createdById: true },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
     // เช็กอินวันนี้ของเพื่อนร่วมทีม
@@ -59,6 +60,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
       orderBy: { user: { name: "asc" } },
     }),
     getManageableTeamIds(user),
+    getMeetingUrl(team.id),
   ]);
   const canModerate = manageableIds.has(team.id);
   const canAttach = isFileStorageConfigured();
@@ -68,7 +70,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     tasks.map(({ taskId, ...rest }) => {
       const linked = taskId ? taskById.get(taskId) : undefined;
       if (!linked) return rest;
-      return { ...rest, taskId, text: linked.title, ...(useTaskProgress ? { progress: linked.progress } : {}) };
+      // งานที่ตัวเองสร้าง (รวมที่พิมพ์ในเช็กอิน) แก้ชื่อได้ — งานที่คนอื่นมอบหมายแก้ได้เฉพาะ %
+      return { ...rest, taskId, text: linked.title, ...(useTaskProgress ? { progress: linked.progress } : {}), ...(linked.createdById === user.id ? { editable: true } : {}) };
     });
   const doneTeams = new Set(submittedToday.map((s) => s.teamId));
   const current = history.find((s) => dateToKey(s.date) === today);
@@ -83,7 +86,12 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
             <h1 className="page-title">Daily Scrum</h1>
             <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
           </div>
-          <Link href={`/stats?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="stats" className="h-4 w-4 text-indigo-600" />สถิติของฉัน</Link>
+          <div className="flex flex-wrap gap-2">
+            {meetingUrl && (
+              <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn gap-1.5"><Icon name="video" />เข้าห้องประชุม</a>
+            )}
+            <Link href={`/stats?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="stats" className="h-4 w-4 text-indigo-600" />สถิติของฉัน</Link>
+          </div>
         </div>
 
         {teams.length > 1 && (
@@ -119,7 +127,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
           }}
           carriedOver={!current && Boolean(previous)}
           submitted={Boolean(current)}
-          assigned={myTasks.filter((t) => t.progress < 100)}
+          assigned={myTasks.filter((t) => t.progress < 100).map((t) => ({ id: t.id, title: t.title, progress: t.progress, editable: t.createdById === user.id }))}
         />
 
         {current && (

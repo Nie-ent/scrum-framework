@@ -5,6 +5,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { keyToDate, todayKey } from "@/lib/dates";
+import { nextTaskNumbers } from "@/lib/task-store";
 import { TaskListSchema, toTasks, type Task } from "@/lib/tasks";
 import type { FormState } from "./auth";
 
@@ -54,19 +55,57 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
 
   // บันทึกได้เฉพาะของวันนี้ (ตาม APP_TIMEZONE) ส่งซ้ำ = แก้ไข
   const date = keyToDate(todayKey());
-  // บรรทัดที่อ้างถึงงานที่มอบหมาย: ใช้ได้เฉพาะงานของตัวเองในทีมนี้ (กันการส่ง taskId ของคนอื่นมา)
+  // บรรทัดที่อ้างถึงงาน: ใช้ได้เฉพาะงานของตัวเองในทีมนี้ (กันการส่ง taskId ของคนอื่นมา)
   const linkedIds = [...data.yesterdayTasks, ...data.todayTasks].flatMap((t) => (t.taskId ? [t.taskId] : []));
   const linked =
     linkedIds.length === 0
       ? []
       : await prisma.task.findMany({
           where: { id: { in: linkedIds }, assigneeId: user.id, teamId, deletedAt: null },
-          select: { id: true, progress: true },
+          select: { id: true, progress: true, title: true, createdById: true },
         });
   const owned = new Set(linked.map((t) => t.id));
   const before = new Map(linked.map((t) => [t.id, t.progress]));
-  const keepOwned = (tasks: Task[]): Task[] =>
+  const stripForeign = (tasks: Task[]): Task[] =>
     tasks.map(({ taskId, ...rest }) => (taskId && owned.has(taskId) ? { ...rest, taskId } : rest));
+
+  // บรรทัดที่พิมพ์เอง = งานที่มอบหมายให้ตัวเอง: สร้างเป็นงานจริงเพื่อให้ขึ้นในหน้า งาน และติดตาม % ที่เดียวกัน
+  // (ชื่อซ้ำกับงานของตัวเองที่ยังเปิดอยู่ = ใช้งานเดิม ไม่สร้างซ้ำ)
+  const typed = [...stripForeign(data.yesterdayTasks), ...stripForeign(data.todayTasks)].filter((t) => !t.taskId);
+  const titles = [...new Set(typed.map((t) => t.text))];
+  const idByTitle = new Map<string, string>();
+  if (titles.length > 0) {
+    const sameName = await prisma.task.findMany({
+      where: { assigneeId: user.id, teamId, deletedAt: null, progress: { lt: 100 }, title: { in: titles } },
+      select: { id: true, title: true, progress: true },
+      orderBy: { createdAt: "asc" },
+    });
+    for (const t of sameName) {
+      if (idByTitle.has(t.title)) continue;
+      idByTitle.set(t.title, t.id);
+      before.set(t.id, t.progress);
+    }
+    const fresh = titles.filter((title) => !idByTitle.has(title));
+    const numbers = await nextTaskNumbers(teamId, fresh.length);
+    for (const [i, title] of fresh.entries()) {
+      // % ตั้งต้น = ที่กรอกใน "ล่าสุดทำอะไรไป" (งานที่อยู่แค่ในแผนวันนี้เริ่มที่ 0)
+      const progress = data.yesterdayTasks.find((t) => !t.taskId && t.text === title)?.progress ?? 0;
+      const created = await prisma.task.create({
+        data: { teamId, assigneeId: user.id, createdById: user.id, title, number: numbers[i], progress, doneAt: progress >= 100 ? new Date() : null },
+      });
+      idByTitle.set(title, created.id);
+      before.set(created.id, progress);
+    }
+  }
+  const keepOwned = (tasks: Task[]): Task[] =>
+    stripForeign(tasks).map((t) => (t.taskId ? t : { ...t, taskId: idByTitle.get(t.text)! }));
+
+  // แก้ชื่องานในเช็กอินได้เฉพาะงานที่ตัวเองสร้าง
+  const renames = linked.flatMap((task) => {
+    const line = [...data.yesterdayTasks, ...data.todayTasks].find((t) => t.taskId === task.id);
+    return line && line.text !== task.title && task.createdById === user.id ? [{ id: task.id, title: line.text }] : [];
+  });
+
   // เช็กอินของวันนี้ที่เคยส่งไว้ — ใช้ดูว่า % ของงานบรรทัดไหน "ถูกแก้ในเช็กอินจริง ๆ"
   const existing = await prisma.standup.findUnique({
     where: { userId_teamId_date: { userId: user.id, teamId, date } },
@@ -103,6 +142,7 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
     }),
     // % ที่แก้ใน "ล่าสุดทำอะไรไป" ไหลกลับไปที่งานที่มอบหมาย และบันทึกลงเธรดของงาน
     // (ไม่แจ้งเตือนซ้ำ หัวหน้าเห็นจากเช็กอินอยู่แล้ว)
+    ...renames.map((r) => prisma.task.update({ where: { id: r.id }, data: { title: r.title } })),
     ...changed.flatMap((c) => [
       prisma.task.update({
         where: { id: c.taskId },

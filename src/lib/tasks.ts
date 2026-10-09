@@ -1,8 +1,9 @@
 import * as z from "zod";
 
 /** progress = % ที่งานสำเร็จแล้ว (0–100) — ใน todayTasks คือจุดเริ่มต้นของงานที่ยกมาทำต่อ */
-/** taskId = อ้างถึงงานที่มอบหมายไว้ (ตาราง Task) — บรรทัดที่พิมพ์เองไม่มี */
-export type Task = { text: string; progress?: number; taskId?: string };
+/** taskId = อ้างถึงงานในตาราง Task — บรรทัดที่เพิ่งพิมพ์ยังไม่มี (ได้ตอนบันทึกเช็กอิน: กลายเป็นงานที่มอบหมายให้ตัวเอง) */
+/** editable = ใช้ฝั่งฟอร์มเท่านั้น ไม่ถูกบันทึก: งานที่ตัวเองสร้าง แก้ชื่อในเช็กอินได้ */
+export type Task = { text: string; progress?: number; taskId?: string; editable?: boolean };
 
 const TaskSchema = z
   .object({

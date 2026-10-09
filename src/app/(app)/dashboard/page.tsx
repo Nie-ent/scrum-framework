@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOverviewAccess } from "@/lib/auth";
-import { getVisibleTeams } from "@/lib/teams";
+import { getMeetingUrl, getVisibleTeams } from "@/lib/teams";
 import { toTasks } from "@/lib/tasks";
 import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
@@ -37,7 +37,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const scopeIds = [teamId];
 
   const trendStart = shiftKey(dateKey, -(TREND_DAYS - 1));
-  const [memberships, standups] = await Promise.all([
+  const [memberships, standups, meetingUrl] = await Promise.all([
     prisma.teamMember.findMany({
       // เฉพาะคนที่ต้องเช็กอิน — ไม่นับคนที่อยู่ในทีมในฐานะผู้ดูแลอย่างเดียว
       where: { teamId: { in: scopeIds }, participates: true, user: { active: true } },
@@ -48,6 +48,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       where: { teamId: { in: scopeIds }, date: { gte: keyToDate(trendStart), lte: keyToDate(dateKey) } },
       include: { comments: withComments },
     }),
+    getMeetingUrl(teamId),
   ]);
 
   // 1 แถว = 1 คนในทีมนั้น (คนที่อยู่หลายทีมจะมีแถวแยกต่อทีมเมื่อดู "ทุกทีม")
@@ -86,6 +87,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             {scopeLabel} · {formatDateKey(dateKey)}
             {dateKey === today && " (วันนี้)"}
           </p>
+          {meetingUrl && (
+            <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn mt-3 gap-1.5"><Icon name="video" />เข้าห้องประชุม</a>
+          )}
         </div>
         <div className="card flex w-full flex-wrap items-center gap-2 p-2 sm:w-auto">
           <Link className="btn-ghost" href={href(shiftKey(dateKey, -1))}>← ก่อนหน้า</Link>

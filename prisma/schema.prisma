@@ -25,16 +25,20 @@ model Role {
 /// ทีมซ้อนได้ 2 ชั้น: ทีมใหญ่ (parentId = null) = workspace ของลูกค้าแต่ละราย → ทีมย่อย
 /// ชื่อทีมใหญ่ซ้ำกันได้ (คนละลูกค้า) — ชื่อทีมย่อยห้ามซ้ำภายในทีมใหญ่เดียวกัน
 model Team {
-  id        String       @id @default(cuid())
-  name      String
-  parentId  String?
-  parent    Team?        @relation("TeamTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children  Team[]       @relation("TeamTree")
-  members   TeamMember[]
-  standups  Standup[]
-  tasks     Task[]
-  invites   Invite[]
-  createdAt DateTime     @default(now())
+  id         String       @id @default(cuid())
+  name       String
+  parentId   String?
+  parent     Team?        @relation("TeamTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children   Team[]       @relation("TeamTree")
+  members    TeamMember[]
+  standups   Standup[]
+  tasks      Task[]
+  invites    Invite[]
+  /// เลขงานล่าสุดที่ออกไปแล้วของทีมนี้ (งานใหม่ได้เลขถัดไป — ดู src/lib/task-store.ts)
+  taskSeq    Int          @default(0)
+  /// ลิงก์ห้องประชุมประจำทีม (Google Meet / Zoom / Jitsi ฯลฯ) — ทีมย่อยที่ไม่ได้ตั้งใช้ของทีมแม่
+  meetingUrl String?
+  createdAt  DateTime     @default(now())
 
   @@unique([parentId, name])
   @@index([parentId])
@@ -140,6 +144,8 @@ model PushSubscription {
 /// งานที่มอบหมายให้สมาชิกในทีม — เช็กอินอ้างถึงงานนี้ด้วย taskId แล้วอัปเดต progress กลับมาที่นี่
 model Task {
   id          String       @id @default(cuid())
+  /// เลขงานรันต่อทีม (#12) ให้คนอ้างถึงได้ — null เฉพาะงานที่สร้างระหว่างช่วง deploy
+  number      Int?
   teamId      String
   team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
   assigneeId  String
@@ -160,6 +166,7 @@ model Task {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
+  @@unique([teamId, number])
   @@index([teamId, assigneeId])
   @@index([assigneeId, progress])
 }

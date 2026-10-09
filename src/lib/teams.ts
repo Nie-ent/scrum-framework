@@ -5,6 +5,12 @@ import { canAdmin, canLead } from "./permissions";
 
 export type TeamRow = { id: string; name: string; parentId: string | null };
 
+/** ลิงก์ห้องประชุมของทีม — ทีมย่อยที่ไม่ได้ตั้งเองใช้ของทีมแม่ */
+export async function getMeetingUrl(teamId: string): Promise<string | null> {
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { meetingUrl: true, parent: { select: { meetingUrl: true } } } });
+  return team?.meetingUrl ?? team?.parent?.meetingUrl ?? null;
+}
+
 /** เรียงแบบต้นไม้: ทีมใหญ่ตามด้วยทีมย่อยของมัน (ทีมย่อยที่ไม่เห็นทีมแม่ขึ้นเป็นระดับบน) */
 export function sortTeamTree<T extends TeamRow>(teams: T[]): T[] {
   const ids = new Set(teams.map((t) => t.id));
@@ -39,7 +45,7 @@ export async function getManageableTeamIds(viewer: CurrentUser): Promise<Set<str
  * owner = แก้สิทธิ์/ลบสมาชิก/ตั้งค่าทีมได้ (รวมผู้ดูแลแพลตฟอร์ม) · lead = เชิญสมาชิกทั่วไปได้
  */
 export async function getTeamControl(viewer: CurrentUser, teamId: string) {
-  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true, parentId: true } });
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true, parentId: true, meetingUrl: true } });
   if (!team) return null;
   const mine = viewer.memberships.filter((m) => m.teamId === team.id || m.teamId === team.parentId);
   const owner = canAdmin(viewer.role.level) || mine.some((m) => m.access === "OWNER");
