@@ -74,18 +74,60 @@ async function loadTask(user: CurrentUser, id: string, includeDeleted = false) {
   return { task, canManage, isAssignee: task.assigneeId === user.id };
 }
 
-/** คนรับงานหรือหัวหน้าทีมอัปเดต % ได้ */
+/**
+ * คนรับงานหรือหัวหน้าทีมอัปเดต % ได้ พร้อมเหตุผล (ไม่บังคับ)
+ * ทุกครั้งที่ % เปลี่ยนจะบันทึกลงเธรดความคิดเห็นของงาน และแจ้งผู้เกี่ยวข้อง
+ */
 export async function setTaskProgress(formData: FormData) {
   const user = await requireUser();
   const found = await loadTask(user, String(formData.get("id")));
   const progress = Math.round(Number(formData.get("progress")));
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 500);
   if (!found || !(found.canManage || found.isAssignee)) return;
   if (!Number.isFinite(progress) || progress < 0 || progress > 100) return;
-  await prisma.task.update({
-    where: { id: found.task.id },
-    data: { progress, doneAt: progress >= 100 ? (found.task.doneAt ?? new Date()) : null },
-  });
+  const { task } = found;
+  // % เท่าเดิมและไม่มีเหตุผล = ไม่มีอะไรเปลี่ยน
+  if (progress === task.progress && !reason) return;
+
+  await prisma.$transaction([
+    prisma.task.update({
+      where: { id: task.id },
+      data: { progress, doneAt: progress >= 100 ? (task.doneAt ?? new Date()) : null },
+    }),
+    prisma.comment.create({
+      data: { taskId: task.id, authorId: user.id, body: reason, progressFrom: task.progress, progressTo: progress },
+    }),
+  ]);
+  await notifyProgress(user, task, progress, reason);
   done();
+}
+
+/** ผู้เกี่ยวข้องกับงาน: คนรับงาน คนมอบหมาย และหัวหน้า/เจ้าของทีมของงานนั้นและของทีมแม่ (ไม่รวมคนที่อัปเดตเอง) */
+async function notifyProgress(
+  actor: CurrentUser,
+  task: { id: string; teamId: string; assigneeId: string; createdById: string | null; title: string; progress: number },
+  progress: number,
+  reason: string,
+) {
+  // หัวหน้า/เจ้าของของทีมแม่ดูแลทีมย่อยด้วย จึงได้รับแจ้งเช่นกัน
+  const team = await prisma.team.findUnique({ where: { id: task.teamId }, select: { parentId: true } });
+  const leads = await prisma.teamMember.findMany({
+    where: { teamId: { in: [task.teamId, ...(team?.parentId ? [team.parentId] : [])] }, access: { not: "MEMBER" }, user: { active: true } },
+    select: { userId: true },
+  });
+  const ids = new Set([task.assigneeId, ...(task.createdById ? [task.createdById] : []), ...leads.map((m) => m.userId)]);
+  ids.delete(actor.id);
+  const change = progress === task.progress ? `${progress}%` : `${task.progress}% → ${progress}%`;
+  await notify(
+    [...ids].map((userId) => ({ userId })),
+    {
+      title: progress >= 100 && task.progress < 100 ? `${actor.name} ทำงานเสร็จแล้ว` : `${actor.name} อัปเดตความคืบหน้า ${change}`,
+      body: `${task.title}${reason ? ` — ${reason}` : ""}`,
+      url: `/tasks?team=${task.teamId}`,
+    },
+    // อัปเดต % เกิดบ่อย: แจ้งในแอปและ push เท่านั้น ไม่ส่งอีเมล
+    { email: false },
+  );
 }
 
 /** ลบได้: หัวหน้าทีม หรือเจ้าของงานที่สร้างให้ตัวเอง */

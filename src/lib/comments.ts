@@ -7,6 +7,8 @@ export const withComments = {
   select: {
     id: true,
     body: true,
+    progressFrom: true,
+    progressTo: true,
     createdAt: true,
     author: { select: { id: true, name: true, avatarUpdatedAt: true } },
     attachments: withAttachments,

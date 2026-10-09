@@ -73,6 +73,13 @@ export function CommentThread({
                       </form>
                     )}
                   </div>
+                  {c.progressTo !== null && (
+                    <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-lg bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 ring-1 ring-slate-200">
+                      <span className="font-medium text-slate-500">ความคืบหน้า</span>
+                      {c.progressFrom !== null && c.progressFrom !== c.progressTo && <><span className="text-slate-400">{c.progressFrom}%</span><span aria-hidden="true" className="text-slate-400">→</span></>}
+                      <span className={c.progressTo >= 100 ? "text-emerald-600" : "text-indigo-600"}>{c.progressTo}%</span>
+                    </p>
+                  )}
                   {c.body && <p className="whitespace-pre-wrap break-words text-sm text-slate-700"><LinkedText text={c.body} /></p>}
                   <CommentFiles comment={c} viewerId={viewerId} canModerate={canModerate} />
                 </div>
@@ -89,6 +96,6 @@ export function CommentThread({
 function CommentFiles({ comment, viewerId, canModerate }: { comment: CommentRow; viewerId: string; canModerate: boolean }) {
   const files = toFileItems(comment.attachments, viewerId);
   // ความคิดเห็นที่มีแต่ไฟล์ และไฟล์ชั่วคราวนั้นหมดอายุไปแล้ว
-  if (files.length === 0) return comment.body ? null : <p className="text-sm italic text-slate-400">ไฟล์แนบหมดอายุแล้ว</p>;
+  if (files.length === 0) return comment.body || comment.progressTo !== null ? null : <p className="text-sm italic text-slate-400">ไฟล์แนบหมดอายุแล้ว</p>;
   return <div className="mt-1"><AttachmentList files={files} canModerate={canModerate} /></div>;
 }

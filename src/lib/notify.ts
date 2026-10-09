@@ -7,9 +7,10 @@ export type Notice = { title: string; body: string; url: string };
 
 /**
  * แจ้งเตือนผู้ใช้ 3 ช่องทาง: กระดิ่งในแอป (เสมอ) · push (เครื่องที่เปิดไว้) · อีเมล (ถ้ายืนยันอีเมลแล้วและไม่ได้ปิดไว้)
+ * options.email = false สำหรับเหตุการณ์ที่เกิดถี่ (เช่น อัปเดต % งาน) เพื่อไม่ให้อีเมลล้น
  * push/อีเมลที่ล้มเหลวไม่ทำให้งานหลักพัง — recipients ซ้ำกันได้ ระบบส่งคนละครั้ง
  */
-export async function notify(recipients: { userId: string; url?: string }[], notice: Notice) {
+export async function notify(recipients: { userId: string; url?: string }[], notice: Notice, options: { email?: boolean } = {}) {
   const urlOf = new Map(recipients.map((r) => [r.userId, r.url ?? notice.url]));
   if (urlOf.size === 0) return;
   try {
@@ -26,7 +27,7 @@ export async function notify(recipients: { userId: string; url?: string }[], not
         const url = urlOf.get(u.id)!;
         return [
           sendPush(u.pushSubs, { ...notice, url }).catch(() => undefined),
-          u.emailVerifiedAt && u.emailNotifications
+          options.email !== false && u.emailVerifiedAt && u.emailNotifications
             ? sendEmail({ to: u.email, subject: notice.title, heading: notice.title, body: notice.body, action: { label: "เปิดใน Pace", url: appUrl(url) } })
             : undefined,
         ];

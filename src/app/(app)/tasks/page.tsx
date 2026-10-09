@@ -92,11 +92,12 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             {t.createdBy && t.createdBy.id !== t.assignee.id && <span>มอบหมายโดย {t.createdBy.name}</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <ProgressBar percent={t.progress} className="w-20" />
           {canUpdate(t) ? (
-            <form action={setTaskProgress} className="flex items-center gap-1">
+            <form action={setTaskProgress} className="flex flex-wrap items-center justify-end gap-1">
               <input type="hidden" name="id" value={t.id} />
+              <input name="reason" maxLength={500} placeholder="เหตุผล / หมายเหตุ (ไม่บังคับ)" aria-label={`เหตุผลของการอัปเดต ${t.title}`} className="input w-52 px-2.5 py-1.5 text-sm" />
               <input name="progress" type="number" inputMode="numeric" min={0} max={100} step={5} defaultValue={t.progress} aria-label={`ความคืบหน้าของ ${t.title} (%)`} className="input w-16 px-2 py-1.5 text-right tabular-nums" />
               <span className="text-xs text-slate-500">%</span>
               <button className="btn-ghost min-h-9 px-2.5 py-1 text-xs">บันทึก</button>

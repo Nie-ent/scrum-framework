@@ -166,17 +166,20 @@ model Task {
 
 /// ความคิดเห็นใต้งาน (taskId) หรือใต้เช็กอิน (standupId) — ต้องมีอย่างใดอย่างหนึ่งเท่านั้น (CHECK ใน migration)
 model Comment {
-  id          String       @id @default(cuid())
-  authorId    String
-  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  taskId      String?
-  task        Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  standupId   String?
-  standup     Standup?     @relation(fields: [standupId], references: [id], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  authorId     String
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  standupId    String?
+  standup      Standup?     @relation(fields: [standupId], references: [id], onDelete: Cascade)
   /// ว่างได้เมื่อความคิดเห็นมีแต่ไฟล์แนบ
-  body        String
-  attachments Attachment[]
-  createdAt   DateTime     @default(now())
+  body         String
+  /// มีค่า = รายการ "อัปเดตความคืบหน้า" ของงาน (จาก % เดิม → % ใหม่) โดย body คือเหตุผล (ว่างได้)
+  progressFrom Int?
+  progressTo   Int?
+  attachments  Attachment[]
+  createdAt    DateTime     @default(now())
 
   @@index([taskId, createdAt])
   @@index([standupId, createdAt])

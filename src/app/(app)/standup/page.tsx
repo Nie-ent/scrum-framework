@@ -7,6 +7,7 @@ import { carryOver, toTasks, type Task } from "@/lib/tasks";
 import { StandupSections } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
 import { StandupForm } from "./standup-form";
+import { NavGlyph } from "@/components/nav-icons";
 import { Avatar } from "@/components/avatar";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
@@ -82,6 +83,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
             <h1 className="page-title">Daily Scrum</h1>
             <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
           </div>
+          <Link href={`/stats?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="stats" className="h-4 w-4 text-indigo-600" />สถิติของฉัน</Link>
         </div>
 
         {teams.length > 1 && (

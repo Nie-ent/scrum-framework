@@ -12,12 +12,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const level = user.role.level;
   const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
-  // mobile: false = ไม่อยู่ในแถบเมนูล่าง (ที่จำกัด): ไฟล์เข้าจากหน้า งาน, แจ้งเตือนอยู่ที่กระดิ่งบนแถบหัว
+  // mobile: false = ไม่อยู่ในแถบเมนูล่าง (ที่จำกัด): ไฟล์เข้าจากหน้า งาน, สถิติเข้าจากหน้า Daily Scrum, แจ้งเตือนอยู่ที่กระดิ่งบนแถบหัว
   const nav: { href: string; label: string; short: string; icon: NavIcon; show: boolean; mobile?: boolean; badge?: number }[] = [
     { href: "/standup", label: "Daily Scrum", short: "เช็กอิน", icon: "checkin", show: true },
     { href: "/tasks", label: "งาน", short: "งาน", icon: "tasks", show: true },
     { href: "/files", label: "ไฟล์สำคัญ", short: "ไฟล์", icon: "files", show: true, mobile: false },
     { href: "/dashboard", label: "ภาพรวมทีม", short: "ภาพรวม", icon: "overview", show: canViewOverview(user) },
+    { href: "/stats", label: "สถิติ", short: "สถิติ", icon: "stats", show: true, mobile: false },
     { href: "/teams", label: "ทีม", short: "ทีม", icon: "teams", show: true },
     { href: "/admin", label: "Admin", short: "จัดการ", icon: "admin", show: canAdmin(level) },
     { href: "/notifications", label: "แจ้งเตือน", short: "แจ้งเตือน", icon: "notifications", show: true, mobile: false, badge: unread },

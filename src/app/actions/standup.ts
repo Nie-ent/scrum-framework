@@ -56,16 +56,15 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
   const date = keyToDate(todayKey());
   // บรรทัดที่อ้างถึงงานที่มอบหมาย: ใช้ได้เฉพาะงานของตัวเองในทีมนี้ (กันการส่ง taskId ของคนอื่นมา)
   const linkedIds = [...data.yesterdayTasks, ...data.todayTasks].flatMap((t) => (t.taskId ? [t.taskId] : []));
-  const owned = new Set(
+  const linked =
     linkedIds.length === 0
       ? []
-      : (
-          await prisma.task.findMany({
-            where: { id: { in: linkedIds }, assigneeId: user.id, teamId, deletedAt: null },
-            select: { id: true },
-          })
-        ).map((t) => t.id),
-  );
+      : await prisma.task.findMany({
+          where: { id: { in: linkedIds }, assigneeId: user.id, teamId, deletedAt: null },
+          select: { id: true, progress: true },
+        });
+  const owned = new Set(linked.map((t) => t.id));
+  const before = new Map(linked.map((t) => [t.id, t.progress]));
   const keepOwned = (tasks: Task[]): Task[] =>
     tasks.map(({ taskId, ...rest }) => (taskId && owned.has(taskId) ? { ...rest, taskId } : rest));
   const yesterdayTasks = keepOwned(data.yesterdayTasks);
@@ -80,12 +79,19 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
     // % ที่อัปเดตใน "ล่าสุดทำอะไรไป" ไหลกลับไปที่งานที่มอบหมาย
     ...yesterdayTasks
       .filter((t) => t.taskId)
-      .map((t) => {
+      .flatMap((t) => {
         const progress = t.progress ?? 0;
-        return prisma.task.update({
-          where: { id: t.taskId! },
-          data: { progress, doneAt: progress >= 100 ? new Date() : null },
-        });
+        const from = before.get(t.taskId!) ?? progress;
+        return [
+          prisma.task.update({
+            where: { id: t.taskId! },
+            data: { progress, doneAt: progress >= 100 ? new Date() : null },
+          }),
+          // % เปลี่ยน = บันทึกลงเธรดของงานด้วย (ไม่แจ้งเตือนซ้ำ หัวหน้าเห็นจากเช็กอินอยู่แล้ว)
+          ...(from === progress
+            ? []
+            : [prisma.comment.create({ data: { taskId: t.taskId!, authorId: user.id, body: "อัปเดตจากเช็กอิน", progressFrom: from, progressTo: progress } })]),
+        ];
       }),
   ]);
 
