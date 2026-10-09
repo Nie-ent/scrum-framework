@@ -5,7 +5,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { keyToDate, todayKey } from "@/lib/dates";
-import { TaskListSchema, type Task } from "@/lib/tasks";
+import { TaskListSchema, toTasks, type Task } from "@/lib/tasks";
 import type { FormState } from "./auth";
 
 const optional = z
@@ -67,8 +67,33 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
   const before = new Map(linked.map((t) => [t.id, t.progress]));
   const keepOwned = (tasks: Task[]): Task[] =>
     tasks.map(({ taskId, ...rest }) => (taskId && owned.has(taskId) ? { ...rest, taskId } : rest));
-  const yesterdayTasks = keepOwned(data.yesterdayTasks);
-  const todayTasks = keepOwned(data.todayTasks);
+  // เช็กอินของวันนี้ที่เคยส่งไว้ — ใช้ดูว่า % ของงานบรรทัดไหน "ถูกแก้ในเช็กอินจริง ๆ"
+  const existing = await prisma.standup.findUnique({
+    where: { userId_teamId_date: { userId: user.id, teamId, date } },
+    select: { yesterdayTasks: true },
+  });
+  const savedProgress = new Map(toTasks(existing?.yesterdayTasks).flatMap((t) => (t.taskId ? [[t.taskId, t.progress ?? 0] as const] : [])));
+
+  // งานที่ % ในฟอร์มเท่ากับที่เคยบันทึกไว้ในเช็กอิน = ผู้ใช้ไม่ได้แตะ → ไม่เขียนทับงาน
+  // (กันกรณีอัปเดต % จากหน้า งาน ไปแล้ว แล้วมาแก้ส่วนอื่นของเช็กอิน % จะไม่ถูกดึงกลับเป็นค่าเก่า)
+  // และปรับ % ในเช็กอินให้ตรงกับงานแทน
+  const untouched = new Map<string, number>();
+  const changed: { taskId: string; from: number; to: number }[] = [];
+  const yesterdayTasks = keepOwned(data.yesterdayTasks).map((t) => {
+    if (!t.taskId) return t;
+    const submitted = t.progress ?? 0;
+    const current = before.get(t.taskId) ?? submitted;
+    if (savedProgress.get(t.taskId) === submitted) {
+      untouched.set(t.taskId, current);
+      return { ...t, progress: current };
+    }
+    if (current !== submitted) changed.push({ taskId: t.taskId, from: current, to: submitted });
+    return t;
+  });
+  // "วันนี้จะทำอะไร" ของงานเดียวกันเริ่มจาก % ล่าสุดของงานเช่นกัน
+  const todayTasks = keepOwned(data.todayTasks).map((t) =>
+    t.taskId && untouched.has(t.taskId) ? { ...t, progress: untouched.get(t.taskId)! } : t,
+  );
 
   await prisma.$transaction([
     prisma.standup.upsert({
@@ -76,23 +101,15 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
       create: { userId: user.id, teamId, date, ...data, yesterdayTasks, todayTasks },
       update: { ...data, yesterdayTasks, todayTasks },
     }),
-    // % ที่อัปเดตใน "ล่าสุดทำอะไรไป" ไหลกลับไปที่งานที่มอบหมาย
-    ...yesterdayTasks
-      .filter((t) => t.taskId)
-      .flatMap((t) => {
-        const progress = t.progress ?? 0;
-        const from = before.get(t.taskId!) ?? progress;
-        return [
-          prisma.task.update({
-            where: { id: t.taskId! },
-            data: { progress, doneAt: progress >= 100 ? new Date() : null },
-          }),
-          // % เปลี่ยน = บันทึกลงเธรดของงานด้วย (ไม่แจ้งเตือนซ้ำ หัวหน้าเห็นจากเช็กอินอยู่แล้ว)
-          ...(from === progress
-            ? []
-            : [prisma.comment.create({ data: { taskId: t.taskId!, authorId: user.id, body: "อัปเดตจากเช็กอิน", progressFrom: from, progressTo: progress } })]),
-        ];
+    // % ที่แก้ใน "ล่าสุดทำอะไรไป" ไหลกลับไปที่งานที่มอบหมาย และบันทึกลงเธรดของงาน
+    // (ไม่แจ้งเตือนซ้ำ หัวหน้าเห็นจากเช็กอินอยู่แล้ว)
+    ...changed.flatMap((c) => [
+      prisma.task.update({
+        where: { id: c.taskId },
+        data: { progress: c.to, ...(c.to >= 100 ? (c.from >= 100 ? {} : { doneAt: new Date() }) : { doneAt: null }) },
       }),
+      prisma.comment.create({ data: { taskId: c.taskId, authorId: user.id, body: "อัปเดตจากเช็กอิน", progressFrom: c.from, progressTo: c.to } }),
+    ]),
   ]);
 
   revalidatePath("/standup");

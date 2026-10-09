@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
-import { isDateKey, keyToDate } from "@/lib/dates";
+import { isDateKey, keyToDate, todayKey } from "@/lib/dates";
 import { notify } from "@/lib/notify";
+import { toTasks } from "@/lib/tasks";
 import { getManageableTeamIds } from "@/lib/teams";
 import type { FormState } from "./auth";
 
@@ -27,6 +28,7 @@ const TaskSchema = z.object({
 function done() {
   revalidatePath("/tasks");
   revalidatePath("/standup");
+  revalidatePath("/dashboard");
 }
 
 /** หัวหน้าทีมมอบหมายให้สมาชิกในทีมได้ทุกคน — สมาชิกทั่วไปสร้างได้เฉพาะงานของตัวเอง */
@@ -89,6 +91,14 @@ export async function setTaskProgress(formData: FormData) {
   // % เท่าเดิมและไม่มีเหตุผล = ไม่มีอะไรเปลี่ยน
   if (progress === task.progress && !reason) return;
 
+  // เช็กอินของวันนี้ที่อ้างถึงงานนี้ แสดง % เดียวกับงาน (เช็กอินวันก่อน ๆ คงไว้เป็นประวัติ)
+  const checkin = await prisma.standup.findUnique({
+    where: { userId_teamId_date: { userId: task.assigneeId, teamId: task.teamId, date: keyToDate(todayKey()) } },
+    select: { id: true, yesterdayTasks: true, todayTasks: true },
+  });
+  const withProgress = (value: unknown) => toTasks(value).map((t) => (t.taskId === task.id ? { ...t, progress } : t));
+  const inCheckin = checkin && [...toTasks(checkin.yesterdayTasks), ...toTasks(checkin.todayTasks)].some((t) => t.taskId === task.id);
+
   await prisma.$transaction([
     prisma.task.update({
       where: { id: task.id },
@@ -97,6 +107,14 @@ export async function setTaskProgress(formData: FormData) {
     prisma.comment.create({
       data: { taskId: task.id, authorId: user.id, body: reason, progressFrom: task.progress, progressTo: progress },
     }),
+    ...(inCheckin
+      ? [
+          prisma.standup.update({
+            where: { id: checkin.id },
+            data: { yesterdayTasks: withProgress(checkin.yesterdayTasks), todayTasks: withProgress(checkin.todayTasks) },
+          }),
+        ]
+      : []),
   ]);
   await notifyProgress(user, task, progress, reason);
   done();

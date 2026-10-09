@@ -63,7 +63,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
   const canModerate = manageableIds.has(team.id);
   const canAttach = isFileStorageConfigured();
   const taskById = new Map(myTasks.map((t) => [t.id, t]));
-  // บรรทัดที่อ้างถึงงาน: ใช้ชื่อและ % ล่าสุดของงานนั้น — งานที่ถูกลบไปแล้วกลายเป็นบรรทัดธรรมดา
+  // บรรทัดที่อ้างถึงงาน: ใช้ชื่อและ % ล่าสุดของงานนั้น (งานคือแหล่งความจริงของ %) — งานที่ถูกลบไปแล้วกลายเป็นบรรทัดธรรมดา
   const syncLinked = (tasks: Task[], useTaskProgress: boolean): Task[] =>
     tasks.map(({ taskId, ...rest }) => {
       const linked = taskId ? taskById.get(taskId) : undefined;
@@ -110,7 +110,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
           teamName={team.name}
           initial={{
             yesterdayTasks: current
-              ? syncLinked(toTasks(current.yesterdayTasks), false)
+              ? syncLinked(toTasks(current.yesterdayTasks), true)
               : syncLinked(carryOver(toTasks(previous?.todayTasks)), true),
             todayTasks: current ? syncLinked(toTasks(current.todayTasks), false) : [],
             blockers: current?.blockers ?? "",
