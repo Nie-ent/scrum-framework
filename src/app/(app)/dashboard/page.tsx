@@ -7,6 +7,7 @@ import { getMeetingUrl, getVisibleTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { toTasks } from "@/lib/tasks";
 import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
+import { dayTone } from "@/lib/holidays";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
@@ -111,7 +112,42 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <TeamHealthChart submitted={submitted.length} total={rows.length} />
+        {/* เช็กอินของวันที่ดู + การส่ง 7 วันล่าสุด รวมในการ์ดเดียว */}
+        <section className="card flex flex-col gap-4 p-4 xl:flex-row xl:items-start xl:gap-6">
+          <div className="shrink-0 xl:w-60 xl:border-r xl:border-border xl:pr-6">
+            <TeamHealthChart submitted={submitted.length} total={rows.length} label={dateKey === today ? "การเช็กอินวันนี้" : `การเช็กอิน ${formatDateKey(dateKey).replace(/ \d{4}$/, "")}`} />
+          </div>
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <h2 className="mb-2 text-sm font-semibold text-foreground">การส่ง {TREND_DAYS} วันล่าสุด</h2>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="py-1 pr-4 font-medium">สมาชิก</th>
+                  {trendKeys.map((k) => (
+                    <th key={k} className="px-1 text-center font-medium">
+                      <Link href={href(k)} scroll={false} title={formatDateKey(k)} className={`tabular-nums hover:text-primary ${k === dateKey ? "font-semibold text-primary" : dayTone(k) === "text-foreground" ? "" : dayTone(k)}`}>{Number(k.slice(8))}</Link>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ key, member, days }) => (
+                  <tr key={key} className="border-t border-border">
+                    <td className="max-w-40 truncate py-1.5 pr-4">
+                      <Link href={`/dashboard/member/${member.id}`} className="text-foreground hover:text-primary">{member.name}</Link>
+                    </td>
+                    {trendKeys.map((k) => (
+                      <td key={k} className="text-center">
+                        <span aria-label={days.has(k) ? "ส่งแล้ว" : "ไม่ได้ส่ง"} className={`inline-block size-2.5 rounded-full ${days.has(k) ? "bg-success" : "bg-border-strong"}`} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length === 0 && <p className="py-3 text-sm text-muted-foreground">ยังไม่มีสมาชิกที่ต้องเช็กอิน</p>}
+          </div>
+        </section>
         <DashboardCalendar dateKey={dateKey} monthKey={monthKey} teamId={teamId} view={view === "grid" ? "grid" : undefined} submitted={submittedByDay} expected={rows.length} />
       </div>
 
@@ -180,35 +216,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         )}
       </section>}
 
-      <section className="card overflow-x-auto">
-        <h2 className="mb-3 font-semibold">การส่ง {TREND_DAYS} วันล่าสุด</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-slate-500">
-              <th className="py-1 pr-4 font-medium">สมาชิก</th>
-              {trendKeys.map((k) => (
-                <th key={k} className="px-1 text-center font-medium">
-                  <Link href={href(k)} className="hover:text-indigo-600">{k.slice(8)}</Link>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ key, member, days }) => (
-              <tr key={key} className="border-t border-slate-100">
-                <td className="py-1.5 pr-4">
-                  <Link href={`/dashboard/member/${member.id}`} className="hover:text-indigo-600">{member.name}</Link>
-                </td>
-                {trendKeys.map((k) => (
-                  <td key={k} className="text-center">
-                    <span className={`inline-block h-3 w-3 rounded-full ${days.has(k) ? "bg-emerald-500" : "bg-slate-200"}`} />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
     </div>
   );
 }
