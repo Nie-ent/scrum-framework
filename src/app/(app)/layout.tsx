@@ -7,72 +7,111 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canAdmin, canViewOverview } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
+import { SectionTabs } from "@/components/section-tabs";
+import { SpaceSwitcher } from "@/components/space-switcher";
+import { Tooltip } from "@/components/tooltip";
+import { currentSpaceId } from "@/lib/space";
+import { getWorkspaceTeams } from "@/lib/teams";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const level = user.role.level;
   const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
-  // mobile: false = ไม่อยู่ในแถบเมนูล่าง (ที่จำกัด): ไฟล์และปฏิทินเข้าจากหน้า งาน, สถิติเข้าจากหน้า เช็กอิน, Admin เข้าจากหน้า บัญชี, แจ้งเตือนอยู่ที่กระดิ่งบนแถบหัว
-  const nav: { href: string; label: string; short: string; icon: NavIcon; show: boolean; mobile?: boolean; badge?: number }[] = [
-    { href: "/standup", label: "เช็กอิน", short: "เช็กอิน", icon: "checkin", show: true },
-    { href: "/tasks", label: "งาน", short: "งาน", icon: "tasks", show: true },
-    { href: "/calendar", label: "ปฏิทิน", short: "ปฏิทิน", icon: "calendar", show: true, mobile: false },
-    { href: "/notes", label: "โน้ต", short: "โน้ต", icon: "notes", show: true },
-    { href: "/files", label: "ไฟล์สำคัญ", short: "ไฟล์", icon: "files", show: true, mobile: false },
-    { href: "/dashboard", label: "ภาพรวมทีม", short: "ภาพรวม", icon: "overview", show: canViewOverview(user) },
-    { href: "/stats", label: "สถิติ", short: "สถิติ", icon: "stats", show: true, mobile: false },
-    { href: "/teams", label: "ทีม", short: "ทีม", icon: "teams", show: true },
-    { href: "/admin", label: "Admin", short: "จัดการ", icon: "admin", show: canAdmin(level), mobile: false },
-    { href: "/notifications", label: "แจ้งเตือน", short: "แจ้งเตือน", icon: "notifications", show: true, mobile: false, badge: unread },
-    { href: "/account", label: "บัญชี", short: "บัญชี", icon: "account", show: true },
+  const overview = canViewOverview(user);
+  const [{ teams }, saved] = await Promise.all([getWorkspaceTeams(user), currentSpaceId()]);
+  const spaces = teams.map((t) => ({ id: t.id, name: t.name, parentId: t.parentId, personal: Boolean(t.personalOfId) }));
+
+  // เมนูจัดเป็นหมวด: สิ่งที่ทำทุกวัน · งาน (รายการ/ปฏิทิน/ไฟล์ = มุมมองของงานชุดเดียวกัน) · โน้ต · ทีม (ทุกอย่างเกี่ยวกับคนอื่น)
+  type Item = { href: string; label: string; icon: NavIcon; show?: boolean; badge?: number };
+  const groups: { title?: string; items: Item[] }[] = [
+    { items: [{ href: "/standup", label: "เช็กอิน", icon: "checkin" }] },
+    {
+      title: "งาน",
+      items: [
+        { href: "/tasks", label: "รายการงาน", icon: "tasks" },
+        { href: "/calendar", label: "ปฏิทิน", icon: "calendar" },
+        { href: "/files", label: "ไฟล์สำคัญ", icon: "files" },
+      ],
+    },
+    { title: "ความรู้", items: [{ href: "/notes", label: "โน้ต", icon: "notes" }] },
+    {
+      title: "ทีม",
+      items: [
+        { href: "/dashboard", label: "ภาพรวมทีม", icon: "overview", show: overview },
+        { href: "/stats", label: "สถิติ", icon: "stats" },
+        { href: "/teams", label: "ทีมและคำเชิญ", icon: "teams" },
+      ],
+    },
+    {
+      items: [
+        { href: "/notifications", label: "แจ้งเตือน", icon: "notifications", badge: unread },
+        { href: "/admin", label: "จัดการระบบ", icon: "admin", show: canAdmin(level) },
+      ],
+    },
   ];
-  const items = nav.filter((item) => item.show);
+  // มือถือ: 5 ปลายทาง — หมวด งาน และ ทีม มีแท็บย่อยที่หัวหน้า (SectionTabs)
+  const bottom = [
+    { href: "/standup", label: "เช็กอิน", icon: "checkin" as const },
+    { href: "/tasks", label: "งาน", icon: "tasks" as const, match: ["/calendar", "/files"] },
+    { href: "/notes", label: "โน้ต", icon: "notes" as const },
+    { href: overview ? "/dashboard" : "/teams", label: "ทีม", icon: "teams" as const, match: ["/dashboard", "/stats", "/teams"] },
+    { href: "/account", label: "บัญชี", icon: "account" as const, match: ["/admin"] },
+  ];
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
-      <header className="border-b border-slate-200/80 bg-white lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
-        <div className="flex h-full items-center justify-between gap-3 px-4 py-3 lg:flex-col lg:items-stretch lg:justify-start lg:px-5 lg:py-6">
-          <div>
-            <Link href="/" className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-slate-950 lg:px-2 lg:text-xl">
-              <Image src="/logo.png" alt="" width={32} height={32} className="h-7 w-7 lg:h-8 lg:w-8" />
-              Pace
-            </Link>
-            <p className="mt-1 hidden px-2 text-xs text-slate-400 lg:block">งาน บันทึก และทีม ในที่เดียว</p>
-          </div>
-          {/* จอใหญ่: เมนูใน sidebar — มือถือใช้ BottomNav ด้านล่างแทน */}
-          <nav aria-label="เมนูหลัก" className="mt-4 hidden flex-col gap-1 lg:flex">
-            {items.map((item) => (
-              <NavLink key={item.href} href={item.href} icon={item.icon}>
-                {item.label}
-                {Boolean(item.badge) && <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white">{item.badge! > 99 ? "99+" : item.badge}</span>}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="flex min-w-0 items-center gap-1 lg:mt-auto lg:block">
-          {/* มือถือ: กระดิ่งอยู่บนแถบหัว (จอใหญ่อยู่ในเมนูด้านข้าง) */}
-          <Link href="/notifications" aria-label={unread > 0 ? `แจ้งเตือน ยังไม่ได้อ่าน ${unread} รายการ` : "แจ้งเตือน"} className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 lg:hidden">
-            <NavGlyph icon="notifications" />
-            {unread > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />}
+    <div className="min-h-screen lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <header className="border-b border-border bg-surface lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <div className="flex h-full items-center gap-2 px-4 py-2.5 lg:flex-col lg:items-stretch lg:gap-0 lg:px-4 lg:py-5">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5 text-lg font-bold tracking-tight text-foreground lg:px-2 lg:text-xl" aria-label="Pace หน้าแรก">
+            <Image src="/logo.png" alt="" width={32} height={32} className="h-7 w-7 lg:h-8 lg:w-8" />
+            <span className="max-sm:sr-only">Pace</span>
           </Link>
+          {/* พื้นที่ที่กำลังใช้ — เลือกที่นี่ที่เดียว ทุกหน้าใช้ตาม */}
+          <SpaceSwitcher spaces={spaces} saved={saved} className="min-w-0 flex-1 lg:mt-4 lg:flex-none" />
+          {/* จอใหญ่: เมนูใน sidebar — มือถือใช้ BottomNav ด้านล่างแทน */}
+          <nav aria-label="เมนูหลัก" className="mt-4 hidden flex-col gap-4 lg:flex">
+            {groups.map((group, i) => {
+              const items = group.items.filter((item) => item.show !== false);
+              if (items.length === 0) return null;
+              return (
+                <div key={group.title ?? i} className="flex flex-col gap-0.5">
+                  {group.title && <p className="px-3 pb-1 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">{group.title}</p>}
+                  {items.map((item) => (
+                    <NavLink key={item.href} href={item.href} icon={item.icon}>
+                      {item.label}
+                      {Boolean(item.badge) && <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[11px] font-semibold leading-none text-primary-foreground">{item.badge! > 99 ? "99+" : item.badge}</span>}
+                    </NavLink>
+                  ))}
+                </div>
+              );
+            })}
+          </nav>
+          <div className="flex shrink-0 items-center gap-1 lg:mt-auto lg:block lg:pt-4">
+          {/* มือถือ: กระดิ่งอยู่บนแถบหัว (จอใหญ่อยู่ในเมนูด้านข้าง) */}
+          <Tooltip label="แจ้งเตือน" side="bottom">
+          <Link href="/notifications" aria-label={unread > 0 ? `แจ้งเตือน ยังไม่ได้อ่าน ${unread} รายการ` : "แจ้งเตือน"} className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-surface-sunken lg:hidden">
+            <NavGlyph icon="notifications" />
+            {unread > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-danger ring-2 ring-surface" />}
+          </Link>
+          </Tooltip>
           {/* ชื่อผู้ใช้พาไปหน้าบัญชี — ปุ่มออกจากระบบอยู่ในหน้านั้น */}
           <Link
             href="/account"
-            className="flex min-w-0 items-center gap-2.5 rounded-xl leading-tight transition hover:bg-slate-100 lg:rounded-2xl lg:bg-slate-50 lg:p-3"
+            aria-label={`บัญชีของ ${user.name}`}
+            className="flex min-w-0 items-center gap-2.5 rounded-xl leading-tight transition hover:bg-surface-sunken lg:rounded-2xl lg:bg-surface-sunken lg:p-3"
           >
             <Avatar user={user} size={32} />
-            <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-800">{user.name}</div>
-            <div className="mt-0.5 hidden text-xs text-slate-500 sm:block">
-              {user.role.name}
-            </div>
+            <div className="hidden min-w-0 lg:block">
+              <div className="truncate text-sm font-semibold text-foreground">{user.name}</div>
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">บัญชีและการตั้งค่า</div>
             </div>
           </Link>
           </div>
         </div>
       </header>
       {/* เว้นที่ด้านล่างให้แถบเมนูมือถือ (รวม safe area ของ iPhone) */}
-      <main className="min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-10"><div className="mx-auto max-w-7xl">{children}</div></main>
-      <BottomNav items={items.filter((item) => item.mobile !== false).map(({ href, short, icon }) => ({ href, label: short, icon }))} />
+      <main className="min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-10"><div className="mx-auto max-w-7xl"><SectionTabs canOverview={overview} />{children}</div></main>
+      <BottomNav items={bottom} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
 import { NotesShell } from "@/components/notes/notes-shell";
 import { EmptyState } from "@/components/ui-state";
@@ -19,7 +20,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   if (teams.length === 0) {
     return <EmptyState title="คุณยังไม่ได้อยู่ในทีมไหน" description="โน้ตเป็นของทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน" action={{ href: "/teams", label: "ไปหน้า ทีม" }} />;
   }
-  const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
+  const team = (await pickSpace(teams, params.team))!;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
 
   const [nodes, notes, linkCount] = await Promise.all([

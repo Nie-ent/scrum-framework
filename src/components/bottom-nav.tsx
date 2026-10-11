@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { NavGlyph, type NavIcon } from "./nav-icons";
 
 /** เมนูหลักบนมือถือ — ติดขอบล่างให้กดด้วยนิ้วโป้งได้ถึง (จอใหญ่ใช้ sidebar แทน) */
-export function BottomNav({ items }: { items: { href: string; label: string; icon: NavIcon }[] }) {
+export function BottomNav({ items }: { items: { href: string; label: string; icon: NavIcon; match?: string[] }[] }) {
   const pathname = usePathname();
   return (
     <nav
@@ -14,7 +14,7 @@ export function BottomNav({ items }: { items: { href: string; label: string; ico
     >
       <ul className="mx-auto flex max-w-lg">
         {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = [item.href, ...(item.match ?? [])].some((p) => pathname === p || pathname.startsWith(`${p}/`));
           return (
             <li key={item.href} className="flex-1">
               <Link

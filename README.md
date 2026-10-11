@@ -62,6 +62,14 @@
 - **โปรไฟล์** — เปลี่ยนชื่อที่แสดงและรูปโปรไฟล์ได้เองที่หน้า บัญชี (รูปถูกครอป/ย่อเป็น 256×256 ในเบราว์เซอร์) · เก็บใน Supabase Storage bucket `profile_images` (private) ถ้าตั้ง `SUPABASE_URL` + `SUPABASE_SECRET_KEY` ไม่งั้นเก็บในตาราง `Avatar`
 - **ผู้ดูแลแพลตฟอร์ม** — role ที่ level ≥ 100 เข้าหน้า Admin เพื่อจัดการผู้ใช้ / role / ทีม ทั้งระบบ (เกณฑ์อยู่ที่ `src/lib/permissions.ts`) · Admin กำหนด role/level สูงกว่าตัวเองไม่ได้ และลดสิทธิ์/ปิดบัญชีตัวเองไม่ได้
 
+## หน้าตาและเมนู
+
+- **Design tokens** อยู่ที่ `src/app/globals.css` (`@theme` + `:root`) — สี `primary/surface/muted-foreground/success/warning/danger`, เงา `shadow-soft/raised/overlay` มาจากงานออกแบบใน Lovable (โปรเจกต์ต้นแบบ ดู `docs/lovable-redesign-brief.md`) component ใหม่ให้ใช้ชื่อ token แทนสี slate/indigo ตรง ๆ
+- **เมนูจัดเป็นหมวด** (`src/app/(app)/layout.tsx`): เช็กอิน · งาน (รายการ/ปฏิทิน/ไฟล์สำคัญ) · โน้ต · ทีม (ภาพรวม/สถิติ/ทีมและคำเชิญ) — มือถือมี 5 ปุ่มล่าง และแท็บย่อยของหมวดที่หัวหน้า (`SectionTabs`)
+- **ตัวเลือกพื้นที่** (`SpaceSwitcher`) อยู่ที่เดียวใน layout จำค่าใน cookie `pace_space` ทุกหน้าใช้ตาม (`src/lib/space.ts`) — ลิงก์ที่มี `?team=` ยังใช้ได้และมีผลเหนือ cookie
+- **Tooltip / HelpTip** (`src/components/tooltip.tsx`): Tooltip สำหรับปุ่มไอคอน (ชื่อ + คีย์ลัด), HelpTip "?" สำหรับอธิบายแนวคิด แตะได้บนมือถือ
+- **อ่านโน้ตบนจอสัมผัส** ปิดการเลือกข้อความไว้ก่อนเพื่อให้เลื่อนอ่านได้ลื่น มีปุ่ม "เลือกข้อความเพื่อคัดลอก" (`ReadingSurface`)
+
 ## ติดตั้งเป็นแอปบนมือถือ (PWA)
 
 เปิดเว็บบนมือถือแล้วเพิ่มลงหน้าจอหลัก จะได้ไอคอน Pace และเปิดเต็มจอเหมือนแอป

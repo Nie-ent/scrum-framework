@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { NotesShell } from "@/components/notes/notes-shell";
 
 export const metadata: Metadata = { title: "แผนผังความสัมพันธ์" };
@@ -17,7 +18,7 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
   const user = await requireUser();
   const params = await searchParams;
   const { teams, manageableIds } = await getWorkspaceTeams(user);
-  const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
+  const team = (await pickSpace(teams, params.team))!;
   if (!team) notFound();
 
   const [nodes, links] = await Promise.all([

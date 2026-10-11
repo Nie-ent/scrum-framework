@@ -10,6 +10,7 @@ import { getWorkspaceTeams } from "@/lib/teams";
 import { Icon } from "@/components/icons";
 import { Markdown } from "@/components/notes/markdown";
 import { NoteEditor } from "@/components/notes/note-editor";
+import { ReadingSurface } from "@/components/notes/reading-surface";
 import { DeleteNoteButton, MoveForm, RenameFolderForm } from "@/components/notes/note-forms";
 import { NotesShell, folderOptions } from "@/components/notes/notes-shell";
 
@@ -135,7 +136,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
             </div>
             <Link href={`/notes/${note.id}?edit=1`} className="btn shrink-0">แก้ไข</Link>
           </header>
-          {note.content.trim() ? <Markdown content={rendered} /> : <p className="text-sm text-slate-400">โน้ตนี้ยังว่าง — กด แก้ไข เพื่อเริ่มเขียน</p>}
+          {note.content.trim() ? <ReadingSurface><Markdown content={rendered} /></ReadingSurface> : <p className="text-sm text-slate-400">โน้ตนี้ยังว่าง — กด แก้ไข เพื่อเริ่มเขียน</p>}
         </article>
 
         <div className="grid gap-4 md:grid-cols-2">

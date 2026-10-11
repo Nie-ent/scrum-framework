@@ -5,13 +5,13 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey, formatDateKey, isDateKey, todayKey } from "@/lib/dates";
 import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { ProgressBar } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
 import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-delete";
 import { TaskForm } from "./task-form";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
-import { NavGlyph } from "@/components/nav-icons";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { toFileItems, withAttachments } from "@/lib/attachments";
@@ -36,7 +36,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   if (teams.length === 0) {
     return <EmptyState title="คุณยังไม่ได้อยู่ในทีมไหน" description="งานจะถูกมอบหมายภายในทีม — ติดต่อผู้ดูแลระบบให้เพิ่มคุณเข้าทีมก่อน" />;
   }
-  const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
+  const team = (await pickSpace(teams, params.team))!;
   const canManage = manageableIds.has(team.id);
   const canAttach = isFileStorageConfigured();
   // มาจากการกดวันในหน้า ปฏิทิน — เติมกำหนดส่งให้ในฟอร์มเพิ่มงาน
@@ -153,28 +153,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             {overdue > 0 && <span className="text-rose-600"> · เลยกำหนด {overdue}</span>}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/calendar?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="calendar" className="h-4 w-4 text-indigo-600" />ปฏิทิน</Link>
-          <Link href={`/files?team=${team.id}`} className="btn-ghost gap-1.5"><Icon name="star" className="h-4 w-4 text-amber-500" filled />ไฟล์สำคัญ</Link>
-        </div>
       </div>
 
-      {teams.length > 1 && (
-        <nav aria-label="เลือกทีม" className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
-          {teams.map((t) => (
-            <Link
-              key={t.id}
-              href={`/tasks?team=${t.id}`}
-              aria-current={t.id === team.id ? "page" : undefined}
-              className={`inline-flex min-h-9 items-center rounded-xl px-3 text-sm transition ${
-                t.id === team.id ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"
-              }`}
-            >
-              {t.name}
-            </Link>
-          ))}
-        </nav>
-      )}
 
       <section className="card scroll-mt-24" id="new">
         <div className="mb-4">

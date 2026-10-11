@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { todayKey } from "@/lib/dates";
 import { teamParticipation, type MemberStats } from "@/lib/stats";
 import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { Avatar } from "@/components/avatar";
 import { ProgressBar } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
@@ -27,7 +28,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
   if (teams.length === 0) {
     return <EmptyState title="คุณยังไม่ได้อยู่ในทีมไหน" description="สถิติคิดจากเช็กอินและงานภายในทีม — สร้างทีมหรือรับคำเชิญเข้าทีมก่อน" action={{ href: "/teams", label: "ไปหน้า ทีม" }} />;
   }
-  const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
+  const team = (await pickSpace(teams, params.team))!;
   const canLead = manageableIds.has(team.id);
   const days = PERIODS.find((p) => String(p) === params.days) ?? 30;
 
@@ -55,13 +56,6 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
         </nav>
       </div>
 
-      {teams.length > 1 && (
-        <nav aria-label="เลือกทีม" className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
-          {teams.map((t) => (
-            <Link key={t.id} href={href(t.id, days)} aria-current={t.id === team.id ? "page" : undefined} className={tab(t.id === team.id)}>{t.name}</Link>
-          ))}
-        </nav>
-      )}
 
       {me && (
         <section>

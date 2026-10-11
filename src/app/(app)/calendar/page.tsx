@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey, formatDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
 import { getWorkspaceTeams } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { EmptyState } from "@/components/ui-state";
 import { DueForm } from "./due-form";
 
@@ -26,7 +27,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   if (teams.length === 0) {
     return <EmptyState title="ยังไม่มีพื้นที่ทำงาน" description="ลองโหลดหน้าใหม่อีกครั้ง" />;
   }
-  const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
+  const team = (await pickSpace(teams, params.team))!;
   const canManage = manageableIds.has(team.id);
   const month = typeof params.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(params.month) ? params.month : today.slice(0, 7);
 
@@ -95,15 +96,6 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         </div>
       </div>
 
-      {teams.length > 1 && (
-        <nav aria-label="เลือกพื้นที่" className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
-          {teams.map((t) => (
-            <Link key={t.id} href={href(month, t.id)} aria-current={t.id === team.id ? "page" : undefined} className={`inline-flex min-h-9 items-center rounded-xl px-3 text-sm transition ${t.id === team.id ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"}`}>
-              {t.name}
-            </Link>
-          ))}
-        </nav>
-      )}
 
       {/* ตารางเดือน — จอเล็กใช้รายการด้านล่างแทน */}
       <section className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block" aria-label={`ปฏิทิน ${monthLabel(month)}`}>

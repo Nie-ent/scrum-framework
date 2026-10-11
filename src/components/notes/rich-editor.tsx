@@ -7,6 +7,7 @@ import { Markdown } from "@tiptap/markdown";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TableKit } from "@tiptap/extension-table";
 import { LinkChips } from "./link-chips";
+import { Tooltip } from "@/components/tooltip";
 
 /**
  * ตัวแก้ไขแบบเห็นผลทันที (ไม่ต้องรู้ Markdown): กดปุ่มจัดรูปแบบเหมือนโปรแกรมเอกสารทั่วไป
@@ -77,11 +78,14 @@ export function cleanMarkdown(markdown: string): string {
     .trimEnd();
 }
 
-function Button({ label, active = false, onClick, children }: { label: string; active?: boolean; onClick: () => void; children: React.ReactNode }) {
+/** ⌘ บน Mac, Ctrl ที่อื่น — แถบเครื่องมือ render ฝั่ง browser เท่านั้น จึงอ่าน navigator ได้ */
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+
+function Button({ label, shortcut, active = false, onClick, children }: { label: string; shortcut?: string; active?: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
+    <Tooltip label={label} shortcut={shortcut}>
     <button
       type="button"
-      title={label}
       aria-label={label}
       aria-pressed={active}
       // ไม่ให้ปุ่มแย่ง focus จากตัวแก้ไข (ตำแหน่งเคอร์เซอร์/ข้อความที่เลือกจะหาย)
@@ -91,6 +95,7 @@ function Button({ label, active = false, onClick, children }: { label: string; a
     >
       {children}
     </button>
+    </Tooltip>
   );
 }
 
@@ -122,19 +127,19 @@ function Toolbar({
   return (
     <div className="border-b border-slate-200 bg-slate-50">
       <div role="toolbar" aria-label="จัดรูปแบบ" className="flex flex-wrap items-center gap-0.5 px-2 py-1.5">
-        <Button label="หัวข้อใหญ่" active={editor.isActive("heading", { level: 1 })} onClick={() => chain().toggleHeading({ level: 1 }).run()}>หัวข้อ 1</Button>
-        <Button label="หัวข้อรอง" active={editor.isActive("heading", { level: 2 })} onClick={() => chain().toggleHeading({ level: 2 }).run()}>หัวข้อ 2</Button>
-        <Button label="หัวข้อย่อย" active={editor.isActive("heading", { level: 3 })} onClick={() => chain().toggleHeading({ level: 3 }).run()}>หัวข้อ 3</Button>
+        <Button label="หัวข้อใหญ่ (พิมพ์ # เว้นวรรค)" shortcut={`${MOD}Alt+1`} active={editor.isActive("heading", { level: 1 })} onClick={() => chain().toggleHeading({ level: 1 }).run()}>หัวข้อ 1</Button>
+        <Button label="หัวข้อรอง (พิมพ์ ## เว้นวรรค)" shortcut={`${MOD}Alt+2`} active={editor.isActive("heading", { level: 2 })} onClick={() => chain().toggleHeading({ level: 2 }).run()}>หัวข้อ 2</Button>
+        <Button label="หัวข้อย่อย (พิมพ์ ### เว้นวรรค)" shortcut={`${MOD}Alt+3`} active={editor.isActive("heading", { level: 3 })} onClick={() => chain().toggleHeading({ level: 3 }).run()}>หัวข้อ 3</Button>
         <Divider />
-        <Button label="ตัวหนา" active={editor.isActive("bold")} onClick={() => chain().toggleBold().run()}><b>B</b></Button>
-        <Button label="ตัวเอียง" active={editor.isActive("italic")} onClick={() => chain().toggleItalic().run()}><i>I</i></Button>
-        <Button label="ขีดฆ่า" active={editor.isActive("strike")} onClick={() => chain().toggleStrike().run()}><s>S</s></Button>
+        <Button label="ตัวหนา" shortcut={`${MOD}B`} active={editor.isActive("bold")} onClick={() => chain().toggleBold().run()}><b>B</b></Button>
+        <Button label="ตัวเอียง" shortcut={`${MOD}I`} active={editor.isActive("italic")} onClick={() => chain().toggleItalic().run()}><i>I</i></Button>
+        <Button label="ขีดฆ่า" shortcut={`${MOD}Shift+S`} active={editor.isActive("strike")} onClick={() => chain().toggleStrike().run()}><s>S</s></Button>
         <Divider />
-        <Button label="รายการแบบจุด" active={editor.isActive("bulletList")} onClick={() => chain().toggleBulletList().run()}>• รายการ</Button>
-        <Button label="รายการแบบตัวเลข" active={editor.isActive("orderedList")} onClick={() => chain().toggleOrderedList().run()}>1. รายการ</Button>
-        <Button label="รายการสิ่งที่ต้องทำ (ติ๊กได้)" active={editor.isActive("taskList")} onClick={() => chain().toggleTaskList().run()}>☑ สิ่งที่ต้องทำ</Button>
+        <Button label="รายการแบบจุด (พิมพ์ - เว้นวรรค)" shortcut={`${MOD}Shift+8`} active={editor.isActive("bulletList")} onClick={() => chain().toggleBulletList().run()}>• รายการ</Button>
+        <Button label="รายการแบบตัวเลข (พิมพ์ 1. เว้นวรรค)" shortcut={`${MOD}Shift+7`} active={editor.isActive("orderedList")} onClick={() => chain().toggleOrderedList().run()}>1. รายการ</Button>
+        <Button label="สิ่งที่ต้องทำ ติ๊กได้ (พิมพ์ [ ] เว้นวรรค)" shortcut={`${MOD}Shift+9`} active={editor.isActive("taskList")} onClick={() => chain().toggleTaskList().run()}>☑ สิ่งที่ต้องทำ</Button>
         <Divider />
-        <Button label="ข้อความอ้างอิง" active={editor.isActive("blockquote")} onClick={() => chain().toggleBlockquote().run()}>❝</Button>
+        <Button label="ข้อความอ้างอิง (พิมพ์ > เว้นวรรค)" shortcut={`${MOD}Shift+B`} active={editor.isActive("blockquote")} onClick={() => chain().toggleBlockquote().run()}>❝</Button>
         <Button label="แทรกตาราง 3×3" onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>ตาราง</Button>
         {editor.isActive("table") && (
           <>
@@ -145,8 +150,8 @@ function Toolbar({
         )}
         <Button label="ลิงก์เว็บ" active={editor.isActive("link") || linking} onClick={() => { setUrl(editor.getAttributes("link").href ?? ""); setLinking(!linking); }}>ลิงก์</Button>
         <Divider />
-        <Button label="เลิกทำ" onClick={() => chain().undo().run()}>↶</Button>
-        <Button label="ทำซ้ำ" onClick={() => chain().redo().run()}>↷</Button>
+        <Button label="เลิกทำ" shortcut={`${MOD}Z`} onClick={() => chain().undo().run()}>↶</Button>
+        <Button label="ทำซ้ำ" shortcut={`${MOD}Shift+Z`} onClick={() => chain().redo().run()}>↷</Button>
         <span className="ml-auto flex flex-wrap gap-1.5">
           <select
             aria-label="เชื่อมไปโน้ตอื่น"

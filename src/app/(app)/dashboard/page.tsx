@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOverviewAccess } from "@/lib/auth";
 import { getMeetingUrl, getVisibleTeams } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { toTasks } from "@/lib/tasks";
 import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
@@ -31,7 +32,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   // ดูได้ทีละทีมเสมอ — ไม่ได้เลือก (หรือเลือกทีมที่ไม่มีสิทธิ์) = ทีมแรกที่ดูได้
   const requested = typeof params.team === "string" ? params.team : undefined;
-  const team = teams.find((t) => t.id === requested) ?? teams[0];
+  const team = (await pickSpace(teams, requested))!;
   const teamId = team.id;
   // กระดานแยกตามทีม: เห็นเฉพาะ scrum ที่เขียนให้ทีมที่เลือก (ไม่รวมทีมแม่/ทีมย่อย)
   const scopeIds = [teamId];

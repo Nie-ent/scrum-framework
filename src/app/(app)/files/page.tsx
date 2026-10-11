@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -6,8 +5,10 @@ import { toFileItems, withAttachments } from "@/lib/attachments";
 import { attachmentTtlDays } from "@/lib/attachment-store";
 import { dateToKey, formatDateKey, formatDateTime } from "@/lib/dates";
 import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { AttachmentList } from "@/components/attachments";
 import { EmptyState } from "@/components/ui-state";
+import { HelpTip } from "@/components/tooltip";
 
 export const metadata: Metadata = { title: "ไฟล์สำคัญ" };
 
@@ -26,7 +27,7 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
   if (teams.length === 0) {
     return <EmptyState title="คุณยังไม่ได้อยู่ในทีมไหน" description="ไฟล์ถูกแนบภายในทีม — ติดต่อผู้ดูแลระบบให้เพิ่มคุณเข้าทีมก่อน" />;
   }
-  const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
+  const team = (await pickSpace(teams, params.team))!;
   const canManage = manageableIds.has(team.id);
 
   const inTeam = { teamId: team.id, deletedAt: null };
@@ -57,27 +58,11 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
       <div className="page-header">
         <div>
           <p className="eyebrow">ไฟล์ที่เก็บไว้</p>
-          <h1 className="page-title">ไฟล์สำคัญ</h1>
+          <h1 className="page-title flex items-center gap-1.5">ไฟล์สำคัญ <HelpTip title="ไฟล์ชั่วคราวกับไฟล์สำคัญ">{`ไฟล์ที่แนบในงานและความคิดเห็นจะถูกลบเองหลัง ${attachmentTtlDays()} วัน เพื่อไม่ให้พื้นที่เต็ม ถ้าทำเครื่องหมายว่าสำคัญ ไฟล์จะถูกเก็บไว้ถาวรและมารวมอยู่ที่หน้านี้`}</HelpTip></h1>
           <p className="page-subtitle">{team.name} · {files.length} ไฟล์ที่ทำเครื่องหมายให้เก็บไว้</p>
         </div>
       </div>
 
-      {teams.length > 1 && (
-        <nav aria-label="เลือกทีม" className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
-          {teams.map((t) => (
-            <Link
-              key={t.id}
-              href={`/files?team=${t.id}`}
-              aria-current={t.id === team.id ? "page" : undefined}
-              className={`inline-flex min-h-9 items-center rounded-xl px-3 text-sm transition ${
-                t.id === team.id ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"
-              }`}
-            >
-              {t.name}
-            </Link>
-          ))}
-        </nav>
-      )}
 
       <p className="text-sm text-slate-500">
         ไฟล์ที่แนบในงานและความคิดเห็นเป็นไฟล์ชั่วคราว จะถูกลบเองหลัง {attachmentTtlDays()} วัน — คลิกขวาที่ไฟล์ (หรือกด ⋯) แล้วเลือก &quot;ทำเครื่องหมายว่าสำคัญ&quot; เพื่อเก็บไว้ที่นี่

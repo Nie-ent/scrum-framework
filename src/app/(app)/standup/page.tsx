@@ -13,6 +13,7 @@ import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
 import { getManageableTeamIds, getMeetingUrl } from "@/lib/teams";
+import { pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
 
 export const metadata: Metadata = { title: "เช็กอินประจำวัน" };
@@ -35,7 +36,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
   }
 
   // คนที่อยู่หลายทีมเขียน scrum แยกกันต่อทีม
-  const team = teams.find((t) => t.id === params.team) ?? teams[0];
+  const team = (await pickSpace(teams, params.team))!;
   // พื้นที่ส่วนตัว: ใช้ฟอร์มเดียวกันเป็นบันทึกประจำวันของตัวเอง (ไม่มีส่วนของเพื่อนร่วมทีม)
   const personal = Boolean(team.personalOfId);
   const [history, submittedToday, myTasks, teammates, manageableIds, meetingUrl] = await Promise.all([

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveStandup } from "@/app/actions/standup";
 import { FormMessage, SubmitButton } from "@/components/form";
+import { HelpTip } from "@/components/tooltip";
 import { TEXT_SECTIONS, type TextSectionKey } from "@/components/standup-card";
 import { TaskListEditor, serializeTasks } from "@/components/task-list-editor";
 import { isDone, type Task } from "@/lib/tasks";
@@ -94,10 +95,13 @@ export function StandupForm({
           <AssignedChips tasks={available} label="งานค้างของฉันที่ยังไม่อยู่ในเช็กอินนี้ — แตะเพื่อรายงานความคืบหน้า" onPick={(t) => setYesterday([...filled(yesterday), fromAssigned(t)])} />
         </div>
         <div>
-          <label className="label" id="todayTasks-label" htmlFor="todayTasks">
-            วันนี้จะทำอะไร
-            <span className="text-rose-500"> *</span>
-          </label>
+          <div className="mb-1.5 flex items-center gap-1">
+            <label className="label mb-0" id="todayTasks-label" htmlFor="todayTasks">
+              วันนี้จะทำอะไร
+              <span className="text-rose-500"> *</span>
+            </label>
+            <HelpTip title="งานยกมาอัตโนมัติ">งานที่ยังไม่ถึง 100% จะถูกยกมาไว้ในแผนวันนี้ให้เอง พร้อม % ล่าสุด และจะขึ้นเป็น “ล่าสุดทำอะไรไป” ในครั้งถัดไป งานที่พิมพ์ใหม่จะไปอยู่ในหน้า งาน ด้วย</HelpTip>
+          </div>
           {carried.length > 0 && (
             <ul className="mb-2 space-y-1.5" aria-label="งานที่ยกมาจากครั้งก่อน">
               {carried.map((t) => (

@@ -6,6 +6,7 @@ import { createSubTeam, createTeam, deleteTeam, inviteMember, removeMember, setM
 import { InviteFields, TeamFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
+import { HelpTip } from "@/components/tooltip";
 
 const TITLE_HINT = "เช่น ผู้จัดการ, นักออกแบบ, ฝ่ายขาย";
 
@@ -77,7 +78,10 @@ export function InviteForm({
         <datalist id="team-titles">{titles.map((t) => <option key={t} value={t} />)}</datalist>
       </div>
       <div>
-        <label className="label" htmlFor="invite-access">สิทธิ์</label>
+        <div className="mb-1.5 flex items-center gap-1">
+          <label className="label mb-0" htmlFor="invite-access">สิทธิ์</label>
+          <HelpTip title="สิทธิ์ในทีม">สมาชิก: ทำงานและเช็กอินของตัวเอง เห็นงานของเพื่อนร่วมทีม · หัวหน้าทีม: เห็นภาพรวมและมอบหมายงานได้ · เจ้าของทีม: จัดการสมาชิกและตั้งค่าทีมได้ด้วย</HelpTip>
+        </div>
         <select id="invite-access" className="input" defaultValue="MEMBER" {...field("access")}>
           <option value="MEMBER">สมาชิก</option>
           {canInviteLead && <option value="LEAD">หัวหน้าทีม</option>}
@@ -126,6 +130,7 @@ export function MemberForm({ teamId, member, self }: { teamId: string; member: M
         <label className="flex items-center gap-1.5 text-xs text-slate-600" title="ไม่ติ๊ก = ผู้ดูแลอย่างเดียว ไม่ต้องเช็กอินและไม่ถูกนับในภาพรวม">
           <input type="checkbox" name="participates" defaultChecked={member.participates} /> เช็กอิน
         </label>
+        <HelpTip title="เช็กอิน">ติ๊กไว้ = คนนี้ต้องส่งเช็กอินประจำวันและถูกนับในภาพรวมทีม · ไม่ติ๊ก = เป็นผู้ดูแลอย่างเดียว เห็นข้อมูลทีมได้แต่ไม่ต้องเช็กอิน</HelpTip>
         <SubmitButton className="btn-ghost min-h-9 px-2.5 py-1 text-xs">บันทึก</SubmitButton>
         <button
           type="submit"

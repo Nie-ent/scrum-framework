@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavGlyph, type NavIcon } from "./nav-icons";
 
-export function NavLink({ href, icon, children }: { href: string; icon?: NavIcon; children: React.ReactNode }) {
+export function NavLink({ href, icon, match, children }: { href: string; icon?: NavIcon; /** เส้นทางอื่นที่ถือว่าอยู่ในเมนูนี้ */ match?: string[]; children: React.ReactNode }) {
   const pathname = usePathname();
-  const active = pathname === href || pathname.startsWith(`${href}/`);
+  const active = [href, ...(match ?? [])].some((p) => pathname === p || pathname.startsWith(`${p}/`));
   return (
     <Link
       href={href}

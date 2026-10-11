@@ -6,6 +6,7 @@ import { deleteAttachment, setAttachmentImportant } from "@/app/actions/attachme
 import { MAX_FILES_PER_UPLOAD, formatBytes, type AttachmentTarget, type FileItem } from "@/lib/attachments";
 import { checkFiles, uploadFiles, type UploadProgress } from "@/lib/upload-client";
 import { Icon } from "@/components/icons";
+import { Tooltip } from "@/components/tooltip";
 
 type Menu = { file: FileItem; x: number; y: number };
 
@@ -74,6 +75,7 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
                 {!f.important && ` · เหลือ ${f.daysLeft} วัน`}
               </span>
             </a>
+            <Tooltip label="ตัวเลือกของไฟล์ (เก็บไว้ / ดาวน์โหลด / ลบ)">
             <button
               type="button"
               aria-label={`ตัวเลือกของไฟล์ ${f.name}`}
@@ -87,6 +89,7 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
             >
               <Icon name="dots" />
             </button>
+            </Tooltip>
           </li>
         ))}
       </ul>

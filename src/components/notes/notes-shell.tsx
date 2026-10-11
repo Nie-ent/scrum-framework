@@ -60,7 +60,6 @@ function Tree({ nodes, activeId, openIds }: { nodes: NoteTreeNode[]; activeId?: 
  */
 export function NotesShell({
   team,
-  teams,
   nodes,
   activeId,
   openIds = [],
@@ -69,7 +68,8 @@ export function NotesShell({
   children,
 }: {
   team: TeamRow;
-  teams: TeamRow[];
+  /** ไม่ได้ใช้แสดงผลแล้ว (เลือกพื้นที่จากตัวเลือกใน layout) — คงไว้ให้หน้าเรียกแบบเดิมได้ */
+  teams?: TeamRow[];
   nodes: NoteNode[];
   activeId?: string;
   /** โฟลเดอร์ที่ต้องกางไว้ (เส้นทางไปยังรายการที่เปิดอยู่) */
@@ -95,15 +95,6 @@ export function NotesShell({
             <span className="badge badge-neutral shrink-0">{noteCount} โน้ต</span>
           </div>
           <div className="mt-3 space-y-4">
-            {teams.length > 1 && (
-              <nav aria-label="เลือกทีม" className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
-                {teams.map((t) => (
-                  <Link key={t.id} href={`/notes?team=${t.id}`} aria-current={t.id === team.id ? "page" : undefined} className={`rounded-lg px-2.5 py-1 text-xs transition ${t.id === team.id ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"}`}>
-                    {t.name}
-                  </Link>
-                ))}
-              </nav>
-            )}
             <form action="/notes" className="flex gap-2">
               <input type="hidden" name="team" value={team.id} />
               <input name="q" type="search" className="input py-2" placeholder="ค้นหาในโน้ต" aria-label="ค้นหาในโน้ต" />
