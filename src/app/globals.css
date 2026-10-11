@@ -72,3 +72,15 @@
 .markdown td { @apply border border-slate-200 px-3 py-2; }
 .markdown img { @apply my-3 max-w-full rounded-xl; }
 .markdown strong { @apply font-semibold text-slate-900; }
+
+/* ตัวแก้ไขโน้ต (Tiptap): รายการสิ่งที่ต้องทำ และตาราง */
+.markdown ul[data-type="taskList"] { @apply list-none pl-1; }
+.markdown ul[data-type="taskList"] > li { @apply flex items-start gap-2; }
+.markdown ul[data-type="taskList"] > li > label { @apply mt-1 shrink-0 select-none; }
+.markdown ul[data-type="taskList"] > li > div { @apply min-w-0 flex-1; }
+.markdown ul[data-type="taskList"] > li > div > p { @apply my-0; }
+.markdown.ProseMirror table { @apply table w-full table-fixed border-collapse; }
+.markdown.ProseMirror th > p, .markdown.ProseMirror td > p { @apply my-0; }
+.markdown.ProseMirror .selectedCell { @apply bg-indigo-50; }
+.markdown.ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); @apply pointer-events-none float-left h-0 text-slate-400; }
+.markdown.ProseMirror a { @apply text-indigo-600 underline underline-offset-2; }

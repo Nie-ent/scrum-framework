@@ -5,16 +5,28 @@ import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { SESSION_COOKIE, decryptSession } from "./session";
 import { canViewOverview } from "./permissions";
+import { ensurePersonalSpace } from "./personal";
 
 /** โหลด user จาก DB ทุก request เพื่อให้การเปลี่ยน role มีผลทันที */
+const loadUser = (id: string) =>
+  prisma.user.findUnique({
+    where: { id },
+    include: { role: true, memberships: { include: { team: true }, orderBy: { team: { name: "asc" } } } },
+  });
+
 export const getCurrentUser = cache(async () => {
   const session = await decryptSession((await cookies()).get(SESSION_COOKIE)?.value);
   if (!session) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    include: { role: true, memberships: { include: { team: true }, orderBy: { team: { name: "asc" } } } },
-  });
+  let user = await loadUser(session.userId);
   if (!user || !user.active) return null;
+  // ทุกคนมีพื้นที่ส่วนตัว — สร้างให้ครั้งแรกที่เข้าใช้ (รวมบัญชีที่มีอยู่ก่อนฟีเจอร์นี้)
+  if (!user.memberships.some((m) => m.team.personalOfId === user!.id)) {
+    await ensurePersonalSpace(user.id);
+    user = await loadUser(session.userId);
+    if (!user) return null;
+  }
+  // ทีมจริงขึ้นก่อน พื้นที่ส่วนตัวอยู่ท้าย — หน้าต่าง ๆ เลือกทีมแรกเป็นค่าเริ่มต้น
+  user.memberships.sort((a, b) => Number(Boolean(a.team.personalOfId)) - Number(Boolean(b.team.personalOfId)));
   // session ที่ออกก่อนเปลี่ยนรหัสผ่านใช้ไม่ได้ (เผื่อ 1 วินาที เพราะ iat ปัดเป็นวินาที)
   if (user.passwordChangedAt && session.issuedAt * 1000 < user.passwordChangedAt.getTime() - 1000) return null;
   return user;

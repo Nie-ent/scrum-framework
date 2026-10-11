@@ -12,12 +12,14 @@ export const LEVEL = {
 
 type Access = "OWNER" | "LEAD" | "MEMBER";
 type Membership = { access: Access };
-type Viewer = { memberships: Membership[] };
+type TeamMembership = Membership & { team: { personalOfId: string | null } };
+type Viewer = { memberships: TeamMembership[] };
 
 export const canAdmin = (level: number) => level >= LEVEL.ADMIN;
 /** OWNER / LEAD เห็นภาพรวมและมอบหมายงานในทีมนั้น (รวมทีมย่อย) */
 export const canLead = (m: Membership) => m.access !== "MEMBER";
-export const canViewOverview = (user: Viewer) => user.memberships.some(canLead);
+/** เป็นหัวหน้า/เจ้าของของทีมจริงอย่างน้อย 1 ทีม (พื้นที่ส่วนตัวไม่นับ — ไม่มีลูกทีมให้ดูภาพรวม) */
+export const canViewOverview = (user: Viewer) => user.memberships.some((m) => canLead(m) && !m.team.personalOfId);
 
 export function levelLabel(level: number) {
   return level >= LEVEL.ADMIN ? "Admin" : "Member";
@@ -26,7 +28,8 @@ export function levelLabel(level: number) {
 export const ACCESS_LABEL: Record<Access, string> = { OWNER: "เจ้าของทีม", LEAD: "หัวหน้าทีม", MEMBER: "สมาชิก" };
 
 /** "Alpha ★, Web" — ★ = หัวหน้า/เจ้าของทีม */
-export function teamsLabel(memberships: (Membership & { team: { name: string } })[]) {
-  if (memberships.length === 0) return "ไม่มีทีม";
-  return memberships.map((m) => `${m.team.name}${canLead(m) ? " ★" : ""}`).join(", ");
+export function teamsLabel(memberships: (Membership & { team: { name: string; personalOfId?: string | null } })[]) {
+  const teams = memberships.filter((m) => !m.team.personalOfId);
+  if (teams.length === 0) return "ไม่มีทีม";
+  return teams.map((m) => `${m.team.name}${canLead(m) ? " ★" : ""}`).join(", ");
 }

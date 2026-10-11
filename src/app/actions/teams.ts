@@ -175,6 +175,7 @@ export async function removeMember(_: FormState, formData: FormData): Promise<Fo
   const teamId = String(formData.get("teamId") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const self = userId === user.id;
+  if (user.memberships.some((m) => m.teamId === teamId && m.team.personalOfId)) return { error: "ออกจากพื้นที่ส่วนตัวไม่ได้" };
   if (!self && !(await getTeamControl(user, teamId))?.owner) return { error: "เฉพาะเจ้าของทีมเอาสมาชิกออกได้" };
   if (await isLastOwner(teamId, userId)) return { error: "ทีมต้องมีเจ้าของอย่างน้อย 1 คน — ตั้งคนอื่นเป็นเจ้าของก่อน" };
   await prisma.teamMember.deleteMany({ where: { teamId, userId } });

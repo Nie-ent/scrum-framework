@@ -11,7 +11,7 @@ export default async function UsersPage() {
       orderBy: [{ active: "desc" }, { role: { level: "desc" } }, { name: "asc" }],
     }),
     prisma.role.findMany({ orderBy: { level: "desc" } }),
-    prisma.team.findMany({ select: { id: true, name: true, parentId: true }, orderBy: { name: "asc" } }),
+    prisma.team.findMany({ where: { personalOfId: null }, select: { id: true, name: true, parentId: true }, orderBy: { name: "asc" } }),
   ]);
   const teamTree = sortTeamTree(teams);
 

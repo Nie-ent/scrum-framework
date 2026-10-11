@@ -36,6 +36,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
 
   // คนที่อยู่หลายทีมเขียน scrum แยกกันต่อทีม
   const team = teams.find((t) => t.id === params.team) ?? teams[0];
+  // พื้นที่ส่วนตัว: ใช้ฟอร์มเดียวกันเป็นบันทึกประจำวันของตัวเอง (ไม่มีส่วนของเพื่อนร่วมทีม)
+  const personal = Boolean(team.personalOfId);
   const [history, submittedToday, myTasks, teammates, manageableIds, meetingUrl] = await Promise.all([
     prisma.standup.findMany({
       where: { userId: user.id, teamId: team.id },
@@ -82,8 +84,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
       <section>
         <div className="page-header mb-6">
           <div>
-            <p className="eyebrow">Daily rhythm</p>
-            <h1 className="page-title">Daily Scrum</h1>
+            <p className="eyebrow">{personal ? "Personal log" : "Daily rhythm"}</p>
+            <h1 className="page-title">{personal ? "บันทึกประจำวัน" : "Daily Scrum"}</h1>
             <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -136,7 +138,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
           </div>
         )}
 
-        <section className="mt-8">
+        {!personal && <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <p className="eyebrow">Team today</p>
@@ -164,7 +166,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
               ))}
             </div>
           )}
-        </section>
+        </section>}
       </section>
 
       <aside className="xl:border-l xl:border-slate-200 xl:pl-6">

@@ -5,7 +5,7 @@ import { isPushConfigured, sendPush } from "@/lib/push";
 export const dynamic = "force-dynamic";
 
 /**
- * เตือนคนที่ยังไม่ได้เช็กอินของวันนี้ — เรียกโดย Vercel Cron (ดู vercel.json)
+ * เตือนคนที่ยังไม่ได้เช็กอินของวันนี้ในทีม (ไม่เตือนสำหรับพื้นที่ส่วนตัว) — เรียกโดย Vercel Cron (ดู vercel.json)
  * หรือ cron ภายนอกพร้อม header `Authorization: Bearer $CRON_SECRET`
  */
 export async function GET(request: Request) {
@@ -18,11 +18,11 @@ export async function GET(request: Request) {
   // คนที่เปิดแจ้งเตือนไว้ + ทีมที่อยู่ + เช็กอินของวันนี้
   const today = keyToDate(todayKey());
   const users = await prisma.user.findMany({
-    where: { active: true, pushSubs: { some: {} }, memberships: { some: { participates: true } } },
+    where: { active: true, pushSubs: { some: {} }, memberships: { some: { participates: true, team: { personalOfId: null } } } },
     select: {
       id: true,
       pushSubs: true,
-      memberships: { where: { participates: true }, select: { team: { select: { id: true, name: true } } }, orderBy: { team: { name: "asc" } } },
+      memberships: { where: { participates: true, team: { personalOfId: null } }, select: { team: { select: { id: true, name: true } } }, orderBy: { team: { name: "asc" } } },
       standups: { where: { date: today }, select: { teamId: true } },
     },
   });

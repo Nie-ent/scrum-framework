@@ -6,6 +6,8 @@ import { TeamForm } from "../forms";
 export default async function TeamsPage() {
   const teams = sortTeamTree(
     await prisma.team.findMany({
+      // ไม่รวมพื้นที่ส่วนตัวของผู้ใช้
+      where: { personalOfId: null },
       orderBy: { name: "asc" },
       include: {
         _count: { select: { members: true, children: true } },

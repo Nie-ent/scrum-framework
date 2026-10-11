@@ -119,8 +119,11 @@ export function NotesShell({
               <NewItemForm key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} />
             </div>
             <p className="border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
-              ทุกคนในทีม {team.name} อ่านและแก้โน้ตเหล่านี้ได้
-              {canManageTeam && <> · <Link href={`/teams/${team.id}`} className="font-medium text-indigo-600 hover:text-indigo-800">เชิญคนเข้าทีม</Link></>}
+              {team.personalOfId ? (
+                <>โน้ตในพื้นที่ส่วนตัวเห็นเฉพาะคุณ · อยากทำร่วมกับคนอื่น <Link href="/teams" className="font-medium text-indigo-600 hover:text-indigo-800">สร้างทีม</Link></>
+              ) : (
+                <>ทุกคนในทีม {team.name} อ่านและแก้โน้ตเหล่านี้ได้{canManageTeam && <> · <Link href={`/teams/${team.id}`} className="font-medium text-indigo-600 hover:text-indigo-800">เชิญคนเข้าทีม</Link></>}</>
+              )}
             </p>
           </div>
         </div>

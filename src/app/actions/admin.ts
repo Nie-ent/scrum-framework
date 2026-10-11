@@ -78,7 +78,7 @@ export async function saveTeam(_: FormState, formData: FormData): Promise<FormSt
   if (parentId) {
     if (parentId === id) return { error: "ทีมเป็นทีมแม่ของตัวเองไม่ได้" };
     const parent = await prisma.team.findUnique({ where: { id: parentId } });
-    if (!parent) return { error: "ไม่พบทีมแม่" };
+    if (!parent || parent.personalOfId) return { error: "ไม่พบทีมแม่" };
     if (parent.parentId) return { error: "เลือกได้เฉพาะทีมระดับบนเป็นทีมแม่ (ซ้อนได้ 2 ชั้น)" };
     if (id && (await prisma.team.count({ where: { parentId: id } })) > 0) {
       return { error: "ทีมนี้มีทีมย่อยอยู่แล้ว จึงเป็นทีมย่อยของทีมอื่นไม่ได้" };
@@ -98,8 +98,9 @@ export async function saveTeam(_: FormState, formData: FormData): Promise<FormSt
 export async function deleteTeam(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id"));
+  // พื้นที่ส่วนตัวของผู้ใช้ลบจากหน้านี้ไม่ได้
   if ((await prisma.team.count({ where: { parentId: id } })) === 0) {
-    await prisma.team.delete({ where: { id } });
+    await prisma.team.deleteMany({ where: { id, personalOfId: null } });
   }
   revalidatePath("/admin/teams");
 }
@@ -141,7 +142,7 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
   // ติ๊กหัวหน้าทีมไหน = เป็นสมาชิกทีมนั้นด้วย
   const leadIds = new Set(leads);
   const teamIds = [...new Set([...teams, ...leads])];
-  if ((await prisma.team.count({ where: { id: { in: teamIds } } })) !== teamIds.length) {
+  if ((await prisma.team.count({ where: { id: { in: teamIds }, personalOfId: null } })) !== teamIds.length) {
     return { error: "ไม่พบบางทีม กรุณารีเฟรชหน้า" };
   }
   // ชื่อบทบาทในทีมตั้งต้น = ชื่อ role (แก้รายทีมได้ภายหลัง)
@@ -171,7 +172,8 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
       await prisma.$transaction([
         // รีเซ็ตรหัสผ่านให้ = session เดิมของคนนั้นใช้ไม่ได้
         prisma.user.update({ where: { id }, data: { ...data, passwordHash, ...(passwordHash ? { passwordChangedAt: new Date() } : {}) } }),
-        prisma.teamMember.deleteMany({ where: { userId: id, teamId: { notIn: teamIds } } }),
+        // ไม่แตะพื้นที่ส่วนตัวของผู้ใช้
+        prisma.teamMember.deleteMany({ where: { userId: id, teamId: { notIn: teamIds }, team: { personalOfId: null } } }),
         ...memberships.map((m) => {
           const access = existing.get(m.teamId)?.access === "OWNER" && m.isLead ? ("OWNER" as const) : m.access;
           return prisma.teamMember.upsert({

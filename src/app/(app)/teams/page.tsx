@@ -21,6 +21,8 @@ export default async function TeamsPage() {
     orderBy: { createdAt: "desc" },
   });
   const invites = verified ? pending : [];
+  const personal = user.memberships.find((m) => m.team.personalOfId);
+  const teamMemberships = user.memberships.filter((m) => !m.team.personalOfId);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -62,13 +64,27 @@ export default async function TeamsPage() {
         </section>
       )}
 
+      <section className="card flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-semibold text-slate-900">พื้นที่ส่วนตัว</h2>
+          <p className="text-sm text-slate-500">งาน บันทึกประจำวัน และโน้ตที่เห็นเฉพาะคุณ — ใช้ได้เลยโดยไม่ต้องมีทีม</p>
+        </div>
+        {personal && (
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/tasks?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">งาน</Link>
+            <Link href={`/standup?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">บันทึกประจำวัน</Link>
+            <Link href={`/notes?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">โน้ต</Link>
+          </div>
+        )}
+      </section>
+
       <section className="card">
         <h2 className="mb-1 font-semibold text-slate-900">ทีมของฉัน</h2>
-        {user.memberships.length === 0 ? (
-          <p className="text-sm text-slate-500">คุณยังไม่ได้อยู่ในทีมไหน — สร้างทีมใหม่ด้านล่าง หรือขอให้หัวหน้าทีมส่งคำเชิญมา</p>
+        {teamMemberships.length === 0 ? (
+          <p className="text-sm text-slate-500">คุณยังไม่ได้อยู่ในทีมไหน — ใช้พื้นที่ส่วนตัวได้เลย หรือสร้างทีมใหม่ด้านล่างเพื่อทำงานร่วมกับคนอื่น</p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {user.memberships.map((m) => (
+            {teamMemberships.map((m) => (
               <li key={m.teamId} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="font-medium text-slate-800">{m.team.name}</p>

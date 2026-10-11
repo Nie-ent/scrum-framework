@@ -65,7 +65,8 @@ export async function signup(_: FormState, formData: FormData): Promise<FormStat
   }
   await sendVerification(userId, parsed.data.email);
   await createSession(userId);
-  redirect(next === "/" ? "/teams" : next);
+  // มีพื้นที่ส่วนตัวให้ใช้ทันที — เริ่มที่หน้าแรกได้เลย
+  redirect(next);
 }
 
 /** ส่งลิงก์ยืนยันอีเมล (ถ้าตั้งค่าอีเมลไว้) */

@@ -3,7 +3,7 @@ import { prisma } from "./db";
 import type { CurrentUser } from "./auth";
 import { canAdmin, canLead } from "./permissions";
 
-export type TeamRow = { id: string; name: string; parentId: string | null };
+export type TeamRow = { id: string; name: string; parentId: string | null; personalOfId?: string | null };
 
 /** ลิงก์ห้องประชุมของทีม — ทีมย่อยที่ไม่ได้ตั้งเองใช้ของทีมแม่ */
 export async function getMeetingUrl(teamId: string): Promise<string | null> {
@@ -20,11 +20,12 @@ export function sortTeamTree<T extends TeamRow>(teams: T[]): T[] {
 
 /** ทีมที่ viewer ดูภาพรวมได้ = ทีมที่ตัวเองเป็นหัวหน้า/เจ้าของ + ทีมย่อยของทีมนั้น */
 export async function getVisibleTeams(viewer: CurrentUser): Promise<TeamRow[]> {
-  const leadOf = viewer.memberships.filter(canLead).map((m) => m.teamId);
+  // พื้นที่ส่วนตัวไม่ใช่ทีมที่ "ดูแล" — ไม่ขึ้นในภาพรวม/การจัดการทีม
+  const leadOf = viewer.memberships.filter((m) => canLead(m) && !m.team.personalOfId).map((m) => m.teamId);
   if (leadOf.length === 0) return [];
   const teams = await prisma.team.findMany({
     where: { OR: [{ id: { in: leadOf } }, { parentId: { in: leadOf } }] },
-    select: { id: true, name: true, parentId: true },
+    select: { id: true, name: true, parentId: true, personalOfId: true },
     orderBy: { name: "asc" },
   });
   return sortTeamTree(teams);
@@ -45,8 +46,9 @@ export async function getManageableTeamIds(viewer: CurrentUser): Promise<Set<str
  * owner = แก้สิทธิ์/ลบสมาชิก/ตั้งค่าทีมได้ (รวมผู้ดูแลแพลตฟอร์ม) · lead = เชิญสมาชิกทั่วไปได้
  */
 export async function getTeamControl(viewer: CurrentUser, teamId: string) {
-  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true, parentId: true, meetingUrl: true } });
-  if (!team) return null;
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { id: true, name: true, parentId: true, meetingUrl: true, personalOfId: true } });
+  // พื้นที่ส่วนตัวไม่มีการจัดการสมาชิก/คำเชิญ/ทีมย่อย/การลบ
+  if (!team || team.personalOfId) return null;
   const mine = viewer.memberships.filter((m) => m.teamId === team.id || m.teamId === team.parentId);
   const owner = canAdmin(viewer.role.level) || mine.some((m) => m.access === "OWNER");
   return { team, owner, lead: owner || mine.some(canLead), member: viewer.memberships.some((m) => m.teamId === team.id) };
@@ -56,6 +58,8 @@ export async function getTeamControl(viewer: CurrentUser, teamId: string) {
 export async function getWorkspaceTeams(viewer: CurrentUser): Promise<{ teams: TeamRow[]; manageableIds: Set<string> }> {
   const manageable = await getVisibleTeams(viewer);
   const manageableIds = new Set(manageable.map((t) => t.id));
-  const teams = sortTeamTree([...manageable, ...viewer.memberships.map((m) => m.team).filter((t) => !manageableIds.has(t.id))]);
+  const mine = viewer.memberships.map((m) => m.team).filter((t) => !manageableIds.has(t.id));
+  // ทีมจริงก่อน พื้นที่ส่วนตัวอยู่ท้าย
+  const teams = [...sortTeamTree([...manageable, ...mine.filter((t) => !t.personalOfId)]), ...mine.filter((t) => t.personalOfId)];
   return { teams, manageableIds };
 }
