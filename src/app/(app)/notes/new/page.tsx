@@ -24,7 +24,7 @@ export default async function NewNotePage({ searchParams }: PageProps<"/notes/ne
     <NotesShell team={team} teams={teams} nodes={nodes} canManageTeam={manageableIds.has(team.id)} contentFirst>
       <div className="card max-w-xl space-y-4">
         <div>
-          <p className="eyebrow">New note</p>
+          <p className="eyebrow">โน้ตใหม่</p>
           <h1 className="text-xl font-semibold text-slate-950">ยังไม่มีโน้ต &quot;{title}&quot;</h1>
           <p className="mt-1 text-sm text-slate-500">สร้างโน้ตนี้เลยไหม? โน้ตที่เขียน [[{title}]] ไว้จะเชื่อมมาที่โน้ตใหม่ทันที</p>
         </div>

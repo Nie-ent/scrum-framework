@@ -86,7 +86,7 @@ export function ProfileForm({
 
   return (
     <section className="card space-y-5">
-      <p className="eyebrow">Profile</p>
+      <p className="eyebrow">โปรไฟล์</p>
       <div className="flex items-center gap-4">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element -- พรีวิวจากไฟล์ในเครื่อง

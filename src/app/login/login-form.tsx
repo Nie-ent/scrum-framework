@@ -10,7 +10,7 @@ export function LoginForm({ next }: { next?: string }) {
   return (
     <form {...formProps} className="card space-y-5">
       {next && <input type="hidden" name="next" value={next} />}
-      <div><p className="eyebrow">Welcome back</p><h2 className="text-xl font-semibold text-slate-950">เข้าสู่ระบบ</h2><p className="mt-1 text-sm text-slate-500">เช็กอินและติดตามจังหวะของทีม</p></div>
+      <div><p className="eyebrow">ยินดีต้อนรับกลับ</p><h2 className="text-xl font-semibold text-slate-950">เข้าสู่ระบบ</h2><p className="mt-1 text-sm text-slate-500">จัดการงาน บันทึก และทีมของคุณ</p></div>
       <div>
         <label className="label" htmlFor="email">อีเมล</label>
         <input className="input" id="email" type="email" autoComplete="email" required {...field("email")} />

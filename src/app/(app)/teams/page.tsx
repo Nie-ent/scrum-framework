@@ -28,7 +28,7 @@ export default async function TeamsPage() {
     <div className="max-w-3xl space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Your teams</p>
+          <p className="eyebrow">ทำงานร่วมกัน</p>
           <h1 className="page-title">ทีม</h1>
           <p className="page-subtitle">ทีมที่คุณอยู่ คำเชิญที่รอรับ และสร้างทีมใหม่</p>
         </div>
@@ -109,7 +109,7 @@ export default async function TeamsPage() {
 
       <section className="card">
         <div className="mb-4">
-          <p className="eyebrow">New team</p>
+          <p className="eyebrow">ทีมใหม่</p>
           <h2 className="font-semibold text-slate-900">สร้างทีมใหม่</h2>
           <p className="mt-1 text-sm text-slate-500">คุณจะเป็นเจ้าของทีม เชิญคนเข้าทีมและกำหนดสิทธิ์ได้เอง</p>
         </div>

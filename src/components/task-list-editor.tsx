@@ -82,7 +82,7 @@ export function TaskListEditor({
         <li key={index}>
           {/* มือถือ: ปัดขวาเพื่อลบบรรทัด (เมาส์ใช้ปุ่ม ×) — padding กันไม่ให้ขอบ focus ของช่องกรอกถูกตัด */}
           <SwipeToDelete
-            label="ลบ task"
+            label="ลบบรรทัดนี้"
             disabled={!(rows.length > 1 || task.taskId)}
             onDelete={() => onChange(rows.filter((_, i) => i !== index))}
           >
@@ -110,7 +110,7 @@ export function TaskListEditor({
             onChange={(e) => update(index, { text: e.target.value })}
             onKeyDown={(e) => onKeyDown(e, index)}
             onPaste={(e) => onPaste(e, index)}
-            placeholder={index === 0 ? placeholder : "task ถัดไป…"}
+            placeholder={index === 0 ? placeholder : "งานถัดไป…"}
             maxLength={500}
             enterKeyHint="next"
             className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""} ${task.taskId && !task.editable ? "border-indigo-200 bg-indigo-50/50" : ""}`}
@@ -135,7 +135,7 @@ export function TaskListEditor({
           {(rows.length > 1 || task.taskId) && (
             <button
               type="button"
-              aria-label="ลบ task"
+              aria-label="ลบบรรทัดนี้"
               onClick={() => onChange(rows.filter((_, i) => i !== index))}
               className="shrink-0 rounded-lg px-2 py-1 text-slate-400 transition hover:text-rose-600 focus:opacity-100 sm:text-slate-300 sm:opacity-0 sm:group-hover/task:opacity-100"
             >
@@ -146,7 +146,7 @@ export function TaskListEditor({
           </SwipeToDelete>
         </li>
       ))}
-      <li className="pl-4 text-xs text-slate-400">กด Enter เพื่อเพิ่ม task<span className="hidden sm:inline"> · Backspace ในบรรทัดว่างเพื่อลบ</span></li>
+      <li className="pl-4 text-xs text-slate-400">กด Enter เพื่อเพิ่มบรรทัด<span className="hidden sm:inline"> · Backspace ในบรรทัดว่างเพื่อลบ</span></li>
     </ul>
   );
 }

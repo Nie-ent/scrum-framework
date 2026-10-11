@@ -4,7 +4,7 @@ export function TeamHealthChart({ submitted, total }: { submitted: number; total
   const offset = circumference - (percent / 100) * circumference;
   return (
     <div className="card flex items-center gap-5 p-4">
-      <svg className="h-20 w-20 shrink-0 -rotate-90" viewBox="0 0 88 88" role="img" aria-label={`ส่ง Daily Scrum แล้ว ${percent}%`}>
+      <svg className="h-20 w-20 shrink-0 -rotate-90" viewBox="0 0 88 88" role="img" aria-label={`ส่งเช็กอิน แล้ว ${percent}%`}>
         <circle cx="44" cy="44" r="36" fill="none" stroke="currentColor" strokeWidth="8" className="text-slate-100" />
         <circle cx="44" cy="44" r="36" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className={percent === 100 ? "text-emerald-500" : "text-indigo-600"} />
       </svg>

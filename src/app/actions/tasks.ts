@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
-import { keyToDate, todayKey } from "@/lib/dates";
+import { isDateKey, keyToDate, todayKey } from "@/lib/dates";
 import { notify } from "@/lib/notify";
 import { TaskFields } from "@/lib/schemas";
 import { nextTaskNumbers } from "@/lib/task-store";
@@ -23,6 +23,7 @@ function done() {
   revalidatePath("/tasks");
   revalidatePath("/standup");
   revalidatePath("/dashboard");
+  revalidatePath("/calendar");
 }
 
 /** หัวหน้าทีมมอบหมายให้สมาชิกในทีมได้ทุกคน — สมาชิกทั่วไปสร้างได้เฉพาะงานของตัวเอง */
@@ -169,4 +170,17 @@ export async function restoreTask(formData: FormData): Promise<{ ok: boolean }> 
   await prisma.task.update({ where: { id: task.id }, data: { deletedAt: null } });
   done();
   return { ok: true };
+}
+
+/** กำหนด/เลื่อน/ล้างวันกำหนดส่งของงาน — คนรับงานหรือคนที่ดูแลทีม (ใช้จากหน้า ปฏิทิน) */
+export async function setTaskDue(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const found = await loadTask(user, String(formData.get("id")));
+  if (!found || !(found.canManage || found.isAssignee)) return { error: "คุณไม่มีสิทธิ์แก้งานนี้" };
+  const raw = String(formData.get("dueDate") ?? "");
+  if (raw !== "" && !isDateKey(raw)) return { error: "วันที่ไม่ถูกต้อง" };
+  await prisma.task.update({ where: { id: found.task.id }, data: { dueDate: raw ? keyToDate(raw) : null } });
+  done();
+  revalidatePath("/calendar");
+  return { ok: raw ? "บันทึกวันแล้ว" : "เอากำหนดส่งออกแล้ว" };
 }

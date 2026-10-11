@@ -15,6 +15,7 @@ export function TaskForm({
   members,
   today,
   canAttach,
+  defaultDue,
 }: {
   teamId: string;
   selfId: string;
@@ -23,6 +24,8 @@ export function TaskForm({
   today: string;
   /** ตั้งค่าที่เก็บไฟล์แล้ว — แสดงปุ่มแนบไฟล์ */
   canAttach: boolean;
+  /** วันที่เลือกมาจากหน้า ปฏิทิน */
+  defaultDue?: string;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -42,7 +45,7 @@ export function TaskForm({
       <input type="hidden" name="teamId" value={teamId} />
       <div className="sm:col-span-3">
         <label className="label" htmlFor="task-title">ชื่องาน</label>
-        <input id="task-title" className="input" maxLength={200} placeholder="เช่น ทำหน้า checkout ให้รองรับ PromptPay" required {...field("title")} />
+        <input id="task-title" className="input" maxLength={200} placeholder="เช่น จัดทำรายงานประจำเดือน" required {...field("title")} />
         <FieldError name="title" message={error("title")} />
       </div>
       <div>
@@ -66,7 +69,7 @@ export function TaskForm({
       )}
       <div>
         <label className="label" htmlFor="task-due">กำหนดส่ง <span className="font-normal text-slate-400">(ไม่บังคับ)</span></label>
-        <input id="task-due" type="date" min={today} className="input" {...field("dueDate")} />
+        <input id="task-due" type="date" min={today} defaultValue={defaultDue} className="input" {...field("dueDate")} />
         <FieldError name="dueDate" message={error("dueDate")} />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-3">

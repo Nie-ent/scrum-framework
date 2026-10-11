@@ -64,7 +64,7 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
               href={`/api/files/${f.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              title={f.important ? "ไฟล์สำคัญ — เก็บไว้ถาวร" : `ไฟล์ชั่วคราว — จะถูกลบในอีก ${f.daysLeft} วัน (คลิกขวาเพื่อ mark ว่าสำคัญ)`}
+              title={f.important ? "ไฟล์สำคัญ — เก็บไว้ถาวร" : `ไฟล์ชั่วคราว — จะถูกลบในอีก ${f.daysLeft} วัน (คลิกขวาเพื่อทำเครื่องหมายว่าสำคัญ)`}
               className="flex min-w-0 items-center gap-1.5 py-1.5 pl-2.5 pr-1 hover:text-indigo-700"
             >
               {f.important ? <Icon name="star" filled className="h-3.5 w-3.5 text-amber-500" /> : <Icon name={f.isImage ? "image" : "paperclip"} className="h-3.5 w-3.5 text-slate-400" />}
@@ -106,7 +106,7 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
             onClick={() => run(() => setAttachmentImportant(menu.file.id, !menu.file.important), "บันทึกไม่สำเร็จ")}
           >
             <Icon name="star" filled={!menu.file.important} className={`h-4 w-4 ${menu.file.important ? "text-slate-400" : "text-amber-500"}`} />
-            {menu.file.important ? "เลิก mark ว่าสำคัญ" : "Mark ว่าสำคัญ (เก็บไว้)"}
+            {menu.file.important ? "เลิกทำเครื่องหมายสำคัญ" : "ทำเครื่องหมายว่าสำคัญ (เก็บไว้)"}
           </button>
           <a role="menuitem" className={item} href={`/api/files/${menu.file.id}`} target="_blank" rel="noopener noreferrer"><Icon name="open" className="h-4 w-4 text-slate-400" />เปิดไฟล์</a>
           <a role="menuitem" className={item} href={`/api/files/${menu.file.id}?download=1`}><Icon name="download" className="h-4 w-4 text-slate-400" />ดาวน์โหลด</a>

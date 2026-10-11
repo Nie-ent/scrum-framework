@@ -58,7 +58,7 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
       <div className="space-y-5">
         <div className="page-header">
           <div>
-            <p className="eyebrow">Graph</p>
+            <p className="eyebrow">ภาพรวมการเชื่อมโยง</p>
             <h1 className="page-title">แผนผังความสัมพันธ์</h1>
             <p className="page-subtitle">{team.name} · {notes.length} โน้ต · {tasks.size} งานที่ถูกอ้างถึง · {edges.length} เส้นเชื่อม</p>
           </div>

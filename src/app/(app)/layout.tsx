@@ -12,10 +12,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const level = user.role.level;
   const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
-  // mobile: false = ไม่อยู่ในแถบเมนูล่าง (ที่จำกัด): ไฟล์เข้าจากหน้า งาน, สถิติเข้าจากหน้า Daily Scrum, Admin เข้าจากหน้า บัญชี, แจ้งเตือนอยู่ที่กระดิ่งบนแถบหัว
+  // mobile: false = ไม่อยู่ในแถบเมนูล่าง (ที่จำกัด): ไฟล์และปฏิทินเข้าจากหน้า งาน, สถิติเข้าจากหน้า เช็กอิน, Admin เข้าจากหน้า บัญชี, แจ้งเตือนอยู่ที่กระดิ่งบนแถบหัว
   const nav: { href: string; label: string; short: string; icon: NavIcon; show: boolean; mobile?: boolean; badge?: number }[] = [
-    { href: "/standup", label: "Daily Scrum", short: "เช็กอิน", icon: "checkin", show: true },
+    { href: "/standup", label: "เช็กอิน", short: "เช็กอิน", icon: "checkin", show: true },
     { href: "/tasks", label: "งาน", short: "งาน", icon: "tasks", show: true },
+    { href: "/calendar", label: "ปฏิทิน", short: "ปฏิทิน", icon: "calendar", show: true, mobile: false },
     { href: "/notes", label: "โน้ต", short: "โน้ต", icon: "notes", show: true },
     { href: "/files", label: "ไฟล์สำคัญ", short: "ไฟล์", icon: "files", show: true, mobile: false },
     { href: "/dashboard", label: "ภาพรวมทีม", short: "ภาพรวม", icon: "overview", show: canViewOverview(user) },
@@ -36,7 +37,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               <Image src="/logo.png" alt="" width={32} height={32} className="h-7 w-7 lg:h-8 lg:w-8" />
               Pace
             </Link>
-            <p className="mt-1 hidden px-2 text-xs text-slate-400 lg:block">Daily teamwork, in rhythm</p>
+            <p className="mt-1 hidden px-2 text-xs text-slate-400 lg:block">งาน บันทึก และทีม ในที่เดียว</p>
           </div>
           {/* จอใหญ่: เมนูใน sidebar — มือถือใช้ BottomNav ด้านล่างแทน */}
           <nav aria-label="เมนูหลัก" className="mt-4 hidden flex-col gap-1 lg:flex">

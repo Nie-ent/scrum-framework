@@ -7,7 +7,7 @@ import { InviteFields, TeamFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
 
-const TITLE_HINT = "เช่น Dev, PM, PO, Scrum Master";
+const TITLE_HINT = "เช่น ผู้จัดการ, นักออกแบบ, ฝ่ายขาย";
 
 export function CreateTeamForm() {
   const { state, pending, formProps, field, error } = useZodForm(TeamFields, createTeam);

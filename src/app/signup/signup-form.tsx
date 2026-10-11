@@ -10,7 +10,7 @@ export function SignupForm({ next }: { next?: string }) {
   return (
     <form {...formProps} className="card space-y-5">
       {next && <input type="hidden" name="next" value={next} />}
-      <div><p className="eyebrow">Get started</p><h2 className="text-xl font-semibold text-slate-950">สมัครบัญชีใหม่</h2><p className="mt-1 text-sm text-slate-500">{next ? "สมัครแล้วรับคำเชิญเข้าทีมได้ทันที" : "สมัครแล้วสร้างทีมของคุณ หรือรอรับคำเชิญจากทีม"}</p></div>
+      <div><p className="eyebrow">เริ่มต้นใช้งาน</p><h2 className="text-xl font-semibold text-slate-950">สมัครบัญชีใหม่</h2><p className="mt-1 text-sm text-slate-500">{next ? "สมัครแล้วรับคำเชิญเข้าทีมได้ทันที" : "ใช้คนเดียวได้ทันที หรือสร้างทีมเพื่อทำงานร่วมกับคนอื่น"}</p></div>
       <div>
         <label className="label" htmlFor="name">ชื่อที่แสดง</label>
         <input className="input" id="name" autoComplete="name" maxLength={100} required {...field("name")} />

@@ -16,7 +16,7 @@ export default async function NotificationsPage() {
     <div className="max-w-3xl space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Inbox</p>
+          <p className="eyebrow">ความเคลื่อนไหวถึงคุณ</p>
           <h1 className="page-title">แจ้งเตือน</h1>
           <p className="page-subtitle">{unread > 0 ? `ยังไม่ได้อ่าน ${unread} รายการ` : "อ่านครบแล้ว"}</p>
         </div>

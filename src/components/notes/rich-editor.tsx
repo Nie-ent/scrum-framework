@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TableKit } from "@tiptap/extension-table";
+import { LinkChips } from "./link-chips";
 
 /**
  * ตัวแก้ไขแบบเห็นผลทันที (ไม่ต้องรู้ Markdown): กดปุ่มจัดรูปแบบเหมือนโปรแกรมเอกสารทั่วไป
@@ -36,6 +37,7 @@ export function RichEditor({
       TaskItem.configure({ nested: true }),
       TableKit,
       Markdown,
+      LinkChips.configure({ noteTitles, taskNumbers: tasks.map((t) => t.number) }),
     ],
     content: defaultValue,
     contentType: "markdown",

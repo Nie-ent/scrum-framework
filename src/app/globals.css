@@ -84,3 +84,10 @@
 .markdown.ProseMirror .selectedCell { @apply bg-indigo-50; }
 .markdown.ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); @apply pointer-events-none float-left h-0 text-slate-400; }
 .markdown.ProseMirror a { @apply text-indigo-600 underline underline-offset-2; }
+
+/* ป้ายลิงก์ในตัวแก้ไขโน้ต: [[ชื่อโน้ต]] และ #เลขงาน (ดู src/components/notes/link-chips.ts) */
+.markdown.ProseMirror .note-chip { @apply rounded-md bg-indigo-50 px-1.5 py-0.5 font-medium text-indigo-700 ring-1 ring-indigo-200; }
+.markdown.ProseMirror .note-chip-new { @apply bg-slate-50 text-slate-600 ring-slate-300; border-bottom: 1px dashed var(--color-slate-400); }
+.markdown.ProseMirror .note-chip-editing { @apply px-0.5; }
+.markdown.ProseMirror .note-chip-hidden { font-size: 0; letter-spacing: 0; }
+.markdown.ProseMirror .task-chip { @apply rounded-md bg-emerald-50 px-1 py-0.5 font-medium tabular-nums text-emerald-700 ring-1 ring-emerald-200; }

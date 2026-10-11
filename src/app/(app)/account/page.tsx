@@ -16,7 +16,7 @@ export default async function AccountPage() {
   const user = await requireUser();
   return (
     <div className="max-w-xl space-y-6">
-      <div><p className="eyebrow">Account settings</p><h1 className="page-title">บัญชีของฉัน</h1><p className="page-subtitle">ข้อมูลและการตั้งค่าการเข้าสู่ระบบของคุณ</p></div>
+      <div><p className="eyebrow">การตั้งค่า</p><h1 className="page-title">บัญชีของฉัน</h1><p className="page-subtitle">ข้อมูลและการตั้งค่าการเข้าสู่ระบบของคุณ</p></div>
       <ProfileForm
         user={{
           id: user.id,

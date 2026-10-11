@@ -89,7 +89,7 @@ export function NotesShell({
         <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2">
             <span className="min-w-0">
-              <span className="eyebrow block">Workspace</span>
+              <span className="eyebrow block">พื้นที่</span>
               <span className="block truncate font-semibold text-slate-900">{team.name}</span>
             </span>
             <span className="badge badge-neutral shrink-0">{noteCount} โน้ต</span>

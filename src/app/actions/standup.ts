@@ -22,7 +22,7 @@ const tasksJson = (requiredMessage: string) =>
       try {
         return JSON.parse(raw) as unknown;
       } catch {
-        ctx.addIssue({ code: "custom", message: "รูปแบบ task ไม่ถูกต้อง" });
+        ctx.addIssue({ code: "custom", message: "รูปแบบรายการงานไม่ถูกต้อง" });
         return z.NEVER;
       }
     })
@@ -30,8 +30,8 @@ const tasksJson = (requiredMessage: string) =>
 
 const StandupSchema = z.object({
   teamId: z.string().min(1, { error: "กรุณาเลือกทีม" }),
-  yesterdayTasks: tasksJson("กรุณาใส่อย่างน้อย 1 task ใน \"ล่าสุดทำอะไรไป\""),
-  todayTasks: tasksJson("กรุณาใส่อย่างน้อย 1 task ใน \"วันนี้จะทำอะไร\""),
+  yesterdayTasks: tasksJson("กรุณาใส่อย่างน้อย 1 รายการใน \"ล่าสุดทำอะไรไป\""),
+  todayTasks: tasksJson("กรุณาใส่อย่างน้อย 1 รายการใน \"วันนี้จะทำอะไร\""),
   blockers: optional,
   notWorking: optional,
   workingWell: optional,
@@ -155,5 +155,5 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
   revalidatePath("/standup");
   revalidatePath("/dashboard");
   revalidatePath("/tasks");
-  return { ok: "บันทึก daily scrum ของวันนี้แล้ว" };
+  return { ok: "บันทึกเช็กอินของวันนี้แล้ว" };
 }

@@ -58,7 +58,7 @@ export default async function MemberPage({ params }: PageProps<"/dashboard/membe
             <div className="mt-2"><CommentThread canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={viewer.id} canModerate subject={`เช็กอิน ${formatDateKey(dateToKey(s.date))}`} open={s.comments.length > 0} /></div>
           </div>
         ))}
-        {member.standups.length === 0 && <EmptyState title="ยังไม่มี Daily Scrum" description="เมื่อสมาชิกส่งเช็กอิน ข้อมูลล่าสุดจะแสดงที่นี่" />}
+        {member.standups.length === 0 && <EmptyState title="ยังไม่มีเช็กอิน" description="เมื่อสมาชิกส่งเช็กอิน ข้อมูลล่าสุดจะแสดงที่นี่" />}
       </div>
     </div>
   );

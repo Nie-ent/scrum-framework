@@ -56,9 +56,9 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Kept files</p>
+          <p className="eyebrow">ไฟล์ที่เก็บไว้</p>
           <h1 className="page-title">ไฟล์สำคัญ</h1>
-          <p className="page-subtitle">{team.name} · {files.length} ไฟล์ที่ถูก mark ให้เก็บไว้</p>
+          <p className="page-subtitle">{team.name} · {files.length} ไฟล์ที่ทำเครื่องหมายให้เก็บไว้</p>
         </div>
       </div>
 
@@ -80,11 +80,11 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
       )}
 
       <p className="text-sm text-slate-500">
-        ไฟล์ที่แนบในงานและความคิดเห็นเป็นไฟล์ชั่วคราว จะถูกลบเองหลัง {attachmentTtlDays()} วัน — คลิกขวาที่ไฟล์ (หรือกด ⋯) แล้วเลือก &quot;Mark ว่าสำคัญ&quot; เพื่อเก็บไว้ที่นี่
+        ไฟล์ที่แนบในงานและความคิดเห็นเป็นไฟล์ชั่วคราว จะถูกลบเองหลัง {attachmentTtlDays()} วัน — คลิกขวาที่ไฟล์ (หรือกด ⋯) แล้วเลือก &quot;ทำเครื่องหมายว่าสำคัญ&quot; เพื่อเก็บไว้ที่นี่
       </p>
 
       {files.length === 0 ? (
-        <EmptyState title="ยังไม่มีไฟล์ที่ถูก mark" description="คลิกขวาที่ไฟล์แนบในหน้า งาน หรือในความคิดเห็น แล้วเลือก Mark ว่าสำคัญ ไฟล์จะมาอยู่ที่นี่และไม่ถูกลบ" action={{ href: `/tasks?team=${team.id}`, label: "ไปหน้า งาน" }} />
+        <EmptyState title="ยังไม่มีไฟล์สำคัญ" description="คลิกขวาที่ไฟล์แนบในหน้า งาน หรือในความคิดเห็น แล้วเลือก ทำเครื่องหมายว่าสำคัญ ไฟล์จะมาอยู่ที่นี่และไม่ถูกลบ" action={{ href: `/tasks?team=${team.id}`, label: "ไปหน้า งาน" }} />
       ) : (
         <section className="card">
           <ul className="divide-y divide-slate-100">

@@ -8,7 +8,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         <div className="mb-6 text-center">
           <Image src="/logo.png" alt="Pace" width={64} height={64} priority className="mx-auto mb-3" />
           <h1 className="text-3xl font-bold tracking-tight text-slate-950">Pace</h1>
-          <p className="text-sm text-slate-500">Keep your team moving.</p>
+          <p className="text-sm text-slate-500">งาน บันทึก และทีม ในที่เดียว</p>
         </div>
         {children}
       </div>

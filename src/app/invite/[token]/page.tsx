@@ -33,7 +33,7 @@ export default async function InvitePage({ params }: PageProps<"/invite/[token]"
       ) : (
         <div className="card space-y-4">
           <div>
-            <p className="eyebrow">Team invite</p>
+            <p className="eyebrow">คำเชิญเข้าทีม</p>
             <h2 className="text-xl font-semibold text-slate-950">เข้าร่วมทีม {invite.team.name}</h2>
             <p className="mt-1 text-sm text-slate-500">
               {invite.invitedBy ? `${invite.invitedBy.name} เชิญคุณ` : "คุณได้รับเชิญ"}เป็น{ACCESS_LABEL[invite.access]}

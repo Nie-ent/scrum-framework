@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { setTaskProgress } from "@/app/actions/tasks";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { dateToKey, formatDateKey, todayKey } from "@/lib/dates";
+import { dateToKey, formatDateKey, isDateKey, todayKey } from "@/lib/dates";
 import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
 import { ProgressBar } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
@@ -11,6 +11,7 @@ import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-de
 import { TaskForm } from "./task-form";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
+import { NavGlyph } from "@/components/nav-icons";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { toFileItems, withAttachments } from "@/lib/attachments";
@@ -38,6 +39,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const team = teams.find((t) => t.id === params.team) ?? teams.find((t) => user.memberships.some((m) => m.teamId === t.id)) ?? teams[0];
   const canManage = manageableIds.has(team.id);
   const canAttach = isFileStorageConfigured();
+  // มาจากการกดวันในหน้า ปฏิทิน — เติมกำหนดส่งให้ในฟอร์มเพิ่มงาน
+  const defaultDue = isDateKey(params.due) && params.due >= today ? params.due : undefined;
 
   const [members, tasks] = await Promise.all([
     canManage
@@ -143,14 +146,17 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Team tasks</p>
+          <p className="eyebrow">รายการงาน</p>
           <h1 className="page-title">งาน</h1>
           <p className="page-subtitle">
             {team.name} · ค้างอยู่ {open.length} งาน{!canManage && mine.length !== open.length && ` (ของฉัน ${mine.length})`}
             {overdue > 0 && <span className="text-rose-600"> · เลยกำหนด {overdue}</span>}
           </p>
         </div>
-        <Link href={`/files?team=${team.id}`} className="btn-ghost gap-1.5"><Icon name="star" className="h-4 w-4 text-amber-500" filled />ไฟล์สำคัญ</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/calendar?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="calendar" className="h-4 w-4 text-indigo-600" />ปฏิทิน</Link>
+          <Link href={`/files?team=${team.id}`} className="btn-ghost gap-1.5"><Icon name="star" className="h-4 w-4 text-amber-500" filled />ไฟล์สำคัญ</Link>
+        </div>
       </div>
 
       {teams.length > 1 && (
@@ -170,12 +176,12 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         </nav>
       )}
 
-      <section className="card">
+      <section className="card scroll-mt-24" id="new">
         <div className="mb-4">
-          <p className="eyebrow">{canManage ? "Assign" : "New task"}</p>
+          <p className="eyebrow">{canManage ? "มอบหมาย" : "งานใหม่"}</p>
           <h2 className="font-semibold text-slate-900">{canManage ? "มอบหมายงานให้สมาชิก" : "เพิ่มงานของฉัน"}</h2>
         </div>
-        <TaskForm key={team.id} canAttach={canAttach} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
+        <TaskForm key={`${team.id}:${defaultDue ?? ""}`} canAttach={canAttach} defaultDue={defaultDue} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
       </section>
 
       {open.length === 0 ? (

@@ -44,7 +44,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Participation</p>
+          <p className="eyebrow">ความสม่ำเสมอ</p>
           <h1 className="page-title">สถิติการมีส่วนร่วม</h1>
           <p className="page-subtitle">{team.name} · {days} วันล่าสุด · นับเฉพาะวันจันทร์–ศุกร์</p>
         </div>
@@ -70,7 +70,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
             <Stat label="เช็กอิน" value={me.rate === null ? "—" : `${me.rate}%`} hint={`${me.submitted} จาก ${me.expected} วันทำงาน`} tone="text-indigo-600" />
             <Stat label="ส่งต่อเนื่อง" value={`${me.streak} วัน`} hint="วันทำงานติดต่อกันล่าสุด" tone="text-emerald-600" />
             <Stat label="งานที่ทำเสร็จ" value={me.tasksDone} hint={`ค้างอยู่ ${me.tasksOpen}${me.tasksOverdue > 0 ? ` · เลยกำหนด ${me.tasksOverdue}` : ""}`} tone="text-slate-900" />
-            <Stat label="ความคิดเห็น" value={me.comments} hint={`แจ้ง blocker ${me.blockers} ครั้ง`} tone="text-slate-900" />
+            <Stat label="ความคิดเห็น" value={me.comments} hint={`ขอความช่วยเหลือ ${me.blockers} ครั้ง`} tone="text-slate-900" />
           </div>
         </section>
       )}
@@ -81,7 +81,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
           <Stat label="เช็กอินเฉลี่ย" value={teamRate === null ? "—" : `${teamRate}%`} hint={`${rows.length} คนที่ต้องเช็กอิน`} tone="text-indigo-600" />
           <Stat label="งานที่ทำเสร็จ" value={total("tasksDone")} hint={total("tasksOverdue") > 0 ? `เลยกำหนด ${total("tasksOverdue")} งาน` : "ไม่มีงานเลยกำหนด"} tone="text-slate-900" />
           <Stat label="ความคิดเห็น" value={total("comments")} hint="ใต้งานและเช็กอิน" tone="text-slate-900" />
-          <Stat label="Blocker ที่แจ้ง" value={total("blockers")} hint="จำนวนเช็กอินที่ขอความช่วยเหลือ" tone="text-rose-600" />
+          <Stat label="ขอความช่วยเหลือ" value={total("blockers")} hint="จำนวนเช็กอินที่ขอความช่วยเหลือ" tone="text-rose-600" />
         </div>
       </section>
 
@@ -104,7 +104,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
                     <th className="px-4 py-3 text-right">งานเสร็จ</th>
                     <th className="px-4 py-3 text-right">งานค้าง</th>
                     <th className="px-4 py-3 text-right">ความคิดเห็น</th>
-                    <th className="px-5 py-3 text-right">Blocker</th>
+                    <th className="px-5 py-3 text-right">ขอความช่วยเหลือ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

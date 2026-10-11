@@ -49,7 +49,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
       <div className="space-y-6">
         <div className="page-header">
           <div>
-            <p className="eyebrow">Knowledge base</p>
+            <p className="eyebrow">คลังความรู้</p>
             <h1 className="page-title">โน้ต</h1>
             <p className="page-subtitle">
               {team.name} · {nodes.filter((n) => n.kind === "NOTE").length} โน้ต · {nodes.filter((n) => n.kind === "FOLDER").length} โฟลเดอร์ · {linkCount} ความสัมพันธ์

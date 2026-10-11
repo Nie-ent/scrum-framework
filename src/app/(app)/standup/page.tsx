@@ -15,7 +15,7 @@ import { isFileStorageConfigured } from "@/lib/file-store";
 import { getManageableTeamIds, getMeetingUrl } from "@/lib/teams";
 import { Icon } from "@/components/icons";
 
-export const metadata: Metadata = { title: "Daily Scrum" };
+export const metadata: Metadata = { title: "เช็กอินประจำวัน" };
 
 export default async function StandupPage({ searchParams }: PageProps<"/standup">) {
   const user = await requireUser();
@@ -28,7 +28,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     return (
       <EmptyState
         title="คุณยังไม่ได้อยู่ในทีมไหน"
-        description="Daily Scrum ส่งแยกตามทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน"
+        description="เช็กอินส่งแยกตามทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน"
         action={{ href: "/teams", label: "ไปหน้า ทีม" }}
       />
     );
@@ -84,8 +84,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
       <section>
         <div className="page-header mb-6">
           <div>
-            <p className="eyebrow">{personal ? "Personal log" : "Daily rhythm"}</p>
-            <h1 className="page-title">{personal ? "บันทึกประจำวัน" : "Daily Scrum"}</h1>
+            <p className="eyebrow">{personal ? "ของฉัน" : "ทุกวันทำงาน"}</p>
+            <h1 className="page-title">{personal ? "บันทึกประจำวัน" : "เช็กอินประจำวัน"}</h1>
             <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -141,7 +141,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
         {!personal && <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
-              <p className="eyebrow">Team today</p>
+              <p className="eyebrow">ทีมวันนี้</p>
               <h2 className="font-semibold text-slate-900">เช็กอินของทีมวันนี้ · {team.name}</h2>
             </div>
             <span className="badge badge-neutral">{teammates.length} คน</span>

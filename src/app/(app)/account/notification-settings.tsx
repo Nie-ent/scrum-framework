@@ -94,7 +94,7 @@ export function NotificationSettings({ publicKey }: { publicKey: string | null }
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold text-slate-900">แจ้งเตือนเช็กอิน</h2>
-          <p className="text-sm text-slate-500">เตือนตอนเช้าวันทำงาน ถ้ายังไม่ได้ส่ง Daily Scrum ของวันนั้น</p>
+          <p className="text-sm text-slate-500">เตือนตอนเช้าวันทำงาน ถ้ายังไม่ได้ส่งเช็กอินของวันนั้น</p>
         </div>
         {status === "on" && <span className="badge badge-success shrink-0">เปิดอยู่</span>}
         {status === "off" && <span className="badge badge-neutral shrink-0">ปิดอยู่</span>}

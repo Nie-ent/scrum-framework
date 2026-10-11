@@ -48,7 +48,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
         <Link href="/teams" className="text-sm text-slate-500 hover:text-indigo-600">← ทีมทั้งหมด</Link>
         <div className="page-header mt-2">
           <div>
-            <p className="eyebrow">{parent ? `ทีมย่อยของ ${parent.name}` : "Team settings"}</p>
+            <p className="eyebrow">{parent ? `ทีมย่อยของ ${parent.name}` : "ตั้งค่าทีม"}</p>
             <h1 className="page-title">{team.name}</h1>
             <p className="page-subtitle">{members.length} คน{invites.length > 0 && ` · รอรับคำเชิญ ${invites.length}`}</p>
           </div>
@@ -57,7 +57,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
 
       <section className="card">
         <div className="mb-4">
-          <p className="eyebrow">Invite</p>
+          <p className="eyebrow">เชิญ</p>
           <h2 className="font-semibold text-slate-900">เชิญคนเข้าทีม</h2>
           <p className="mt-1 text-sm text-slate-500">
             {isEmailConfigured() ? "ระบบจะส่งอีเมลคำเชิญให้ และ" : "ระบบจะสร้างลิงก์ให้คัดลอกส่งเอง และ"}ถ้าเขามีบัญชีอยู่แล้วจะเห็นคำเชิญในหน้า ทีม ของเขา กดรับได้เลย · พิมพ์ในช่องอีเมลเพื่อเลือกจากคนที่เคยร่วมทีมกัน
@@ -114,7 +114,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
         <section className="card">
           <h2 className="mb-1 font-semibold text-slate-900">ห้องประชุมของทีม</h2>
           <p className="mb-3 text-sm text-slate-500">
-            วางลิงก์ Google Meet, Zoom หรือห้องประชุมอื่นที่ทีมใช้ประจำ สมาชิกจะเห็นปุ่ม &quot;เข้าห้องประชุม&quot; ในหน้า Daily Scrum และภาพรวมทีม
+            วางลิงก์ Google Meet, Zoom หรือห้องประชุมอื่นที่ทีมใช้ประจำ สมาชิกจะเห็นปุ่ม &quot;เข้าห้องประชุม&quot; ในหน้า เช็กอิน และภาพรวมทีม
             {team.parentId && " · ถ้าเว้นว่าง จะใช้ลิงก์ของทีมแม่"}
           </p>
           <MeetingUrlForm teamId={team.id} meetingUrl={team.meetingUrl} />
@@ -141,7 +141,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
 
       {owner && (
         <section className="card border-rose-200">
-          <p className="eyebrow text-rose-600">Danger zone</p>
+          <p className="eyebrow text-rose-600">โปรดระวัง</p>
           <h2 className="font-semibold text-slate-900">ลบทีม</h2>
           <p className="mb-4 mt-1 text-sm text-slate-500">
             ลบทีมนี้พร้อมงาน เช็กอิน ความคิดเห็น ไฟล์แนบ และคำเชิญทั้งหมดของทีม <b className="font-semibold text-rose-700">กู้คืนไม่ได้</b> · บัญชีของสมาชิกไม่ถูกลบ

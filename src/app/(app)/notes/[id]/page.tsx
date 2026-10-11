@@ -59,7 +59,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
           {Breadcrumb}
           <div className="page-header">
             <div>
-              <p className="eyebrow">Folder</p>
+              <p className="eyebrow">โฟลเดอร์</p>
               <h1 className="page-title flex items-center gap-2"><Icon name="folder" className="h-7 w-7 text-amber-500" />{note.title}</h1>
               <p className="page-subtitle">{children.length} รายการ</p>
             </div>

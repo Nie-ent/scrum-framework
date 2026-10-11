@@ -2,14 +2,14 @@ import type { Standup } from "@prisma/client";
 import { averageProgress, isDone, toTasks } from "@/lib/tasks";
 
 export const TASK_SECTIONS = [
-  { key: "yesterdayTasks", label: "ล่าสุดทำอะไรไป", hint: "Yesterday", tone: "slate" },
-  { key: "todayTasks", label: "วันนี้จะทำอะไร", hint: "Today", tone: "indigo" },
+  { key: "yesterdayTasks", label: "ล่าสุดทำอะไรไป", hint: "ที่ผ่านมา", tone: "slate" },
+  { key: "todayTasks", label: "วันนี้จะทำอะไร", hint: "แผน", tone: "indigo" },
 ] as const;
 
 export const TEXT_SECTIONS = [
-  { key: "blockers", label: "ต้องการความช่วยเหลือ", hint: "Blocker", tone: "red" },
-  { key: "notWorking", label: "สิ่งที่ควรปรับปรุง", hint: "Reflection", tone: "amber" },
-  { key: "workingWell", label: "สิ่งที่ไปได้ดี", hint: "Reflection", tone: "emerald" },
+  { key: "blockers", label: "ต้องการความช่วยเหลือ", hint: "ติดขัด", tone: "red" },
+  { key: "notWorking", label: "สิ่งที่ควรปรับปรุง", hint: "ทบทวน", tone: "amber" },
+  { key: "workingWell", label: "สิ่งที่ไปได้ดี", hint: "ทบทวน", tone: "emerald" },
 ] as const;
 
 export type TaskSectionKey = (typeof TASK_SECTIONS)[number]["key"];

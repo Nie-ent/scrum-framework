@@ -10,7 +10,7 @@ export function ResetForm({ token }: { token: string }) {
   return (
     <form {...formProps} className="card space-y-5">
       <input type="hidden" name="token" value={token} />
-      <div><p className="eyebrow">Reset password</p><h2 className="text-xl font-semibold text-slate-950">ตั้งรหัสผ่านใหม่</h2></div>
+      <div><p className="eyebrow">รหัสผ่าน</p><h2 className="text-xl font-semibold text-slate-950">ตั้งรหัสผ่านใหม่</h2></div>
       <div>
         <label className="label" htmlFor="next">รหัสผ่านใหม่ <span className="font-normal text-slate-400">(อย่างน้อย 8 ตัวอักษร)</span></label>
         <input className="input" id="next" type="password" autoComplete="new-password" minLength={8} required {...field("next")} />

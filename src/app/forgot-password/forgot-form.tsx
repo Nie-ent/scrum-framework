@@ -9,7 +9,7 @@ export function ForgotForm() {
   const { state, pending, formProps, field, error } = useZodForm(ForgotFields, requestPasswordReset, { resetOnSuccess: true });
   return (
     <form {...formProps} className="card space-y-5">
-      <div><p className="eyebrow">Reset password</p><h2 className="text-xl font-semibold text-slate-950">ลืมรหัสผ่าน</h2><p className="mt-1 text-sm text-slate-500">ใส่อีเมลของบัญชี เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้</p></div>
+      <div><p className="eyebrow">รหัสผ่าน</p><h2 className="text-xl font-semibold text-slate-950">ลืมรหัสผ่าน</h2><p className="mt-1 text-sm text-slate-500">ใส่อีเมลของบัญชี เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้</p></div>
       <div>
         <label className="label" htmlFor="email">อีเมล</label>
         <input className="input" id="email" type="email" autoComplete="email" required {...field("email")} />
