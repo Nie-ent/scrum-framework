@@ -4,6 +4,8 @@ import { useEffect, useReducer, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/react";
 import { noteKey } from "@/lib/note-links";
+import { useT } from "@/components/i18n";
+import type { Translate } from "@/lib/i18n/core";
 
 /**
  * เมนูที่เด้งขึ้นระหว่างพิมพ์ในตัวแก้ไขโน้ต
@@ -46,17 +48,18 @@ const COMMANDS: (Item & { words: string })[] = [
   { key: "task", label: "เชื่อมไปงาน", hint: "#", words: "เชื่อม ลิงก์ งาน link task", run: (e, r) => e.chain().focus().deleteRange(r).insertContent("#").run() },
 ];
 
-function itemsFor(trigger: Trigger, noteTitles: string[], tasks: { number: number; title: string }[]): Item[] {
+function itemsFor(trigger: Trigger, noteTitles: string[], tasks: { number: number; title: string }[], tr: Translate): Item[] {
   const q = trigger.query.trim().toLowerCase();
   if (trigger.kind === "slash") {
-    return COMMANDS.filter((c) => !q || c.label.toLowerCase().includes(q) || c.words.includes(q));
+    // ค้นได้ทั้งชื่อคำสั่งในภาษาที่ใช้อยู่และคำค้นสำรอง (ไทย/อังกฤษ)
+    return COMMANDS.map((c) => ({ ...c, label: tr(c.label), hint: c.hint && tr(c.hint) })).filter((c) => !q || c.label.toLowerCase().includes(q) || c.words.includes(q));
   }
   if (trigger.kind === "note") {
     const found = noteTitles.filter((t) => t.toLowerCase().includes(q)).slice(0, 8);
     const items: Item[] = found.map((title) => ({ key: title, label: title, run: (e, r) => e.chain().focus().deleteRange(r).insertContent(`[[${title}]] `).run() }));
     const typed = trigger.query.trim();
     if (typed && !noteTitles.some((t) => noteKey(t) === noteKey(typed))) {
-      items.push({ key: "\u0000new", label: `สร้างโน้ต “${typed}”`, hint: "สร้างได้หลังบันทึก", run: (e, r) => e.chain().focus().deleteRange(r).insertContent(`[[${typed}]] `).run() });
+      items.push({ key: "\u0000new", label: tr("สร้างโน้ต “{0}”", [typed]), hint: tr("สร้างได้หลังบันทึก"), run: (e, r) => e.chain().focus().deleteRange(r).insertContent(`[[${typed}]] `).run() });
     }
     return items;
   }
@@ -93,6 +96,7 @@ export function EditorMenus({
   /** ตัวแก้ไขเรียกก่อนจัดการปุ่มเอง — คืน true = เมนูรับปุ่มนี้ไปแล้ว */
   keyHandler: React.RefObject<MenuKeyHandler | null>;
 }) {
+  const tr = useT();
   // จำตำแหน่งที่เลือกคู่กับคำค้น — คำค้นเปลี่ยน = เริ่มจากรายการแรกใหม่
   const [pick, setPick] = useState({ signature: "", index: 0 });
   const [dismissed, setDismissed] = useState<number | null>(null);
@@ -101,7 +105,7 @@ export function EditorMenus({
   // เคอร์เซอร์อยู่ในตัวแก้ไขจริง ๆ (กดไปที่อื่นแล้วเมนูต้องหาย)
   const focused = typeof document !== "undefined" && document.activeElement === editor.view.dom;
   const trigger = focused ? detectTrigger(editor) : null;
-  const items = trigger && trigger.from !== dismissed ? itemsFor(trigger, noteTitles, tasks) : [];
+  const items = trigger && trigger.from !== dismissed ? itemsFor(trigger, noteTitles, tasks, tr) : [];
   const open = Boolean(trigger) && items.length > 0;
   const signature = trigger ? `${trigger.kind}:${trigger.from}:${trigger.query}` : "";
   const active = pick.signature === signature ? Math.min(pick.index, items.length - 1) : 0;
@@ -151,11 +155,11 @@ export function EditorMenus({
       {menuAt && trigger && (
         <div
           role="listbox"
-          aria-label={TITLES[trigger.kind]}
+          aria-label={tr(TITLES[trigger.kind])}
           style={{ left: Math.max(8, Math.min(menuAt.left, window.innerWidth - 296)), top: menuAt.bottom + 6 > window.innerHeight - 260 ? undefined : menuAt.bottom + 6, bottom: menuAt.bottom + 6 > window.innerHeight - 260 ? window.innerHeight - menuAt.top + 6 : undefined }}
           className="tooltip-pop fixed z-[90] max-h-64 w-72 overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-overlay"
         >
-          <p className="px-2.5 py-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-subtle">{TITLES[trigger.kind]}</p>
+          <p className="px-2.5 py-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-subtle">{tr(TITLES[trigger.kind])}</p>
           {items.map((item, i) => (
             <button
               key={item.key}
@@ -170,23 +174,23 @@ export function EditorMenus({
               {item.hint && <kbd className="shrink-0 font-sans text-2xs text-subtle">{item.hint}</kbd>}
             </button>
           ))}
-          <p className="border-t border-border px-2.5 py-1.5 text-2xs text-subtle">↑ ↓ เลือก · Enter ยืนยัน · Esc ปิด</p>
+          <p className="border-t border-border px-2.5 py-1.5 text-2xs text-subtle">{tr("↑ ↓ เลือก · Enter ยืนยัน · Esc ปิด")}</p>
         </div>
       )}
       {selectionAt && to - from > 0 && (
         <div
           role="toolbar"
-          aria-label="จัดรูปแบบข้อความที่เลือก"
+          aria-label={tr("จัดรูปแบบข้อความที่เลือก")}
           style={{ left: Math.max(8, Math.min(selectionAt.left, window.innerWidth - 250)), top: Math.max(8, selectionAt.top - 46) }}
           className="fine-only tooltip-pop fixed z-[90] items-center gap-0.5 rounded-lg bg-tooltip p-1 text-tooltip-foreground shadow-raised"
         >
-          <button type="button" aria-label="ตัวหนา" aria-pressed={editor.isActive("bold")} {...press(() => editor.chain().focus().toggleBold().run())} className={`${bubble} ${editor.isActive("bold") ? "bg-white/20" : "hover:bg-white/10"}`}><b>B</b></button>
-          <button type="button" aria-label="ตัวเอียง" aria-pressed={editor.isActive("italic")} {...press(() => editor.chain().focus().toggleItalic().run())} className={`${bubble} ${editor.isActive("italic") ? "bg-white/20" : "hover:bg-white/10"}`}><i>I</i></button>
-          <button type="button" aria-label="ขีดฆ่า" aria-pressed={editor.isActive("strike")} {...press(() => editor.chain().focus().toggleStrike().run())} className={`${bubble} ${editor.isActive("strike") ? "bg-white/20" : "hover:bg-white/10"}`}><s>S</s></button>
+          <button type="button" aria-label={tr("ตัวหนา")} aria-pressed={editor.isActive("bold")} {...press(() => editor.chain().focus().toggleBold().run())} className={`${bubble} ${editor.isActive("bold") ? "bg-white/20" : "hover:bg-white/10"}`}><b>B</b></button>
+          <button type="button" aria-label={tr("ตัวเอียง")} aria-pressed={editor.isActive("italic")} {...press(() => editor.chain().focus().toggleItalic().run())} className={`${bubble} ${editor.isActive("italic") ? "bg-white/20" : "hover:bg-white/10"}`}><i>I</i></button>
+          <button type="button" aria-label={tr("ขีดฆ่า")} aria-pressed={editor.isActive("strike")} {...press(() => editor.chain().focus().toggleStrike().run())} className={`${bubble} ${editor.isActive("strike") ? "bg-white/20" : "hover:bg-white/10"}`}><s>S</s></button>
           <span className="mx-0.5 h-5 w-px bg-white/20" aria-hidden="true" />
-          <button type="button" aria-label="ทำเป็นหัวข้อรอง" aria-pressed={editor.isActive("heading", { level: 2 })} {...press(() => editor.chain().focus().toggleHeading({ level: 2 }).run())} className={`${bubble} ${editor.isActive("heading", { level: 2 }) ? "bg-white/20" : "hover:bg-white/10"}`}>หัวข้อ</button>
-          <button type="button" aria-label="ทำเป็นรายการ" aria-pressed={editor.isActive("bulletList")} {...press(() => editor.chain().focus().toggleBulletList().run())} className={`${bubble} ${editor.isActive("bulletList") ? "bg-white/20" : "hover:bg-white/10"}`}>• รายการ</button>
-          <button type="button" aria-label="ทำเป็นสิ่งที่ต้องทำ" aria-pressed={editor.isActive("taskList")} {...press(() => editor.chain().focus().toggleTaskList().run())} className={`${bubble} ${editor.isActive("taskList") ? "bg-white/20" : "hover:bg-white/10"}`}>☑</button>
+          <button type="button" aria-label={tr("ทำเป็นหัวข้อรอง")} aria-pressed={editor.isActive("heading", { level: 2 })} {...press(() => editor.chain().focus().toggleHeading({ level: 2 }).run())} className={`${bubble} ${editor.isActive("heading", { level: 2 }) ? "bg-white/20" : "hover:bg-white/10"}`}>{tr("หัวข้อ")}</button>
+          <button type="button" aria-label={tr("ทำเป็นรายการ")} aria-pressed={editor.isActive("bulletList")} {...press(() => editor.chain().focus().toggleBulletList().run())} className={`${bubble} ${editor.isActive("bulletList") ? "bg-white/20" : "hover:bg-white/10"}`}>{tr("• รายการ")}</button>
+          <button type="button" aria-label={tr("ทำเป็นสิ่งที่ต้องทำ")} aria-pressed={editor.isActive("taskList")} {...press(() => editor.chain().focus().toggleTaskList().run())} className={`${bubble} ${editor.isActive("taskList") ? "bg-white/20" : "hover:bg-white/10"}`}>☑</button>
         </div>
       )}
     </>,

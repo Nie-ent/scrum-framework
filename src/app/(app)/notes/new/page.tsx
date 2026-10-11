@@ -6,8 +6,12 @@ import { listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { NewItemForm } from "@/components/notes/note-forms";
 import { NotesShell, folderOptions } from "@/components/notes/notes-shell";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "สร้างโน้ต" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("สร้างโน้ต") };
+}
 
 /** มาจากการคลิกลิงก์ [[ชื่อ]] ที่ยังไม่มีโน้ต — ยืนยันแล้วสร้างโน้ตชื่อนั้น */
 export default async function NewNotePage({ searchParams }: PageProps<"/notes/new">) {
@@ -24,12 +28,12 @@ export default async function NewNotePage({ searchParams }: PageProps<"/notes/ne
     <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)}>
       <div className="card max-w-xl space-y-4">
         <div>
-          <p className="eyebrow">โน้ตใหม่</p>
-          <h1 className="text-xl font-semibold text-slate-950">ยังไม่มีโน้ต &quot;{title}&quot;</h1>
-          <p className="mt-1 text-sm text-slate-500">สร้างโน้ตนี้เลยไหม? โน้ตที่เขียน [[{title}]] ไว้จะเชื่อมมาที่โน้ตใหม่ทันที</p>
+          <p className="eyebrow">{tr("โน้ตใหม่")}</p>
+          <h1 className="text-xl font-semibold text-slate-950">{tr("ยังไม่มีโน้ต \"")}{title}&quot;</h1>
+          <p className="mt-1 text-sm text-slate-500">{tr("สร้างโน้ตนี้เลยไหม? โน้ตที่เขียน [[")}{title}{tr("]] ไว้จะเชื่อมมาที่โน้ตใหม่ทันที")}</p>
         </div>
         <NewItemForm teamId={team.id} folders={folderOptions(nodes)} parentId={parent} title={title} />
-        <Link href={`/notes?team=${team.id}`} className="inline-block text-sm text-slate-500 hover:text-indigo-700">← กลับไปหน้าโน้ต</Link>
+        <Link href={`/notes?team=${team.id}`} className="inline-block text-sm text-slate-500 hover:text-indigo-700">{tr("← กลับไปหน้าโน้ต")}</Link>
       </div>
     </NotesShell>
   );

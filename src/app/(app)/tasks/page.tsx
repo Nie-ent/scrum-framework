@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { setTaskProgress } from "@/app/actions/tasks";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { dateToKey, formatDateKey, isDateKey, todayKey } from "@/lib/dates";
+import { dateToKey, isDateKey, todayKey } from "@/lib/dates";
+import { formatDateKey } from "@/lib/format-dates";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { EmptyState } from "@/components/ui-state";
@@ -20,8 +21,12 @@ import { withComments } from "@/lib/comments";
 import { toFileItems, withAttachments } from "@/lib/attachments";
 import { AttachButton, AttachmentList } from "@/components/attachments";
 import { isFileStorageConfigured } from "@/lib/file-store";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "งาน" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("งาน") };
+}
 
 /**
  * รายการงานแบบกะทัดรัด: แต่ละแถวมีแค่สิ่งที่ใช้กวาดตามอง — รายละเอียด ความคืบหน้า ไฟล์ และความคิดเห็น
@@ -34,7 +39,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
   const { teams, manageableIds } = await getWorkspaceTeams(user);
   if (teams.length === 0) {
-    return <EmptyState title="ยังไม่มีพื้นที่ทำงาน" description="ลองโหลดหน้าใหม่อีกครั้ง" />;
+    return <EmptyState title={tr("ยังไม่มีพื้นที่ทำงาน")} description={tr("ลองโหลดหน้าใหม่อีกครั้ง")} />;
   }
   const team = (await pickSpace(teams, params.team))!;
   const canManage = manageableIds.has(team.id);
@@ -80,7 +85,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const groups = [...new Map(shown.map((t) => [t.assignee.id, t.assignee])).values()]
     .map((assignee) => ({
       id: assignee.id,
-      name: assignee.id === user.id ? "งานของฉัน" : assignee.name,
+      name: assignee.id === user.id ? tr("งานของฉัน") : assignee.name,
       person: assignee,
       tasks: shown.filter((t) => t.assignee.id === assignee.id),
     }))
@@ -106,8 +111,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           <form action={setTaskProgress} className="shrink-0">
             <input type="hidden" name="id" value={t.id} />
             <input type="hidden" name="progress" value={100} />
-            <Tooltip label="ทำเสร็จแล้ว (100%)">
-              <button aria-label={`ทำงาน ${t.title} เสร็จแล้ว`} className="flex size-9 items-center justify-center rounded-full transition hover:bg-success-soft">
+            <Tooltip label={tr("ทำเสร็จแล้ว (100%)")}>
+              <button aria-label={tr("ทำงาน {0} เสร็จแล้ว", [t.title])} className="flex size-9 items-center justify-center rounded-full transition hover:bg-success-soft">
                 <ProgressRing value={t.progress} />
               </button>
             </Tooltip>
@@ -124,7 +129,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           </span>
           {dueKey && !done && (
             <span className={`badge shrink-0 ${late ? "badge-danger" : dueKey === today ? "badge-warning" : "badge-neutral"}`}>
-              {late ? "เลยกำหนด " : dueKey === today ? "วันนี้" : ""}{dueKey === today ? "" : formatDateKey(dueKey).replace(/ \d{4}$/, "")}
+              {late ? tr("เลยกำหนด ") : dueKey === today ? tr("วันนี้") : ""}{dueKey === today ? "" : formatDateKey(dueKey).replace(/ \d{4}$/, "")}
             </span>
           )}
           {done && t.doneAt && <span className="shrink-0 text-xs text-subtle">{formatDateKey(dateToKey(t.doneAt)).replace(/ \d{4}$/, "")}</span>}
@@ -152,11 +157,11 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
       <div className="space-y-6">
         <div className="page-header">
           <div>
-            <p className="eyebrow">รายการงาน</p>
-            <h1 className="page-title">งาน</h1>
+            <p className="eyebrow">{tr("รายการงาน")}</p>
+            <h1 className="page-title">{tr("งาน")}</h1>
             <p className="page-subtitle">
-              {team.name} · ค้างอยู่ {open.length} งาน{shared && mine.length !== open.length && ` (ของฉัน ${mine.length})`}
-              {overdue > 0 && <> · <Link href={`${all}&overdue=1`} className="font-medium text-danger underline-offset-2 hover:underline">เลยกำหนด {overdue}</Link></>}
+              {team.name} {tr("· ค้างอยู่")}{" "}{open.length} {tr("งาน")}{shared && mine.length !== open.length && tr(" (ของฉัน {0})", [mine.length])}
+              {overdue > 0 && <> · <Link href={`${all}&overdue=1`} className="font-medium text-danger underline-offset-2 hover:underline">{tr("เลยกำหนด")}{" "}{overdue}</Link></>}
             </p>
           </div>
         </div>
@@ -168,22 +173,22 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         {filtered && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-sunken px-4 py-2.5 text-sm">
             <span className="text-foreground">
-              กำลังแสดงเฉพาะ{onlyOverdue ? "งานที่เลยกำหนด" : "งานค้าง"}{who && <>ของ <b className="font-semibold">{who.name}</b></>} · {shown.length} งาน
+              {tr("กำลังแสดงเฉพาะ")}{onlyOverdue ? tr("งานที่เลยกำหนด") : tr("งานค้าง")}{who && <>{tr("ของ")}{" "}<b className="font-semibold">{who.name}</b></>} · {shown.length} {tr("งาน")}
             </span>
-            <Link href={all} className="font-medium text-primary hover:text-primary-strong">ดูงานทั้งหมด</Link>
+            <Link href={all} className="font-medium text-primary hover:text-primary-strong">{tr("ดูงานทั้งหมด")}</Link>
           </div>
         )}
 
         {filtered && shown.length === 0 ? (
-          <p className="card text-sm text-muted-foreground">ไม่มีงานที่ตรงกับตัวกรองนี้</p>
+          <p className="card text-sm text-muted-foreground">{tr("ไม่มีงานที่ตรงกับตัวกรองนี้")}</p>
         ) : open.length === 0 ? (
-          <EmptyState title="ไม่มีงานค้าง" description={shared ? "เพิ่มงานจากช่องด้านบน งานของคุณจะไปขึ้นในหน้าเช็กอินด้วย" : "พิมพ์ชื่องานในช่องด้านบนแล้วกด Enter เพื่อเริ่มรายการของคุณ"} />
+          <EmptyState title={tr("ไม่มีงานค้าง")} description={shared ? tr("เพิ่มงานจากช่องด้านบน งานของคุณจะไปขึ้นในหน้าเช็กอินด้วย") : tr("พิมพ์ชื่องานในช่องด้านบนแล้วกด Enter เพื่อเริ่มรายการของคุณ")} />
         ) : (
           groups.map((g) => (
             <section key={g.id} className="card">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2.5 text-sm font-semibold text-foreground">{shared && <Avatar user={g.person} size={24} />}{g.name}</h2>
-                <span className="badge badge-neutral">{g.tasks.length} งาน</span>
+                <span className="badge badge-neutral">{g.tasks.length} {tr("งาน")}</span>
               </div>
               <ul className="divide-y divide-border">{g.tasks.map(renderTask)}</ul>
             </section>
@@ -192,7 +197,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
         {!filtered && finished.length > 0 && (
           <details className="card" open={selected ? selected.progress >= 100 : undefined}>
-            <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">เสร็จแล้ว ({finished.length})</summary>
+            <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">{tr("เสร็จแล้ว (")}{finished.length})</summary>
             <ul className="mt-2 divide-y divide-border">{finished.slice(0, 30).map(renderTask)}</ul>
           </details>
         )}
@@ -201,10 +206,10 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
       {selected && (
         <>
           {/* ฉากหลัง: กดเพื่อปิดแผง */}
-          <Link href={base} scroll={false} aria-label="ปิดรายละเอียดงาน" className="fixed inset-0 z-40 hidden bg-foreground/20 lg:block" />
-          <aside aria-label={`รายละเอียดงาน ${selected.title}`} className="fixed inset-0 z-50 overflow-y-auto bg-surface shadow-overlay lg:inset-y-0 lg:left-auto lg:w-[30rem] lg:border-l lg:border-border">
+          <Link href={base} scroll={false} aria-label={tr("ปิดรายละเอียดงาน")} className="fixed inset-0 z-40 hidden bg-foreground/20 lg:block" />
+          <aside aria-label={tr("รายละเอียดงาน {0}", [selected.title])} className="fixed inset-0 z-50 overflow-y-auto bg-surface shadow-overlay lg:inset-y-0 lg:left-auto lg:w-[30rem] lg:border-l lg:border-border">
             <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur sm:px-5">
-              <Link href={base} scroll={false} className="btn-ghost min-h-9 gap-1 px-2.5 py-1 text-sm">← <span className="lg:hidden">กลับ</span><span className="max-lg:hidden">ปิด</span></Link>
+              <Link href={base} scroll={false} className="btn-ghost min-h-9 gap-1 px-2.5 py-1 text-sm">← <span className="lg:hidden">{tr("กลับ")}</span><span className="max-lg:hidden">{tr("ปิด")}</span></Link>
               <span className="text-sm tabular-nums text-subtle">{selected.number !== null && `#${selected.number}`}</span>
               {canDelete(selected) ? <DeleteTaskButton id={selected.id} title={selected.title} /> : <span className="w-8" />}
             </div>
@@ -217,55 +222,55 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
               <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-sm">
                 {shared && (
                   <>
-                    <dt className="text-muted-foreground">ผู้รับงาน</dt>
+                    <dt className="text-muted-foreground">{tr("ผู้รับงาน")}</dt>
                     <dd className="flex items-center gap-2"><Avatar user={selected.assignee} size={24} />{selected.assignee.name}</dd>
                   </>
                 )}
                 {selected.createdBy && selected.createdBy.id !== selected.assignee.id && (
                   <>
-                    <dt className="text-muted-foreground">มอบหมายโดย</dt>
+                    <dt className="text-muted-foreground">{tr("มอบหมายโดย")}</dt>
                     <dd>{selected.createdBy.name}</dd>
                   </>
                 )}
-                <dt className="text-muted-foreground">กำหนดส่ง</dt>
+                <dt className="text-muted-foreground">{tr("กำหนดส่ง")}</dt>
                 <dd>
                   {canUpdate(selected) ? (
                     <div className="[&>form]:justify-start"><DueForm id={selected.id} title={selected.title} dueDate={selected.dueDate ? dateToKey(selected.dueDate) : null} /></div>
                   ) : selected.dueDate ? (
                     formatDateKey(dateToKey(selected.dueDate))
                   ) : (
-                    <span className="text-subtle">ยังไม่กำหนด</span>
+                    <span className="text-subtle">{tr("ยังไม่กำหนด")}</span>
                   )}
                 </dd>
               </dl>
 
               <section>
-                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><ProgressRing value={selected.progress} size={22} />ความคืบหน้า {selected.progress}%</h3>
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><ProgressRing value={selected.progress} size={22} />{tr("ความคืบหน้า")}{" "}{selected.progress}%</h3>
                 {canUpdate(selected) ? (
                   <form action={setTaskProgress} className="space-y-2">
                     <input type="hidden" name="id" value={selected.id} />
-                    <ProgressSlider key={`${selected.id}:${selected.progress}`} defaultValue={selected.progress} label={`ความคืบหน้าของ ${selected.title} (%)`} />
+                    <ProgressSlider key={`${selected.id}:${selected.progress}`} defaultValue={selected.progress} label={tr("ความคืบหน้าของ {0} (%)", [selected.title])} />
                     <div className="flex items-center gap-2">
-                      <input name="reason" maxLength={500} placeholder="เหตุผล / หมายเหตุ (ไม่บังคับ)" aria-label="เหตุผลของการอัปเดต" className="input flex-1 py-2 text-sm" />
-                      <button className="btn shrink-0">บันทึก</button>
+                      <input name="reason" maxLength={500} placeholder={tr("เหตุผล / หมายเหตุ (ไม่บังคับ)")} aria-label={tr("เหตุผลของการอัปเดต")} className="input flex-1 py-2 text-sm" />
+                      <button className="btn shrink-0">{tr("บันทึก")}</button>
                     </div>
-                    <p className="text-xs text-muted-foreground">การเปลี่ยนแปลงและเหตุผลจะถูกบันทึกไว้ในความคิดเห็นด้านล่าง</p>
+                    <p className="text-xs text-muted-foreground">{tr("การเปลี่ยนแปลงและเหตุผลจะถูกบันทึกไว้ในความคิดเห็นด้านล่าง")}</p>
                   </form>
                 ) : (
-                  <p className="text-sm text-muted-foreground">อัปเดตได้เฉพาะผู้รับงานหรือหัวหน้าทีม</p>
+                  <p className="text-sm text-muted-foreground">{tr("อัปเดตได้เฉพาะผู้รับงานหรือหัวหน้าทีม")}</p>
                 )}
               </section>
 
               <section className="space-y-2">
-                <h3 className="text-sm font-semibold">ไฟล์แนบ</h3>
+                <h3 className="text-sm font-semibold">{tr("ไฟล์แนบ")}</h3>
                 <AttachmentList files={toFileItems(selected.attachments, user.id)} canModerate={canManage} />
-                {toFileItems(selected.attachments, user.id).length === 0 && <p className="text-sm text-subtle">ยังไม่มีไฟล์</p>}
+                {toFileItems(selected.attachments, user.id).length === 0 && <p className="text-sm text-subtle">{tr("ยังไม่มีไฟล์")}</p>}
                 {canAttach && (canUpdate(selected) || selected.createdBy?.id === user.id) && <AttachButton target={{ taskId: selected.id }} />}
               </section>
 
               {selected.noteLinks.length > 0 && (
                 <section>
-                  <h3 className="mb-2 text-sm font-semibold">โน้ตที่อ้างถึงงานนี้</h3>
+                  <h3 className="mb-2 text-sm font-semibold">{tr("โน้ตที่อ้างถึงงานนี้")}</h3>
                   <ul className="space-y-1">
                     {selected.noteLinks.map((l) => (
                       <li key={l.from.id}><Link href={`/notes/${l.from.id}`} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-strong"><Icon name="note" className="h-4 w-4 text-subtle" />{l.from.title}</Link></li>
@@ -275,7 +280,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
               )}
 
               <section>
-                <h3 className="mb-1 text-sm font-semibold">ความคิดเห็นและประวัติ</h3>
+                <h3 className="mb-1 text-sm font-semibold">{tr("ความคิดเห็นและประวัติ")}</h3>
                 <CommentThread canAttach={canAttach} target={{ taskId: selected.id }} comments={selected.comments} viewerId={user.id} canModerate={canManage} subject={selected.title} open />
               </section>
             </div>

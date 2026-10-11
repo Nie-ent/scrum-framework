@@ -7,6 +7,7 @@ import { MAX_FILES_PER_UPLOAD, formatBytes, type AttachmentTarget, type FileItem
 import { checkFiles, uploadFiles, type UploadProgress } from "@/lib/upload-client";
 import { Icon } from "@/components/icons";
 import { Tooltip } from "@/components/tooltip";
+import { useT } from "@/components/i18n";
 
 type Menu = { file: FileItem; x: number; y: number };
 
@@ -15,6 +16,7 @@ type Menu = { file: FileItem; x: number; y: number };
  * ไฟล์ที่ไม่ได้ mark จะถูกลบเองเมื่อครบกำหนด
  */
 export function AttachmentList({ files, canModerate = false }: { files: FileItem[]; canModerate?: boolean }) {
+  const tr = useT();
   const [menu, setMenu] = useState<Menu | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -65,20 +67,20 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
               href={`/api/files/${f.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              title={f.important ? "ไฟล์สำคัญ — เก็บไว้ถาวร" : `ไฟล์ชั่วคราว — จะถูกลบในอีก ${f.daysLeft} วัน (คลิกขวาเพื่อทำเครื่องหมายว่าสำคัญ)`}
+              title={f.important ? tr("ไฟล์สำคัญ — เก็บไว้ถาวร") : tr("ไฟล์ชั่วคราว — จะถูกลบในอีก {0} วัน (คลิกขวาเพื่อทำเครื่องหมายว่าสำคัญ)", [f.daysLeft ?? 0])}
               className="flex min-w-0 items-center gap-1.5 py-1.5 pl-2.5 pr-1 hover:text-indigo-700"
             >
               {f.important ? <Icon name="star" filled className="h-3.5 w-3.5 text-amber-500" /> : <Icon name={f.isImage ? "image" : "paperclip"} className="h-3.5 w-3.5 text-slate-400" />}
               <span className="truncate font-medium text-slate-800">{f.name}</span>
               <span className="shrink-0 text-slate-400">
                 {formatBytes(f.size)}
-                {!f.important && ` · เหลือ ${f.daysLeft} วัน`}
+                {!f.important && tr(" · เหลือ {0} วัน", [f.daysLeft ?? 0])}
               </span>
             </a>
-            <Tooltip label="ตัวเลือกของไฟล์ (เก็บไว้ / ดาวน์โหลด / ลบ)">
+            <Tooltip label={tr("ตัวเลือกของไฟล์ (เก็บไว้ / ดาวน์โหลด / ลบ)")}>
             <button
               type="button"
-              aria-label={`ตัวเลือกของไฟล์ ${f.name}`}
+              aria-label={tr("ตัวเลือกของไฟล์ {0}", [f.name])}
               aria-haspopup="menu"
               onClick={(e) => {
                 e.stopPropagation();
@@ -98,7 +100,7 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
       {menu && createPortal(
         <div
           role="menu"
-          aria-label={`ตัวเลือกของไฟล์ ${menu.file.name}`}
+          aria-label={tr("ตัวเลือกของไฟล์ {0}", [menu.file.name])}
           style={{ left: Math.max(8, menu.x), top: Math.max(8, menu.y) }}
           className="fixed z-50 w-56 rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
         >
@@ -106,21 +108,21 @@ export function AttachmentList({ files, canModerate = false }: { files: FileItem
             type="button"
             role="menuitem"
             className={item}
-            onClick={() => run(() => setAttachmentImportant(menu.file.id, !menu.file.important), "บันทึกไม่สำเร็จ")}
+            onClick={() => run(() => setAttachmentImportant(menu.file.id, !menu.file.important), tr("บันทึกไม่สำเร็จ"))}
           >
             <Icon name="star" filled={!menu.file.important} className={`h-4 w-4 ${menu.file.important ? "text-slate-400" : "text-amber-500"}`} />
-            {menu.file.important ? "เลิกทำเครื่องหมายสำคัญ" : "ทำเครื่องหมายว่าสำคัญ (เก็บไว้)"}
+            {menu.file.important ? tr("เลิกทำเครื่องหมายสำคัญ") : tr("ทำเครื่องหมายว่าสำคัญ (เก็บไว้)")}
           </button>
-          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}`} target="_blank" rel="noopener noreferrer"><Icon name="open" className="h-4 w-4 text-slate-400" />เปิดไฟล์</a>
-          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}?download=1`}><Icon name="download" className="h-4 w-4 text-slate-400" />ดาวน์โหลด</a>
+          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}`} target="_blank" rel="noopener noreferrer"><Icon name="open" className="h-4 w-4 text-slate-400" />{tr("เปิดไฟล์")}</a>
+          <a role="menuitem" className={item} href={`/api/files/${menu.file.id}?download=1`}><Icon name="download" className="h-4 w-4 text-slate-400" />{tr("ดาวน์โหลด")}</a>
           {(canModerate || menu.file.mine) && (
             <button
               type="button"
               role="menuitem"
               className={`${item} text-rose-700 hover:bg-rose-50`}
-              onClick={() => run(() => deleteAttachment(menu.file.id), "ลบไฟล์ไม่สำเร็จ")}
+              onClick={() => run(() => deleteAttachment(menu.file.id), tr("ลบไฟล์ไม่สำเร็จ"))}
             >
-              <Icon name="trash" />ลบไฟล์
+              <Icon name="trash" />{tr("ลบไฟล์")}
             </button>
           )}
         </div>,
@@ -145,6 +147,7 @@ export function FilePicker({
   text?: string;
   className?: string;
 }) {
+  const tr = useT();
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -160,7 +163,7 @@ export function FilePicker({
           onChange(error ? files : next, error);
         }}
       />
-      <button type="button" className={className} onClick={() => input.current?.click()} aria-label={label} title={label}>
+      <button type="button" className={className} onClick={() => input.current?.click()} aria-label={tr(label)} title={tr(label)}>
         <Icon name="paperclip" />
         {text ?? (files.length > 0 ? files.length : null)}
       </button>
@@ -170,6 +173,7 @@ export function FilePicker({
 
 /** รายการไฟล์ที่เลือกไว้รออัปโหลด (กด × เอาออกได้) */
 export function PickedFiles({ files, onRemove }: { files: File[]; onRemove: (index: number) => void }) {
+  const tr = useT();
   if (files.length === 0) return null;
   return (
     <ul className="flex flex-wrap gap-1.5">
@@ -177,7 +181,7 @@ export function PickedFiles({ files, onRemove }: { files: File[]; onRemove: (ind
         <li key={`${f.name}:${i}`} className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-white py-1 pl-2.5 pr-1 text-xs">
           <span className="truncate text-slate-700">{f.name}</span>
           <span className="shrink-0 text-slate-400">{formatBytes(f.size)}</span>
-          <button type="button" onClick={() => onRemove(i)} aria-label={`เอา ${f.name} ออก`} className="shrink-0 px-1.5 text-slate-400 hover:text-rose-600">×</button>
+          <button type="button" onClick={() => onRemove(i)} aria-label={tr("เอา {0} ออก", [f.name])} className="shrink-0 px-1.5 text-slate-400 hover:text-rose-600">×</button>
         </li>
       ))}
     </ul>
@@ -186,6 +190,7 @@ export function PickedFiles({ files, onRemove }: { files: File[]; onRemove: (ind
 
 /** แนบไฟล์เข้ากับสิ่งที่มีอยู่แล้ว (เช่น งาน) — เลือกแล้วอัปโหลดทันที */
 export function AttachButton({ target }: { target: AttachmentTarget }) {
+  const tr = useT();
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busy = progress !== null;
@@ -193,8 +198,8 @@ export function AttachButton({ target }: { target: AttachmentTarget }) {
     <span className="inline-flex flex-wrap items-center gap-2">
       <FilePicker
         files={[]}
-        label="แนบไฟล์กับงานนี้"
-        text="แนบไฟล์"
+        label={tr("แนบไฟล์กับงานนี้")}
+        text={tr("แนบไฟล์")}
         className="inline-flex min-h-8 items-center gap-1 rounded-lg text-xs font-medium text-slate-400 transition hover:text-indigo-700 disabled:opacity-50"
         onChange={async (files, problem) => {
           setError(problem);
@@ -213,6 +218,7 @@ export function AttachButton({ target }: { target: AttachmentTarget }) {
 
 /** แถบความคืบหน้าระหว่างอัปโหลดไฟล์ */
 export function UploadProgressBar({ progress }: { progress: UploadProgress | null }) {
+  const tr = useT();
   if (!progress) return null;
   return (
     <span role="status" className="inline-flex min-w-0 items-center gap-2 text-xs text-slate-500">
@@ -221,7 +227,7 @@ export function UploadProgressBar({ progress }: { progress: UploadProgress | nul
       </span>
       <span className="shrink-0 tabular-nums">{progress.percent}%</span>
       <span className="truncate">
-        กำลังอัปโหลด {progress.fileName}
+        {tr("กำลังอัปโหลด")}{" "}{progress.fileName}
         {progress.total > 1 && ` (${progress.index + 1}/${progress.total})`}
       </span>
     </span>

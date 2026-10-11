@@ -7,8 +7,12 @@ import { isEmailConfigured } from "@/lib/email";
 import { openInvite } from "@/lib/invites";
 import { ACCESS_LABEL, canLead } from "@/lib/permissions";
 import { CreateTeamForm, LeaveTeamButton, VerifyEmailButton } from "./forms";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "ทีม" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("ทีม") };
+}
 
 export default async function TeamsPage() {
   const user = await requireUser();
@@ -28,18 +32,18 @@ export default async function TeamsPage() {
     <div className="max-w-3xl space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">ทำงานร่วมกัน</p>
-          <h1 className="page-title">ทีม</h1>
-          <p className="page-subtitle">ทีมที่คุณอยู่ คำเชิญที่รอรับ และสร้างทีมใหม่</p>
+          <p className="eyebrow">{tr("ทำงานร่วมกัน")}</p>
+          <h1 className="page-title">{tr("ทีม")}</h1>
+          <p className="page-subtitle">{tr("ทีมที่คุณอยู่ คำเชิญที่รอรับ และสร้างทีมใหม่")}</p>
         </div>
       </div>
 
       {pending.length > 0 && (
         <section className="card border-indigo-200 bg-indigo-50/40">
-          <h2 className="mb-3 font-semibold text-slate-900">คำเชิญที่รอคุณ ({pending.length})</h2>
+          <h2 className="mb-3 font-semibold text-slate-900">{tr("คำเชิญที่รอคุณ (")}{pending.length})</h2>
           {!verified && (
             <div className="mb-3 space-y-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              <p>ยืนยันอีเมล {user.email} ก่อนจึงจะกดรับในแอปได้ — หรือเปิดลิงก์คำเชิญที่ได้รับเพื่อเข้าทีมได้เลย</p>
+              <p>{tr("ยืนยันอีเมล")}{" "}{user.email} {tr("ก่อนจึงจะกดรับในแอปได้ — หรือเปิดลิงก์คำเชิญที่ได้รับเพื่อเข้าทีมได้เลย")}</p>
               {isEmailConfigured() && <VerifyEmailButton />}
             </div>
           )}
@@ -49,14 +53,14 @@ export default async function TeamsPage() {
                 <div className="min-w-0">
                   <p className="font-medium text-slate-800">{i.team.name}</p>
                   <p className="text-xs text-slate-500">
-                    {i.invitedBy ? `${i.invitedBy.name} เชิญ` : "ได้รับเชิญ"}เป็น{ACCESS_LABEL[i.access]}
+                    {i.invitedBy ? tr("{0} เชิญ", [i.invitedBy.name]) : tr("ได้รับเชิญ")}{tr("เป็น")}{tr(ACCESS_LABEL[i.access])}
                     {i.title && ` · ${i.title}`}
                   </p>
                 </div>
                 <form action={respondToInvite} className="flex gap-2">
                   <input type="hidden" name="id" value={i.id} />
-                  <button className="btn min-h-9 px-3 py-1 text-sm">รับคำเชิญ</button>
-                  <button name="decline" value="1" className="btn-ghost min-h-9 px-3 py-1 text-sm">ปฏิเสธ</button>
+                  <button className="btn min-h-9 px-3 py-1 text-sm">{tr("รับคำเชิญ")}</button>
+                  <button name="decline" value="1" className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("ปฏิเสธ")}</button>
                 </form>
               </li>
             ))}
@@ -66,22 +70,22 @@ export default async function TeamsPage() {
 
       <section className="card flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-semibold text-slate-900">พื้นที่ส่วนตัว</h2>
-          <p className="text-sm text-slate-500">งาน บันทึกประจำวัน และโน้ตที่เห็นเฉพาะคุณ — ใช้ได้เลยโดยไม่ต้องมีทีม</p>
+          <h2 className="font-semibold text-slate-900">{tr("พื้นที่ส่วนตัว")}</h2>
+          <p className="text-sm text-slate-500">{tr("งาน บันทึกประจำวัน และโน้ตที่เห็นเฉพาะคุณ — ใช้ได้เลยโดยไม่ต้องมีทีม")}</p>
         </div>
         {personal && (
           <div className="flex flex-wrap gap-2">
-            <Link href={`/tasks?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">งาน</Link>
-            <Link href={`/standup?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">บันทึกประจำวัน</Link>
-            <Link href={`/notes?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">โน้ต</Link>
+            <Link href={`/tasks?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("งาน")}</Link>
+            <Link href={`/standup?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("บันทึกประจำวัน")}</Link>
+            <Link href={`/notes?team=${personal.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("โน้ต")}</Link>
           </div>
         )}
       </section>
 
       <section className="card">
-        <h2 className="mb-1 font-semibold text-slate-900">ทีมของฉัน</h2>
+        <h2 className="mb-1 font-semibold text-slate-900">{tr("ทีมของฉัน")}</h2>
         {teamMemberships.length === 0 ? (
-          <p className="text-sm text-slate-500">คุณยังไม่ได้อยู่ในทีมไหน — ใช้พื้นที่ส่วนตัวได้เลย หรือสร้างทีมใหม่ด้านล่างเพื่อทำงานร่วมกับคนอื่น</p>
+          <p className="text-sm text-slate-500">{tr("คุณยังไม่ได้อยู่ในทีมไหน — ใช้พื้นที่ส่วนตัวได้เลย หรือสร้างทีมใหม่ด้านล่างเพื่อทำงานร่วมกับคนอื่น")}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {teamMemberships.map((m) => (
@@ -89,14 +93,14 @@ export default async function TeamsPage() {
                 <div className="min-w-0">
                   <p className="font-medium text-slate-800">{m.team.name}</p>
                   <p className="text-xs text-slate-500">
-                    {ACCESS_LABEL[m.access]}
+                    {tr(ACCESS_LABEL[m.access])}
                     {m.title && ` · ${m.title}`}
-                    {!m.participates && " · ไม่ต้องเช็กอิน"}
+                    {!m.participates && tr(" · ไม่ต้องเช็กอิน")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {canLead(m) ? (
-                    <Link href={`/teams/${m.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">จัดการทีม</Link>
+                    <Link href={`/teams/${m.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("จัดการทีม")}</Link>
                   ) : (
                     <LeaveTeamButton teamId={m.teamId} userId={user.id} />
                   )}
@@ -109,9 +113,9 @@ export default async function TeamsPage() {
 
       <section className="card">
         <div className="mb-4">
-          <p className="eyebrow">ทีมใหม่</p>
-          <h2 className="font-semibold text-slate-900">สร้างทีมใหม่</h2>
-          <p className="mt-1 text-sm text-slate-500">คุณจะเป็นเจ้าของทีม เชิญคนเข้าทีมและกำหนดสิทธิ์ได้เอง</p>
+          <p className="eyebrow">{tr("ทีมใหม่")}</p>
+          <h2 className="font-semibold text-slate-900">{tr("สร้างทีมใหม่")}</h2>
+          <p className="mt-1 text-sm text-slate-500">{tr("คุณจะเป็นเจ้าของทีม เชิญคนเข้าทีมและกำหนดสิทธิ์ได้เอง")}</p>
         </div>
         <CreateTeamForm />
       </section>

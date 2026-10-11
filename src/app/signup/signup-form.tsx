@@ -4,30 +4,32 @@ import { signup } from "@/app/actions/auth";
 import { SignupFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
+import { useT } from "@/components/i18n";
 
 export function SignupForm({ next }: { next?: string }) {
+  const tr = useT();
   const { state, pending, formProps, field, error } = useZodForm(SignupFields, signup);
   return (
     <form {...formProps} className="card space-y-5">
       {next && <input type="hidden" name="next" value={next} />}
-      <div><p className="eyebrow">เริ่มต้นใช้งาน</p><h2 className="text-xl font-semibold text-slate-950">สมัครบัญชีใหม่</h2><p className="mt-1 text-sm text-slate-500">{next ? "สมัครแล้วรับคำเชิญเข้าทีมได้ทันที" : "ใช้คนเดียวได้ทันที หรือสร้างทีมเพื่อทำงานร่วมกับคนอื่น"}</p></div>
+      <div><p className="eyebrow">{tr("เริ่มต้นใช้งาน")}</p><h2 className="text-xl font-semibold text-slate-950">{tr("สมัครบัญชีใหม่")}</h2><p className="mt-1 text-sm text-slate-500">{next ? tr("สมัครแล้วรับคำเชิญเข้าทีมได้ทันที") : tr("ใช้คนเดียวได้ทันที หรือสร้างทีมเพื่อทำงานร่วมกับคนอื่น")}</p></div>
       <div>
-        <label className="label" htmlFor="name">ชื่อที่แสดง</label>
+        <label className="label" htmlFor="name">{tr("ชื่อที่แสดง")}</label>
         <input className="input" id="name" autoComplete="name" maxLength={100} required {...field("name")} />
         <FieldError name="name" message={error("name")} />
       </div>
       <div>
-        <label className="label" htmlFor="email">อีเมล</label>
+        <label className="label" htmlFor="email">{tr("อีเมล")}</label>
         <input className="input" id="email" type="email" autoComplete="email" required {...field("email")} />
         <FieldError name="email" message={error("email")} />
       </div>
       <div>
-        <label className="label" htmlFor="password">รหัสผ่าน <span className="font-normal text-slate-400">(อย่างน้อย 8 ตัวอักษร)</span></label>
+        <label className="label" htmlFor="password">{tr("รหัสผ่าน")}{" "}<span className="font-normal text-slate-400">{tr("(อย่างน้อย 8 ตัวอักษร)")}</span></label>
         <input className="input" id="password" type="password" autoComplete="new-password" minLength={8} required {...field("password")} />
         <FieldError name="password" message={error("password")} />
       </div>
       <FormMessage state={state} />
-      <SubmitButton className="btn w-full" pendingText="กำลังสมัคร..." pending={pending}>สมัคร</SubmitButton>
+      <SubmitButton className="btn w-full" pendingText={tr("กำลังสมัคร...")} pending={pending}>{tr("สมัคร")}</SubmitButton>
     </form>
   );
 }

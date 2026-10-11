@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime } from "@/lib/format-dates";
 import { noteSnippet } from "@/lib/note-links";
 import { favoriteIds, listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
@@ -11,8 +11,12 @@ import { Icon } from "@/components/icons";
 import { FolderRows, NoteRows, SystemRow, type FolderItem } from "@/components/notes/note-list";
 import { NotesShell, folderItems } from "@/components/notes/notes-shell";
 import { EmptyState } from "@/components/ui-state";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "โน้ต" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("โน้ต") };
+}
 
 /** หน้าแรกของโน้ต: โฟลเดอร์ + โน้ตทั้งหมด (แก้ล่าสุดขึ้นก่อน) หรือผลการค้นหา */
 export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
@@ -20,7 +24,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   const params = await searchParams;
   const { teams, manageableIds } = await getWorkspaceTeams(user);
   if (teams.length === 0) {
-    return <EmptyState title="คุณยังไม่ได้อยู่ในทีมไหน" description="โน้ตเป็นของทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน" action={{ href: "/teams", label: "ไปหน้า ทีม" }} />;
+    return <EmptyState title={tr("คุณยังไม่ได้อยู่ในทีมไหน")} description={tr("โน้ตเป็นของทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน")} action={{ href: "/teams", label: tr("ไปหน้า ทีม") }} />;
   }
   const team = (await pickSpace(teams, params.team))!;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
@@ -58,46 +62,46 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="page-header">
           <div>
-            <h1 className="page-title">โน้ต</h1>
-            <p className="page-subtitle">{team.personalOfId ? "พื้นที่ส่วนตัว" : team.name} · {noteCount} โน้ต</p>
+            <h1 className="page-title">{tr("โน้ต")}</h1>
+            <p className="page-subtitle">{team.personalOfId ? tr("พื้นที่ส่วนตัว") : team.name} · {noteCount} {tr("โน้ต")}</p>
           </div>
-          <Link href={`/notes/graph?team=${team.id}`} className="btn-ghost gap-1.5 lg:hidden"><Icon name="link" className="h-4 w-4 text-primary" />แผนผัง</Link>
+          <Link href={`/notes/graph?team=${team.id}`} className="btn-ghost gap-1.5 lg:hidden"><Icon name="link" className="h-4 w-4 text-primary" />{tr("แผนผัง")}</Link>
         </div>
 
         {q ? (
           <section className="space-y-2.5">
             <div className="flex items-center justify-between gap-3 px-1">
-              <h2 className="text-sm font-semibold text-muted-foreground">ผลการค้นหา &quot;{q}&quot; ({items.length})</h2>
-              <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">ล้างการค้นหา</Link>
+              <h2 className="text-sm font-semibold text-muted-foreground">{tr("ผลการค้นหา \"")}{q}&quot; ({items.length})</h2>
+              <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">{tr("ล้างการค้นหา")}</Link>
             </div>
-            {items.length === 0 ? <p className="card text-sm text-muted-foreground">ไม่พบโน้ตที่ตรงกับคำค้น</p> : <NoteRows notes={items} />}
+            {items.length === 0 ? <p className="card text-sm text-muted-foreground">{tr("ไม่พบโน้ตที่ตรงกับคำค้น")}</p> : <NoteRows notes={items} />}
           </section>
         ) : nodes.length === 0 ? (
           <div className="card space-y-3">
-            <h2 className="font-semibold text-foreground">เริ่มจดโน้ตแรกของคุณ</h2>
+            <h2 className="font-semibold text-foreground">{tr("เริ่มจดโน้ตแรกของคุณ")}</h2>
             <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">
-              <li>กดปุ่ม <b className="font-semibold text-foreground">+</b> มุมขวาล่าง เพื่อสร้างโน้ตหรือโฟลเดอร์</li>
-              <li>ลากโน้ตไปวางบนโฟลเดอร์เพื่อจัดหมวดหมู่</li>
-              <li>ในโน้ต พิมพ์ <b className="font-semibold text-foreground">[[</b> เพื่อเชื่อมไปโน้ตอื่น หรือ <b className="font-semibold text-foreground">#</b> เพื่ออ้างถึงงาน</li>
+              <li>{tr("กดปุ่ม")}{" "}<b className="font-semibold text-foreground">+</b> {tr("มุมขวาล่าง เพื่อสร้างโน้ตหรือโฟลเดอร์")}</li>
+              <li>{tr("ลากโน้ตไปวางบนโฟลเดอร์เพื่อจัดหมวดหมู่")}</li>
+              <li>{tr("ในโน้ต พิมพ์")}{" "}<b className="font-semibold text-foreground">[[</b> {tr("เพื่อเชื่อมไปโน้ตอื่น หรือ")}{" "}<b className="font-semibold text-foreground">#</b> {tr("เพื่ออ้างถึงงาน")}</li>
             </ul>
           </div>
         ) : (
           view ? (
             <section className="space-y-2.5">
               <div className="flex items-center justify-between gap-3 px-1">
-                <h2 className="text-sm font-semibold text-muted-foreground">{view === "all" ? "โน้ตทั้งหมด" : view === "fav" ? "รายการโปรด" : "ยังไม่อยู่ในโฟลเดอร์"} ({items.length + (view === "fav" ? favoriteFolders.length : 0)})</h2>
-                <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">‹ โฟลเดอร์</Link>
+                <h2 className="text-sm font-semibold text-muted-foreground">{view === "all" ? tr("โน้ตทั้งหมด") : view === "fav" ? tr("รายการโปรด") : tr("ยังไม่อยู่ในโฟลเดอร์")} ({items.length + (view === "fav" ? favoriteFolders.length : 0)})</h2>
+                <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">{tr("‹ โฟลเดอร์")}</Link>
               </div>
               {view === "fav" && <FolderRows folders={favoriteFolders} />}
-              {items.length === 0 ? (view === "fav" && favoriteFolders.length > 0 ? null : <p className="card text-sm text-muted-foreground">{view === "fav" ? "ยังไม่มีรายการโปรด — คลิกขวาหรือกดค้างที่โน้ต แล้วเลือก เพิ่มในรายการโปรด" : "ยังไม่มีโน้ต — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตแรก"}</p>) : <NoteRows notes={items} />}
+              {items.length === 0 ? (view === "fav" && favoriteFolders.length > 0 ? null : <p className="card text-sm text-muted-foreground">{view === "fav" ? tr("ยังไม่มีรายการโปรด — คลิกขวาหรือกดค้างที่โน้ต แล้วเลือก เพิ่มในรายการโปรด") : tr("ยังไม่มีโน้ต — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตแรก")}</p>) : <NoteRows notes={items} />}
             </section>
           ) : (
             <section className="space-y-2.5">
-              <h2 className="px-1 text-sm font-semibold text-muted-foreground">โฟลเดอร์</h2>
+              <h2 className="px-1 text-sm font-semibold text-muted-foreground">{tr("โฟลเดอร์")}</h2>
               <FolderRows folders={folders}>
-                <SystemRow href={`${home}&view=all`} label="โน้ตทั้งหมด" count={noteCount} />
-                {favorites.length > 0 && <SystemRow href={`${home}&view=fav`} label="รายการโปรด" count={favorites.length} />}
-                {looseCount > 0 && <SystemRow href={`${home}&view=loose`} label="ยังไม่อยู่ในโฟลเดอร์" count={looseCount} />}
+                <SystemRow href={`${home}&view=all`} label={tr("โน้ตทั้งหมด")} count={noteCount} />
+                {favorites.length > 0 && <SystemRow href={`${home}&view=fav`} label={tr("รายการโปรด")} count={favorites.length} />}
+                {looseCount > 0 && <SystemRow href={`${home}&view=loose`} label={tr("ยังไม่อยู่ในโฟลเดอร์")} count={looseCount} />}
               </FolderRows>
             </section>
           )

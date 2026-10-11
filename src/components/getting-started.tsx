@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
+import { useT } from "@/components/i18n";
 
 const KEY = "pace-hints-dismissed";
 const subscribe = () => () => {};
@@ -11,22 +12,23 @@ const subscribe = () => () => {};
  * ฝั่ง server ถือว่าปิดไว้ก่อน เพื่อไม่ให้การ์ดกระพริบขึ้นมาสำหรับคนที่ปิดไปแล้ว
  */
 export function GettingStarted({ spaceId, personal }: { spaceId: string; personal: boolean }) {
+  const tr = useT();
   const stored = useSyncExternalStore(subscribe, () => localStorage.getItem(KEY) === "1", () => true);
   const [closed, setClosed] = useState(false);
   if (stored || closed) return null;
 
   const steps = [
-    { href: `/tasks?team=${spaceId}#new`, title: "เพิ่มงานแรก", body: "พิมพ์ชื่องานแล้วกด Enter ใส่กำหนดส่งทีหลังได้" },
-    { href: "#checkin", title: personal ? "เขียนบันทึกประจำวัน" : "เช็กอินประจำวัน", body: "บอกว่าทำอะไรไปและวันนี้จะทำอะไร ใช้เวลาไม่ถึงนาที" },
-    { href: `/notes?team=${spaceId}`, title: "จดโน้ต", body: "เก็บความรู้เป็นโฟลเดอร์ และเชื่อมโน้ตเข้ากับงานได้" },
-    { href: "/teams", title: "ชวนคนมาทำด้วยกัน", body: "สร้างทีมแล้วเชิญด้วยอีเมล พื้นที่ส่วนตัวของคุณยังอยู่แยกไว้" },
+    { href: `/tasks?team=${spaceId}#new`, title: tr("เพิ่มงานแรก"), body: tr("พิมพ์ชื่องานแล้วกด Enter ใส่กำหนดส่งทีหลังได้") },
+    { href: "#checkin", title: personal ? tr("เขียนบันทึกประจำวัน") : tr("เช็กอินประจำวัน"), body: tr("บอกว่าทำอะไรไปและวันนี้จะทำอะไร ใช้เวลาไม่ถึงนาที") },
+    { href: `/notes?team=${spaceId}`, title: tr("จดโน้ต"), body: tr("เก็บความรู้เป็นโฟลเดอร์ และเชื่อมโน้ตเข้ากับงานได้") },
+    { href: "/teams", title: tr("ชวนคนมาทำด้วยกัน"), body: tr("สร้างทีมแล้วเชิญด้วยอีเมล พื้นที่ส่วนตัวของคุณยังอยู่แยกไว้") },
   ];
   return (
-    <section aria-label="เริ่มต้นใช้งาน" className="card mb-4 border-primary/20 bg-primary-soft/40">
+    <section aria-label={tr("เริ่มต้นใช้งาน")} className="card mb-4 border-primary/20 bg-primary-soft/40">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold text-foreground">ยินดีต้อนรับสู่ Pace</h2>
-          <p className="text-sm text-muted-foreground">สี่อย่างที่ทำได้ที่นี่ — เริ่มจากข้อไหนก่อนก็ได้</p>
+          <h2 className="font-semibold text-foreground">{tr("ยินดีต้อนรับสู่ Pace")}</h2>
+          <p className="text-sm text-muted-foreground">{tr("สี่อย่างที่ทำได้ที่นี่ — เริ่มจากข้อไหนก่อนก็ได้")}</p>
         </div>
         <button
           type="button"
@@ -36,7 +38,7 @@ export function GettingStarted({ spaceId, personal }: { spaceId: string; persona
           }}
           className="btn-ghost min-h-9 shrink-0 px-3 py-1 text-xs"
         >
-          เข้าใจแล้ว
+          {tr("เข้าใจแล้ว")}
         </button>
       </div>
       <ol className="grid gap-2 sm:grid-cols-2">

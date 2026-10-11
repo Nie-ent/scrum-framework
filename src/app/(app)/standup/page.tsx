@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { dateToKey, formatDateKey, keyToDate, todayKey } from "@/lib/dates";
+import { dateToKey, keyToDate, todayKey } from "@/lib/dates";
+import { formatDateKey } from "@/lib/format-dates";
 import { carryOver, toTasks, type Task } from "@/lib/tasks";
 import { StandupSections } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
@@ -19,8 +20,12 @@ import { isFileStorageConfigured } from "@/lib/file-store";
 import { getManageableTeamIds, getMeetingUrl } from "@/lib/teams";
 import { currentSpaceId, pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "วันนี้" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("วันนี้") };
+}
 
 export default async function StandupPage({ searchParams }: PageProps<"/standup">) {
   const user = await requireUser();
@@ -32,9 +37,9 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
   if (teams.length === 0) {
     return (
       <EmptyState
-        title="คุณยังไม่ได้อยู่ในทีมไหน"
-        description="เช็กอินส่งแยกตามทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน"
-        action={{ href: "/teams", label: "ไปหน้า ทีม" }}
+        title={tr("คุณยังไม่ได้อยู่ในทีมไหน")}
+        description={tr("เช็กอินส่งแยกตามทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน")}
+        action={{ href: "/teams", label: tr("ไปหน้า ทีม") }}
       />
     );
   }
@@ -99,14 +104,14 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
         <div className="page-header mb-6">
           <div>
             <p className="eyebrow">{team.name}</p>
-            <h1 className="page-title">วันนี้</h1>
-            <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
+            <h1 className="page-title">{tr("วันนี้")}</h1>
+            <p className="page-subtitle">{formatDateKey(today)} · {current ? tr("ส่งแล้ว และแก้ไขได้ตลอดวัน") : tr("ยังไม่ได้ส่งของวันนี้")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {meetingUrl && (
-              <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn gap-1.5"><Icon name="video" />เข้าห้องประชุม</a>
+              <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn gap-1.5"><Icon name="video" />{tr("เข้าห้องประชุม")}</a>
             )}
-            <Link href={`/stats?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="stats" className="h-4 w-4 text-indigo-600" />สถิติของฉัน</Link>
+            <Link href={`/stats?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="stats" className="h-4 w-4 text-indigo-600" />{tr("สถิติของฉัน")}</Link>
           </div>
         </div>
 
@@ -116,8 +121,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
         {dueNow.length > 0 && (
           <section className="card mb-4 border-warning/30 bg-warning-soft/40">
             <div className="mb-1 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-foreground">งานที่ต้องทำวันนี้</h2>
-              <span className="badge badge-warning">{dueNow.length} งาน</span>
+              <h2 className="text-sm font-semibold text-foreground">{tr("งานที่ต้องทำวันนี้")}</h2>
+              <span className="badge badge-warning">{dueNow.length} {tr("งาน")}</span>
             </div>
             <ul className="divide-y divide-border/70">
               {dueNow.map((t) => {
@@ -127,13 +132,13 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
                     <form action={setTaskProgress} className="shrink-0">
                       <input type="hidden" name="id" value={t.id} />
                       <input type="hidden" name="progress" value={100} />
-                      <Tooltip label="ทำเสร็จแล้ว (100%)">
-                        <button aria-label={`ทำงาน ${t.title} เสร็จแล้ว`} className="flex size-9 items-center justify-center rounded-full transition hover:bg-success-soft"><ProgressRing value={t.progress} /></button>
+                      <Tooltip label={tr("ทำเสร็จแล้ว (100%)")}>
+                        <button aria-label={tr("ทำงาน {0} เสร็จแล้ว", [t.title])} className="flex size-9 items-center justify-center rounded-full transition hover:bg-success-soft"><ProgressRing value={t.progress} /></button>
                       </Tooltip>
                     </form>
                     <Link href={`/tasks?team=${t.teamId}${t.number === null ? "" : `&task=${t.number}`}`} className="flex min-w-0 flex-1 items-center gap-3 text-sm">
-                      <span className="min-w-0 flex-1 truncate font-medium text-foreground">{t.title}<span className="ml-2 text-xs font-normal text-subtle">{t.team.personalOfId ? "ส่วนตัว" : t.team.name}</span></span>
-                      <span className={`badge shrink-0 ${key < today ? "badge-danger" : "badge-warning"}`}>{key < today ? `เลยกำหนด ${formatDateKey(key).replace(/ \d{4}$/, "")}` : "วันนี้"}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-foreground">{t.title}<span className="ml-2 text-xs font-normal text-subtle">{t.team.personalOfId ? tr("ส่วนตัว") : t.team.name}</span></span>
+                      <span className={`badge shrink-0 ${key < today ? "badge-danger" : "badge-warning"}`}>{key < today ? tr("เลยกำหนด {0}", [formatDateKey(key).replace(/ \d{4}$/, "")]) : tr("วันนี้")}</span>
                     </Link>
                   </li>
                 );
@@ -142,7 +147,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
           </section>
         )}
 
-        <h2 id="checkin" className="mb-2 scroll-mt-24 text-sm font-semibold text-foreground">{personal ? "บันทึกประจำวัน" : "เช็กอินประจำวัน"}</h2>
+        <h2 id="checkin" className="mb-2 scroll-mt-24 text-sm font-semibold text-foreground">{personal ? tr("บันทึกประจำวัน") : tr("เช็กอินประจำวัน")}</h2>
 
         <StandupForm
           key={team.id}
@@ -164,20 +169,20 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
 
         {current && (
           <div className="mt-3">
-            <CommentThread canAttach={canAttach} target={{ standupId: current.id }} comments={current.comments} viewerId={user.id} canModerate={canModerate} subject="เช็กอินวันนี้ของฉัน" open={current.comments.length > 0} />
+            <CommentThread canAttach={canAttach} target={{ standupId: current.id }} comments={current.comments} viewerId={user.id} canModerate={canModerate} subject={tr("เช็กอินวันนี้ของฉัน")} open={current.comments.length > 0} />
           </div>
         )}
 
         {!personal && <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
-              <p className="eyebrow">ทีมวันนี้</p>
-              <h2 className="font-semibold text-slate-900">เช็กอินของทีมวันนี้ · {team.name}</h2>
+              <p className="eyebrow">{tr("ทีมวันนี้")}</p>
+              <h2 className="font-semibold text-slate-900">{tr("เช็กอินของทีมวันนี้ ·")}{" "}{team.name}</h2>
             </div>
-            <span className="badge badge-neutral">{teammates.length} คน</span>
+            <span className="badge badge-neutral">{teammates.length} {tr("คน")}</span>
           </div>
           {teammates.length === 0 ? (
-            <p className="text-sm text-slate-500">ยังไม่มีเพื่อนร่วมทีมเช็กอินวันนี้</p>
+            <p className="text-sm text-slate-500">{tr("ยังไม่มีเพื่อนร่วมทีมเช็กอินวันนี้")}</p>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {teammates.map((s) => (
@@ -187,11 +192,11 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
                       <Avatar user={s.user} size={32} />
                       <span className="truncate font-semibold text-slate-800">{s.user.name}</span>
                     </div>
-                    {s.blockers && <span className="badge badge-danger shrink-0">ต้องการความช่วยเหลือ</span>}
+                    {s.blockers && <span className="badge badge-danger shrink-0">{tr("ต้องการความช่วยเหลือ")}</span>}
                   </header>
                   {/* เพื่อนร่วมทีมเห็นงานและ blocker — ส่วน reflection เห็นเฉพาะหัวหน้าในหน้าภาพรวม */}
                   <StandupSections standup={s} only={["yesterdayTasks", "todayTasks", "blockers"]} />
-                  <CommentThread canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={canModerate} subject={`เช็กอินของ ${s.user.name}`} />
+                  <CommentThread canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={canModerate} subject={tr("เช็กอินของ {0}", [s.user.name])} />
                 </article>
               ))}
             </div>

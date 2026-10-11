@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/components/i18n";
 
 export type GraphPoint = { id: string; label: string; href: string; kind: "note" | "task" };
 export type GraphEdge = { from: string; to: string };
@@ -15,6 +16,7 @@ const short = (label: string) => (label.length > 24 ? `${label.slice(0, 23)}…`
  * ตำแหน่งถูกเขียนลง DOM ตรง ๆ ทุกเฟรม (ไม่ผ่าน state) เพื่อให้ลื่น
  */
 export function ForceGraph({ points, edges }: { points: GraphPoint[]; edges: GraphEdge[] }) {
+  const tr = useT();
   const router = useRouter();
   const svg = useRef<SVGSVGElement>(null);
   const world = useRef<SVGGElement>(null);
@@ -192,7 +194,7 @@ export function ForceGraph({ points, edges }: { points: GraphPoint[]; edges: Gra
     <svg
       ref={svg}
       role="img"
-      aria-label="แผนผังความสัมพันธ์ของโน้ต"
+      aria-label={tr("แผนผังความสัมพันธ์ของโน้ต")}
       className="h-[min(70vh,40rem)] w-full cursor-grab touch-none select-none rounded-xl bg-surface-sunken/50 active:cursor-grabbing"
       onPointerDown={(e) => onDown(e)}
       onPointerMove={onMove}

@@ -6,6 +6,7 @@ import { FavoriteList, NoteTree, SideCreateButton, SideLinks } from "@/component
 import { requireUser } from "@/lib/auth";
 import { buildTree, favoriteIds, type NoteNode, type NoteTreeNode } from "@/lib/notes";
 import type { TeamRow } from "@/lib/teams";
+import { tr } from "@/lib/i18n/server";
 
 /** "งานออกแบบ / สเปค" — ใช้เป็นชื่อโฟลเดอร์ในตัวเลือก */
 export function folderOptions(nodes: NoteNode[], excludeIds: string[] = []): { id: string; label: string }[] {
@@ -68,28 +69,28 @@ export async function NotesShell({
       <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
         <div className="rounded-2xl border border-border bg-surface p-2.5 shadow-soft">
           <div className="flex items-center justify-between gap-2 pb-1">
-            <p className={`min-w-0 truncate ${heading}`}>{team.personalOfId ? "พื้นที่ส่วนตัว" : team.name}</p>
+            <p className={`min-w-0 truncate ${heading}`}>{team.personalOfId ? tr("พื้นที่ส่วนตัว") : team.name}</p>
             <SideCreateButton />
           </div>
           <SideLinks teamId={team.id} count={noteCount} />
           {starred.length > 0 && (
             <div className="mt-2 border-t border-border pt-2">
-              <p className={heading}>รายการโปรด</p>
+              <p className={heading}>{tr("รายการโปรด")}</p>
               <FavoriteList items={starred} activeId={activeId} />
             </div>
           )}
           {tree.length > 0 && (
             <div className="mt-2 border-t border-border pt-2">
-              <p className={heading}>ทั้งหมด</p>
+              <p className={heading}>{tr("ทั้งหมด")}</p>
               <NoteTree nodes={tree} activeId={activeId} openIds={openIds} favorites={favorites} />
             </div>
           )}
           <p className="mt-2 border-t border-border px-2 pb-1 pt-2.5 text-xs leading-5 text-muted-foreground">
-            {tree.length > 0 && <>ลากไปวางบนโฟลเดอร์เพื่อย้าย · คลิกขวาเพื่อย้าย ลบ หรือเพิ่มในรายการโปรด · </>}
+            {tree.length > 0 && <>{tr("ลากไปวางบนโฟลเดอร์เพื่อย้าย · คลิกขวาเพื่อย้าย ลบ หรือเพิ่มในรายการโปรด ·")}{" "}</>}
             {team.personalOfId ? (
-              <>เห็นเฉพาะคุณ</>
+              <>{tr("เห็นเฉพาะคุณ")}</>
             ) : (
-              <>ทุกคนในทีมอ่านและแก้ได้{canManageTeam && <> · <Link href={`/teams/${team.id}`} className="font-medium text-primary hover:text-primary-strong">เชิญคน</Link></>}</>
+              <>{tr("ทุกคนในทีมอ่านและแก้ได้")}{canManageTeam && <> · <Link href={`/teams/${team.id}`} className="font-medium text-primary hover:text-primary-strong">{tr("เชิญคน")}</Link></>}</>
             )}
           </p>
         </div>

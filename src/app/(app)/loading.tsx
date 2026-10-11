@@ -10,7 +10,7 @@ export default function Loading() {
         ))}
       </div>
       <LoadingRows />
-      <span className="sr-only">กำลังโหลดข้อมูล</span>
+      <span className="sr-only">{"Loading"}</span>
     </div>
   );
 }

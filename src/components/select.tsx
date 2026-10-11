@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as P from "@radix-ui/react-popover";
+import { useT } from "@/components/i18n";
 
 export type SelectOption = { value: string; label: string; disabled?: boolean };
 
@@ -40,6 +41,7 @@ export function Select({
   id?: string;
   "aria-label"?: string;
 }) {
+  const tr = useT();
   const [open, setOpen] = useState(false);
   const [own, setOwn] = useState(defaultValue);
   const value = controlled ?? own;
@@ -90,7 +92,7 @@ export function Select({
         aria-haspopup="listbox"
         className={`flex items-center justify-between gap-2 rounded-xl border border-border-strong bg-surface text-left text-foreground shadow-soft transition hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/20 ${size === "sm" ? "min-h-8 px-2.5 text-xs" : "min-h-11 px-3.5 text-[0.95rem]"} ${className || "w-full"}`}
       >
-        <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-subtle"}`}>{selected?.label ?? placeholder}</span>
+        <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-subtle"}`}>{selected?.label ?? tr(placeholder)}</span>
         <svg viewBox="0 0 20 20" fill="currentColor" className="size-4 shrink-0 text-subtle" aria-hidden="true">
           <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
         </svg>
@@ -127,7 +129,7 @@ export function Select({
                 )}
               </button>
             ))}
-            {options.length === 0 && <p className="px-2.5 py-3 text-sm text-muted-foreground">ไม่มีตัวเลือก</p>}
+            {options.length === 0 && <p className="px-2.5 py-3 text-sm text-muted-foreground">{tr("ไม่มีตัวเลือก")}</p>}
           </div>
         </P.Content>
       </P.Portal>

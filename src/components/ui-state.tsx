@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tr } from "@/lib/i18n/server";
 
 export function EmptyState({
   title,
@@ -21,7 +22,7 @@ export function EmptyState({
 
 export function LoadingRows({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="กำลังโหลดข้อมูล">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label={tr("กำลังโหลดข้อมูล")}>
       <div className="h-12 border-b border-slate-100 bg-slate-50" />
       <div className="animate-pulse divide-y divide-slate-100">
         {Array.from({ length: rows }, (_, index) => <div key={index} className="flex items-center gap-3 px-5 py-4"><div className="h-9 w-9 rounded-full bg-slate-100" /><div className="h-4 flex-1 rounded bg-slate-100" /><div className="h-4 w-16 rounded bg-slate-100" /></div>)}

@@ -3,6 +3,7 @@
 import { useEffect, useRef, type KeyboardEvent, type ClipboardEvent } from "react";
 import { isDone, type Task } from "@/lib/tasks";
 import { SwipeToDelete } from "./swipe-to-delete";
+import { useT } from "@/components/i18n";
 
 /**
  * รายการ task แบบพิมพ์ต่อเนื่อง: Enter = ขึ้น task ใหม่, Backspace ในบรรทัดว่าง = ลบ,
@@ -22,6 +23,7 @@ export function TaskListEditor({
   withProgress?: boolean;
   placeholder?: string;
 }) {
+  const tr = useT();
   const newTask = (text = ""): Task => (withProgress ? { text, progress: 0 } : { text });
   const rows = items.length > 0 ? items : [newTask()];
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
@@ -82,7 +84,7 @@ export function TaskListEditor({
         <li key={index}>
           {/* มือถือ: ปัดขวาเพื่อลบบรรทัด (เมาส์ใช้ปุ่ม ×) — padding กันไม่ให้ขอบ focus ของช่องกรอกถูกตัด */}
           <SwipeToDelete
-            label="ลบบรรทัดนี้"
+            label={tr("ลบบรรทัดนี้")}
             disabled={!(rows.length > 1 || task.taskId)}
             onDelete={() => onChange(rows.filter((_, i) => i !== index))}
           >
@@ -90,7 +92,7 @@ export function TaskListEditor({
           {withProgress ? (
             <input
               type="checkbox"
-              aria-label="ทำเสร็จแล้ว (100%)"
+              aria-label={tr("ทำเสร็จแล้ว (100%)")}
               checked={isDone(task)}
               onChange={(e) => update(index, { progress: e.target.checked ? 100 : 0 })}
               className="h-4 w-4 shrink-0 accent-emerald-600"
@@ -106,11 +108,11 @@ export function TaskListEditor({
             value={task.text}
             // งานที่คนอื่นมอบหมาย: ชื่อมาจากงานนั้น แก้ที่นี่ไม่ได้ (อัปเดตได้เฉพาะ %)
             readOnly={Boolean(task.taskId) && !task.editable}
-            title={task.taskId && !task.editable ? "งานที่ได้รับมอบหมาย" : undefined}
+            title={task.taskId && !task.editable ? tr("งานที่ได้รับมอบหมาย") : undefined}
             onChange={(e) => update(index, { text: e.target.value })}
             onKeyDown={(e) => onKeyDown(e, index)}
             onPaste={(e) => onPaste(e, index)}
-            placeholder={index === 0 ? placeholder : "งานถัดไป…"}
+            placeholder={index === 0 ? placeholder : tr("งานถัดไป…")}
             maxLength={500}
             enterKeyHint="next"
             className={`input py-2 ${withProgress && isDone(task) ? "text-slate-400 line-through" : ""} ${task.taskId && !task.editable ? "border-indigo-200 bg-indigo-50/50" : ""}`}
@@ -123,7 +125,7 @@ export function TaskListEditor({
                 min={0}
                 max={100}
                 step={5}
-                aria-label="ความคืบหน้า (%)"
+                aria-label={tr("ความคืบหน้า (%)")}
                 value={task.progress ?? 0}
                 onChange={(e) => update(index, { progress: clampPercent(e.target.value) })}
                 onFocus={(e) => e.target.select()}
@@ -135,7 +137,7 @@ export function TaskListEditor({
           {(rows.length > 1 || task.taskId) && (
             <button
               type="button"
-              aria-label="ลบบรรทัดนี้"
+              aria-label={tr("ลบบรรทัดนี้")}
               onClick={() => onChange(rows.filter((_, i) => i !== index))}
               className="shrink-0 rounded-lg px-2 py-1 text-slate-400 transition hover:text-rose-600 focus:opacity-100 sm:text-slate-300 sm:opacity-0 sm:group-hover/task:opacity-100"
             >
@@ -146,7 +148,7 @@ export function TaskListEditor({
           </SwipeToDelete>
         </li>
       ))}
-      <li className="pl-4 text-xs text-slate-400">กด Enter เพื่อเพิ่มบรรทัด<span className="hidden sm:inline"> · Backspace ในบรรทัดว่างเพื่อลบ</span></li>
+      <li className="pl-4 text-xs text-slate-400">{tr("กด Enter เพื่อเพิ่มบรรทัด")}<span className="hidden sm:inline"> {tr("· Backspace ในบรรทัดว่างเพื่อลบ")}</span></li>
     </ul>
   );
 }

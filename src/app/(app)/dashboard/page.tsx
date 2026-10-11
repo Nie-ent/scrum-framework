@@ -6,7 +6,8 @@ import { requireOverviewAccess } from "@/lib/auth";
 import { getMeetingUrl, getVisibleTeams } from "@/lib/teams";
 import { currentSpaceId, pickSpace } from "@/lib/space";
 import { toTasks } from "@/lib/tasks";
-import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
+import { dateToKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
+import { formatDateKey } from "@/lib/format-dates";
 import { dayTone } from "@/lib/holidays";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { EmptyState } from "@/components/ui-state";
@@ -16,8 +17,12 @@ import { Icon } from "@/components/icons";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "ภาพรวมทีม" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("ภาพรวมทีม") };
+}
 
 const TREND_DAYS = 7;
 
@@ -39,9 +44,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     return (
       <div className="mx-auto max-w-xl space-y-5">
         <div>
-          <p className="eyebrow">สุขภาพทีม</p>
-          <h1 className="page-title">ภาพรวมทีม</h1>
-          <p className="page-subtitle">พื้นที่ที่เลือกอยู่ไม่มีภาพรวมทีม — เลือกทีมที่จะดู</p>
+          <p className="eyebrow">{tr("สุขภาพทีม")}</p>
+          <h1 className="page-title">{tr("ภาพรวมทีม")}</h1>
+          <p className="page-subtitle">{tr("พื้นที่ที่เลือกอยู่ไม่มีภาพรวมทีม — เลือกทีมที่จะดู")}</p>
         </div>
         <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-soft">
           {teams.map((t) => (
@@ -119,36 +124,36 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">สุขภาพทีม</p>
-          <h1 className="page-title">ภาพรวมทีม</h1>
-          <p className="page-subtitle">{scopeLabel} · {formatDateKey(dateKey)}{dateKey === today && " (วันนี้)"}</p>
+          <p className="eyebrow">{tr("สุขภาพทีม")}</p>
+          <h1 className="page-title">{tr("ภาพรวมทีม")}</h1>
+          <p className="page-subtitle">{scopeLabel} · {formatDateKey(dateKey)}{dateKey === today && tr(" (วันนี้)")}</p>
           {meetingUrl && (
-            <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn mt-3 gap-1.5"><Icon name="video" />เข้าห้องประชุม</a>
+            <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn mt-3 gap-1.5"><Icon name="video" />{tr("เข้าห้องประชุม")}</a>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat
-          label={dateKey === today ? "เช็กอินวันนี้" : "เช็กอินของวันที่ดู"}
+          label={dateKey === today ? tr("เช็กอินวันนี้") : tr("เช็กอินของวันที่ดู")}
           value={<>{submitted.length}/{rows.length}<span className="ml-2 text-base font-medium text-muted-foreground">{rows.length === 0 ? 0 : Math.round((submitted.length / rows.length) * 100)}%</span></>}
           tone="indigo"
           percent={rows.length === 0 ? 0 : (submitted.length / rows.length) * 100}
         />
-        <Stat label="ติดปัญหา" value={blockers.length} tone="red" />
-        <Stat label="ควรปรับปรุง" value={notWorking.length} tone="amber" />
-        <Stat label="ไปได้ดี" value={workingWell.length} tone="emerald" />
+        <Stat label={tr("ติดปัญหา")} value={blockers.length} tone="red" />
+        <Stat label={tr("ควรปรับปรุง")} value={notWorking.length} tone="amber" />
+        <Stat label={tr("ไปได้ดี")} value={workingWell.length} tone="emerald" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
         {/* การส่ง 7 วันล่าสุด — สัดส่วนเช็กอินของวันที่ดูอยู่ในการ์ด "ส่งแล้ว" ด้านบน */}
         <section className="card p-4">
           <div className="min-w-0 overflow-x-auto">
-            <h2 className="mb-2 text-sm font-semibold text-foreground">การส่ง {TREND_DAYS} วันล่าสุด</h2>
+            <h2 className="mb-2 text-sm font-semibold text-foreground">{tr("การส่ง")}{" "}{TREND_DAYS} {tr("วันล่าสุด")}</h2>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="py-1 pr-4 font-medium">สมาชิก</th>
+                  <th className="py-1 pr-4 font-medium">{tr("สมาชิก")}</th>
                   {trendKeys.map((k) => (
                     <th key={k} className="px-1 text-center font-medium">
                       <Link href={href(k)} scroll={false} title={formatDateKey(k)} className={`tabular-nums hover:text-primary ${k === dateKey ? "font-semibold text-primary" : dayTone(k) === "text-foreground" ? "" : dayTone(k)}`}>{Number(k.slice(8))}</Link>
@@ -164,14 +169,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                     </td>
                     {trendKeys.map((k) => (
                       <td key={k} className="text-center">
-                        <span aria-label={days.has(k) ? "ส่งแล้ว" : "ไม่ได้ส่ง"} className={`inline-block size-2.5 rounded-full ${days.has(k) ? "bg-success" : "bg-border-strong"}`} />
+                        <span aria-label={days.has(k) ? tr("ส่งแล้ว") : tr("ไม่ได้ส่ง")} className={`inline-block size-2.5 rounded-full ${days.has(k) ? "bg-success" : "bg-border-strong"}`} />
                       </td>
                     ))}
                   </tr>
                 ))}
               </tbody>
             </table>
-            {rows.length === 0 && <p className="py-3 text-sm text-muted-foreground">ยังไม่มีสมาชิกที่ต้องเช็กอิน</p>}
+            {rows.length === 0 && <p className="py-3 text-sm text-muted-foreground">{tr("ยังไม่มีสมาชิกที่ต้องเช็กอิน")}</p>}
           </div>
         </section>
         <DashboardCalendar dateKey={dateKey} monthKey={monthKey} teamId={teamId} view={view === "grid" ? "grid" : undefined} submitted={submittedByDay} expected={rows.length} />
@@ -179,9 +184,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       {(blockers.length > 0 || missing.length > 0) && (
         <section className="card border-rose-200 bg-rose-50/30">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><p className="eyebrow text-rose-600">ต้องดูแล</p><h2 className="font-semibold text-rose-950">รายการที่ต้องดูแล</h2></div><span className="badge badge-danger">{blockers.length + missing.length} รายการ</span></div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div><p className="eyebrow text-rose-600">{tr("ต้องดูแล")}</p><h2 className="font-semibold text-rose-950">{tr("รายการที่ต้องดูแล")}</h2></div><span className="badge badge-danger">{blockers.length + missing.length} {tr("รายการ")}</span></div>
           {blockers.length > 0 && <>
-          <h3 className="mb-2 text-sm font-semibold text-rose-700">เรื่องที่ติดขัดและต้องการความช่วยเหลือ</h3>
+          <h3 className="mb-2 text-sm font-semibold text-rose-700">{tr("เรื่องที่ติดขัดและต้องการความช่วยเหลือ")}</h3>
           <ul className="space-y-2">
             {blockers.map(({ key, member, entry }) => (
               <li key={key} className="text-sm">
@@ -191,18 +196,18 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             ))}
           </ul>
           </>}
-          {missing.length > 0 && <div className={blockers.length > 0 ? "mt-4 border-t border-rose-100 pt-4" : ""}><h3 className="mb-2 text-sm font-semibold text-slate-700">ยังไม่ส่ง ({missing.length})</h3><div className="flex flex-wrap gap-2">{missing.map(({ key, member }) => <Link key={key} href={`/dashboard/member/${member.id}`} className="badge badge-neutral hover:bg-slate-200">{member.name}</Link>)}</div></div>}
+          {missing.length > 0 && <div className={blockers.length > 0 ? "mt-4 border-t border-rose-100 pt-4" : ""}><h3 className="mb-2 text-sm font-semibold text-slate-700">{tr("ยังไม่ส่ง (")}{missing.length})</h3><div className="flex flex-wrap gap-2">{missing.map(({ key, member }) => <Link key={key} href={`/dashboard/member/${member.id}`} className="badge badge-neutral hover:bg-slate-200">{member.name}</Link>)}</div></div>}
         </section>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <FeedbackList title="สิ่งที่ควรปรับปรุง" tone="text-amber-700" items={notWorking.map((r) => [r.member.name, r.entry!.notWorking!])} />
-        <FeedbackList title="สิ่งที่ไปได้ดี" tone="text-emerald-700" items={workingWell.map((r) => [r.member.name, r.entry!.workingWell!])} />
+        <FeedbackList title={tr("สิ่งที่ควรปรับปรุง")} tone="text-amber-700" items={notWorking.map((r) => [r.member.name, r.entry!.notWorking!])} />
+        <FeedbackList title={tr("สิ่งที่ไปได้ดี")} tone="text-emerald-700" items={workingWell.map((r) => [r.member.name, r.entry!.workingWell!])} />
       </div>
 
-      {rows.length === 0 ? <EmptyState title="ยังไม่มีสมาชิกในขอบเขตนี้" description="เลือกทีมอื่น หรือตรวจสอบการกำหนดสมาชิกในหน้าจัดการระบบ" /> : <section className="space-y-4">
-        <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">ความเคลื่อนไหว</p><h2 className="section-heading">ความคืบหน้ารายคน</h2><p className="section-description">ติดตามสิ่งที่ทำเมื่อวาน แผนวันนี้ และงานที่ต้องการความช่วยเหลือ</p></div><div className="hidden rounded-2xl bg-slate-100 p-1 md:flex" role="group" aria-label="มุมมอง">
-            {([["table", "☰ ตาราง", ""], ["grid", "▦ การ์ด", "&view=grid"]] as const).map(([key, label, param]) => (
+      {rows.length === 0 ? <EmptyState title={tr("ยังไม่มีสมาชิกในขอบเขตนี้")} description={tr("เลือกทีมอื่น หรือตรวจสอบการกำหนดสมาชิกในหน้าจัดการระบบ")} /> : <section className="space-y-4">
+        <div className="flex items-end justify-between gap-3"><div><p className="eyebrow">{tr("ความเคลื่อนไหว")}</p><h2 className="section-heading">{tr("ความคืบหน้ารายคน")}</h2><p className="section-description">{tr("ติดตามสิ่งที่ทำเมื่อวาน แผนวันนี้ และงานที่ต้องการความช่วยเหลือ")}</p></div><div className="hidden rounded-2xl bg-slate-100 p-1 md:flex" role="group" aria-label={tr("มุมมอง")}>
+            {([["table", tr("☰ ตาราง"), ""], ["grid", tr("▦ การ์ด"), "&view=grid"]] as const).map(([key, label, param]) => (
               <Link key={key} href={href(dateKey, param)} aria-current={view === key ? "true" : undefined} className={`inline-flex min-h-9 items-center rounded-xl px-3 text-sm transition ${view === key ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"}`}>
                 {label}
               </Link>
@@ -220,23 +225,23 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                       <p className="truncate text-xs text-slate-500">{title} · {team.name}</p>
                     </div>
                   </div>
-                  {entry ? <span className={`shrink-0 ${entry.blockers ? "badge badge-danger" : "badge badge-success"}`}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning shrink-0">ยังไม่ส่ง</span>}
+                  {entry ? <span className={`shrink-0 ${entry.blockers ? "badge badge-danger" : "badge badge-success"}`}>{entry.blockers ? tr("ต้องการความช่วยเหลือ") : tr("ส่งแล้ว")}</span> : <span className="badge badge-warning shrink-0">{tr("ยังไม่ส่ง")}</span>}
                 </header>
                 {entry ? (
                   <>
                     <StandupSections standup={entry} only={["yesterdayTasks", "todayTasks", "blockers"]} />
-                    <CommentThread canAttach={canAttach} target={{ standupId: entry.id }} comments={entry.comments} viewerId={viewer.id} canModerate subject={`เช็กอินของ ${member.name}`} />
+                    <CommentThread canAttach={canAttach} target={{ standupId: entry.id }} comments={entry.comments} viewerId={viewer.id} canModerate subject={tr("เช็กอินของ {0}", [member.name])} />
                   </>
                 ) : (
-                  <p className="text-sm text-slate-400">ยังไม่ได้เช็กอินของวันนี้</p>
+                  <p className="text-sm text-slate-400">{tr("ยังไม่ได้เช็กอินของวันนี้")}</p>
                 )}
               </article>
             ))}
         </div>
         {view === "table" && (
         <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block">
-          <table className="w-full min-w-[940px] text-sm"><caption className="sr-only">รายชื่อสมาชิกและสถานะเช็กอินของทีม {scopeLabel}</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">สมาชิก</th><th className="px-4 py-3">สถานะ</th><th className="px-4 py-3">เมื่อวานทำอะไร</th><th className="px-4 py-3">ความคืบหน้า</th><th className="px-4 py-3">แผนวันนี้</th><th className="px-5 py-3 text-right">ดูข้อมูล</th></tr></thead>
-            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, title, entry }) => <tr key={key} className="align-top transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{title}</p></div></div></td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? "ต้องการความช่วยเหลือ" : "ส่งแล้ว"}</span> : <span className="badge badge-warning">ยังไม่ส่ง</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3"><div className="pt-0.5">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</div></td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{entry && entry.comments.length > 0 && <span className="mr-2 inline-flex items-center gap-1 align-middle font-medium text-slate-500"><Icon name="comment" className="h-3.5 w-3.5" />{entry.comments.length}</span>}รายละเอียด →</Link></td></tr>)}</tbody>
+          <table className="w-full min-w-[940px] text-sm"><caption className="sr-only">{tr("รายชื่อสมาชิกและสถานะเช็กอินของทีม")}{" "}{scopeLabel}</caption><thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3">{tr("สมาชิก")}</th><th className="px-4 py-3">{tr("สถานะ")}</th><th className="px-4 py-3">{tr("เมื่อวานทำอะไร")}</th><th className="px-4 py-3">{tr("ความคืบหน้า")}</th><th className="px-4 py-3">{tr("แผนวันนี้")}</th><th className="px-5 py-3 text-right">{tr("ดูข้อมูล")}</th></tr></thead>
+            <tbody className="divide-y divide-slate-100">{rows.map(({ key, member, title, entry }) => <tr key={key} className="align-top transition hover:bg-indigo-50/40"><td className="px-5 py-3"><div className="flex items-center gap-3"><Avatar user={member} size={36} /><div><Link href={`/dashboard/member/${member.id}`} className="font-semibold text-slate-800 hover:text-indigo-700">{member.name}</Link><p className="text-xs text-slate-500">{title}</p></div></div></td><td className="px-4 py-3">{entry ? <span className={entry.blockers ? "badge badge-danger" : "badge badge-success"}>{entry.blockers ? tr("ต้องการความช่วยเหลือ") : tr("ส่งแล้ว")}</span> : <span className="badge badge-warning">{tr("ยังไม่ส่ง")}</span>}</td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <YesterdayTasks value={entry.yesterdayTasks} /> : "—"}</td><td className="px-4 py-3"><div className="pt-0.5">{entry ? <ProgressSummary value={entry.yesterdayTasks} /> : <span className="text-slate-400">—</span>}</div></td><td className="max-w-xs px-4 py-3 text-slate-600">{entry ? <TodayTasks value={entry.todayTasks} /> : "—"}</td><td className="px-5 py-3 text-right"><Link href={`/dashboard/member/${member.id}`} className="whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{entry && entry.comments.length > 0 && <span className="mr-2 inline-flex items-center gap-1 align-middle font-medium text-slate-500"><Icon name="comment" className="h-3.5 w-3.5" />{entry.comments.length}</span>}{tr("รายละเอียด →")}</Link></td></tr>)}</tbody>
           </table>
         </div>
         )}
@@ -266,7 +271,7 @@ function FeedbackList({ title, tone, items }: { title: string; tone: string; ite
     <section className="card">
       <h2 className={`mb-3 font-semibold ${tone}`}>{title}</h2>
       {items.length === 0 ? (
-        <p className="text-sm text-slate-400">ไม่มี</p>
+        <p className="text-sm text-slate-400">{tr("ไม่มี")}</p>
       ) : (
         <ul className="space-y-2 text-sm">
           {items.map(([name, text], i) => (
@@ -292,7 +297,7 @@ function TodayTasks({ value }: { value: unknown }) {
           <span className="line-clamp-1">{t.text}</span>
         </li>
       ))}
-      {tasks.length > 3 && <li className="pl-3 text-xs text-slate-400">+ อีก {tasks.length - 3} งาน</li>}
+      {tasks.length > 3 && <li className="pl-3 text-xs text-slate-400">{tr("+ อีก")}{" "}{tasks.length - 3} {tr("งาน")}</li>}
     </ul>
   );
 }
@@ -309,7 +314,7 @@ function YesterdayTasks({ value }: { value: unknown }) {
           <span className="line-clamp-1">{task.text}</span>
         </li>
       ))}
-      {tasks.length > 2 && <li className="pl-3 text-xs text-slate-400">+ อีก {tasks.length - 2} งาน</li>}
+      {tasks.length > 2 && <li className="pl-3 text-xs text-slate-400">{tr("+ อีก")}{" "}{tasks.length - 2} {tr("งาน")}</li>}
     </ul>
   );
 }

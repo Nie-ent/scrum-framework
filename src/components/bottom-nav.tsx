@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavGlyph, type NavIcon } from "./nav-icons";
+import { useT } from "@/components/i18n";
 
 /** เมนูหลักบนมือถือ — ติดขอบล่างให้กดด้วยนิ้วโป้งได้ถึง (จอใหญ่ใช้ sidebar แทน) */
 export function BottomNav({ items }: { items: { href: string; label: string; icon: NavIcon; match?: string[] }[] }) {
+  const tr = useT();
   const pathname = usePathname();
   return (
     <nav
-      aria-label="เมนูหลัก"
+      aria-label={tr("เมนูหลัก")}
       className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
     >
       <ul className="mx-auto flex max-w-lg">

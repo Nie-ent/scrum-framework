@@ -1,19 +1,11 @@
 import type { Standup } from "@prisma/client";
 import { averageProgress, isDone, toTasks } from "@/lib/tasks";
+import { tr } from "@/lib/i18n/server";
 
-export const TASK_SECTIONS = [
-  { key: "yesterdayTasks", label: "ล่าสุดทำอะไรไป", hint: "ที่ผ่านมา", tone: "slate" },
-  { key: "todayTasks", label: "วันนี้จะทำอะไร", hint: "แผน", tone: "indigo" },
-] as const;
+import { TASK_SECTIONS, TEXT_SECTIONS, type TaskSectionKey, type TextSectionKey } from "@/lib/standup-sections";
 
-export const TEXT_SECTIONS = [
-  { key: "blockers", label: "ต้องการความช่วยเหลือ", hint: "ติดขัด", tone: "red" },
-  { key: "notWorking", label: "สิ่งที่ควรปรับปรุง", hint: "ทบทวน", tone: "amber" },
-  { key: "workingWell", label: "สิ่งที่ไปได้ดี", hint: "ทบทวน", tone: "emerald" },
-] as const;
-
-export type TaskSectionKey = (typeof TASK_SECTIONS)[number]["key"];
-export type TextSectionKey = (typeof TEXT_SECTIONS)[number]["key"];
+export { TASK_SECTIONS, TEXT_SECTIONS };
+export type { TaskSectionKey, TextSectionKey };
 type SectionKey = TaskSectionKey | TextSectionKey;
 
 const TONES = {
@@ -60,7 +52,7 @@ export function TaskListView({ value, showStatus = false }: { value: unknown; sh
         {showStatus ? (
           <span className={`shrink-0 text-xs tabular-nums ${isDone(t) ? "text-emerald-600" : "text-slate-500"}`}>{percent}%</span>
         ) : (
-          percent > 0 && <span className="shrink-0 text-xs text-slate-400">ทำต่อจาก {percent}%</span>
+          percent > 0 && <span className="shrink-0 text-xs text-slate-400">{tr("ทำต่อจาก")}{" "}{percent}%</span>
         )}
       </li>
     );
@@ -76,8 +68,8 @@ export function TaskListView({ value, showStatus = false }: { value: unknown; sh
       {rest.length > 0 && (
         <details className="group/more text-sm">
           <summary className="mt-0.5 cursor-pointer list-none text-xs font-medium text-indigo-600 marker:hidden hover:text-indigo-800">
-            <span className="group-open/more:hidden">+ อีก {rest.length} งาน{showStatus && doneInRest > 0 && ` (เสร็จแล้ว ${doneInRest})`}</span>
-            <span className="hidden group-open/more:inline">ย่อรายการ</span>
+            <span className="group-open/more:hidden">{tr("+ อีก")}{" "}{rest.length} {tr("งาน")}{showStatus && doneInRest > 0 && tr(" (เสร็จแล้ว {0})", [doneInRest])}</span>
+            <span className="hidden group-open/more:inline">{tr("ย่อรายการ")}</span>
           </summary>
           <ul className="mt-0.5 space-y-0.5">{rest.map((t, i) => row(t, i + VISIBLE_TASKS))}</ul>
         </details>
@@ -112,7 +104,7 @@ export function StandupSections({
         <div key={s.key} className={`rounded-r-lg border-l-4 py-1 pl-3 pr-2 ${TONES[s.tone]}`}>
           <div className="mb-0.5 flex items-center justify-between gap-2 text-xs font-medium text-slate-500">
             <span>
-              {s.label} <span className="text-slate-400">· {s.hint}</span>
+              {tr(s.label)} <span className="text-slate-400">· {tr(s.hint)}</span>
             </span>
             {s.key === "yesterdayTasks" && <ProgressSummary value={standup[s.key]} className="w-14" />}
           </div>
@@ -122,7 +114,7 @@ export function StandupSections({
       {TEXT_SECTIONS.filter((s) => show(s.key) && standup[s.key]).map((s) => (
         <div key={s.key} className={`rounded-r-lg border-l-4 py-1 pl-3 pr-2 ${TONES[s.tone]}`}>
           <div className="text-xs font-medium text-slate-500">
-            {s.label} <span className="text-slate-400">· {s.hint}</span>
+            {tr(s.label)} <span className="text-slate-400">· {tr(s.hint)}</span>
           </div>
           <p className="whitespace-pre-wrap text-sm">{standup[s.key]}</p>
         </div>

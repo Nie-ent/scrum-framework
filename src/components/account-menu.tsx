@@ -5,17 +5,19 @@ import { useState } from "react";
 import * as P from "@radix-ui/react-popover";
 import { logout } from "@/app/actions/auth";
 import { NavGlyph } from "./nav-icons";
+import { useT } from "@/components/i18n";
 
 const item = "flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-foreground transition hover:bg-surface-sunken";
 
 /** เมนูบัญชีที่รูปโปรไฟล์: ตั้งค่าบัญชี · จัดการระบบ (ผู้ดูแล) · ออกจากระบบ */
 export function AccountMenu({ name, email, admin, children }: { name: string; email: string; admin: boolean; children: React.ReactNode }) {
+  const tr = useT();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   return (
     <P.Root open={open} onOpenChange={setOpen}>
       <P.Trigger
-        aria-label={`เมนูบัญชีของ ${name}`}
+        aria-label={tr("เมนูบัญชีของ {0}", [name])}
         className="flex min-w-0 items-center gap-2.5 rounded-full text-left leading-tight transition hover:bg-surface-sunken data-[state=open]:bg-surface-sunken lg:w-full lg:rounded-2xl lg:bg-surface-sunken lg:p-3"
       >
         {children}
@@ -36,20 +38,20 @@ export function AccountMenu({ name, email, admin, children }: { name: string; em
           <div className="pt-1.5">
             <Link href="/account" onClick={close} className={item}>
               <NavGlyph icon="account" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
-              บัญชีและการตั้งค่า
+              {tr("บัญชีและการตั้งค่า")}
             </Link>
             <Link href="/standup/history" onClick={close} className={item}>
               <NavGlyph icon="calendar" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
-              ประวัติเช็กอิน
+              {tr("ประวัติเช็กอิน")}
             </Link>
             <Link href="/files" onClick={close} className={item}>
               <NavGlyph icon="files" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
-              ไฟล์สำคัญ
+              {tr("ไฟล์สำคัญ")}
             </Link>
             {admin && (
               <Link href="/admin" onClick={close} className={item}>
                 <NavGlyph icon="admin" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
-                จัดการระบบ
+                {tr("จัดการระบบ")}
               </Link>
             )}
             <form action={logout} className="mt-1.5 border-t border-border pt-1.5">
@@ -57,7 +59,7 @@ export function AccountMenu({ name, email, admin, children }: { name: string; em
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="h-[1.15rem] w-[1.15rem]" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                 </svg>
-                ออกจากระบบ
+                {tr("ออกจากระบบ")}
               </button>
             </form>
           </div>

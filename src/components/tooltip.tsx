@@ -2,6 +2,7 @@
 
 import * as T from "@radix-ui/react-tooltip";
 import * as P from "@radix-ui/react-popover";
+import { useT } from "@/components/i18n";
 
 /**
  * Tooltip เดียวของ Pace: ชื่อการกระทำ (+ คีย์ลัดถ้ามี) สำหรับปุ่มที่มีแต่ไอคอน หรือข้อความที่ถูกตัด
@@ -42,11 +43,12 @@ export function TooltipProvider({ children }: { children: React.ReactNode }) {
 
 /** เครื่องหมาย "?" เล็ก ๆ อธิบายแนวคิดที่ไม่คุ้น — แตะหรือคลิกเพื่อเปิด ใช้ได้เหมือนกันบนมือถือ */
 export function HelpTip({ title, children }: { title: string; children: string }) {
+  const tr = useT();
   return (
     <P.Root>
       <P.Trigger
         type="button"
-        aria-label={`อธิบาย: ${title}`}
+        aria-label={tr("อธิบาย: {0}", [title])}
         className="inline-flex size-6 shrink-0 items-center justify-center rounded-full align-middle text-subtle transition hover:bg-surface-sunken hover:text-primary"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-4" aria-hidden="true">

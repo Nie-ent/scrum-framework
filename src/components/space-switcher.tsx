@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as P from "@radix-ui/react-popover";
+import { useT } from "@/components/i18n";
 
 const COOKIE = "pace_space";
 /** หน้าที่แสดงข้อมูลของพื้นที่เดียว — เปลี่ยนพื้นที่แล้วอยู่หน้าเดิม */
@@ -47,6 +48,7 @@ function Badge({ space }: { space: Space }) {
  * จำค่าไว้ใน cookie ให้ทุกหน้าใช้พื้นที่เดียวกัน
  */
 export function SpaceSwitcher({ spaces, saved, className = "" }: { spaces: Space[]; saved?: string; className?: string }) {
+  const tr = useT();
   const router = useRouter();
   const pathname = usePathname();
   const param = useSearchParams().get("team");
@@ -86,7 +88,7 @@ export function SpaceSwitcher({ spaces, saved, className = "" }: { spaces: Space
         className={`flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 text-left text-sm transition hover:bg-surface-sunken ${hasParent(s) ? "pl-6" : ""} ${s.id === currentId ? "font-semibold text-foreground" : "text-foreground"}`}
       >
         <Badge space={s} />
-        <span className="min-w-0 flex-1 truncate">{label(s)}</span>
+        <span className="min-w-0 flex-1 truncate">{tr(label(s))}</span>
         {s.id === currentId && (
           <svg viewBox="0 0 20 20" fill="currentColor" className="size-4 shrink-0 text-primary" aria-hidden="true">
             <path fillRule="evenodd" d="M16.7 4.15a.75.75 0 0 1 .15 1.05l-8 10.5a.75.75 0 0 1-1.13.08l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.9 3.89 7.47-9.81a.75.75 0 0 1 1.05-.15Z" clipRule="evenodd" />
@@ -99,13 +101,13 @@ export function SpaceSwitcher({ spaces, saved, className = "" }: { spaces: Space
   return (
     <P.Root open={open} onOpenChange={setOpen}>
       <P.Trigger
-        aria-label={`พื้นที่ที่กำลังใช้: ${label(current)} — กดเพื่อเปลี่ยน`}
+        aria-label={tr("พื้นที่ที่กำลังใช้: {0} — กดเพื่อเปลี่ยน", [tr(label(current))])}
         className={`flex items-center gap-2.5 rounded-xl border border-border bg-surface px-2 py-1.5 text-left shadow-soft transition hover:bg-surface-sunken data-[state=open]:border-border-strong data-[state=open]:bg-surface-sunken ${className}`}
       >
         <Badge space={current} />
         <span className="min-w-0 flex-1">
-          <span className="hidden text-2xs leading-none text-subtle lg:block">พื้นที่</span>
-          <span className="block truncate text-sm font-semibold leading-snug text-foreground">{label(current)}</span>
+          <span className="hidden text-2xs leading-none text-subtle lg:block">{tr("พื้นที่")}</span>
+          <span className="block truncate text-sm font-semibold leading-snug text-foreground">{tr(label(current))}</span>
         </span>
         <svg viewBox="0 0 20 20" fill="currentColor" className="size-4 shrink-0 text-subtle" aria-hidden="true">
           <path fillRule="evenodd" d="M10.53 3.47a.75.75 0 0 0-1.06 0L6.22 6.72a.75.75 0 0 0 1.06 1.06L10 5.06l2.72 2.72a.75.75 0 1 0 1.06-1.06l-3.25-3.25Zm-4.31 9.81 3.25 3.25a.75.75 0 0 0 1.06 0l3.25-3.25a.75.75 0 1 0-1.06-1.06L10 14.94l-2.72-2.72a.75.75 0 0 0-1.06 1.06Z" clipRule="evenodd" />
@@ -113,17 +115,17 @@ export function SpaceSwitcher({ spaces, saved, className = "" }: { spaces: Space
       </P.Trigger>
       <P.Portal>
         <P.Content align="start" sideOffset={6} collisionPadding={12} className="tooltip-pop z-[80] w-[min(18rem,calc(100vw-1.5rem))] rounded-2xl border border-border bg-surface p-1.5 shadow-overlay">
-          <div role="listbox" aria-label="เลือกพื้นที่" className="max-h-[min(24rem,60vh)] overflow-y-auto">
+          <div role="listbox" aria-label={tr("เลือกพื้นที่")} className="max-h-[min(24rem,60vh)] overflow-y-auto">
             {teams.length > 0 && (
               <>
-                <p className="px-2 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">ทีม</p>
+                <p className="px-2 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">{tr("ทีม")}</p>
                 <ul>{teams.map(option)}</ul>
               </>
             )}
             {personal.length > 0 && <ul className={teams.length > 0 ? "mt-1.5 border-t border-border pt-1.5" : ""}>{personal.map(option)}</ul>}
           </div>
           <Link href="/teams" onClick={() => setOpen(false)} className="mt-1.5 flex min-h-10 items-center gap-2 border-t border-border px-2 pt-1.5 text-sm font-medium text-primary hover:text-primary-strong">
-            จัดการทีมและคำเชิญ
+            {tr("จัดการทีมและคำเชิญ")}
           </Link>
         </P.Content>
       </P.Portal>

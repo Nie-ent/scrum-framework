@@ -7,8 +7,12 @@ import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { ForceGraph } from "@/components/notes/force-graph";
 import { NotesShell } from "@/components/notes/notes-shell";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "แผนผังความสัมพันธ์" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("แผนผังความสัมพันธ์") };
+}
 
 /** แผนผังความสัมพันธ์ของโน้ต (และงานที่ถูกอ้างถึง) ของทีม — จัดวางด้วยแรงผลัก/ดึง โน้ตที่ถูกเชื่อมมากจุดใหญ่กว่า */
 export default async function NotesGraphPage({ searchParams }: PageProps<"/notes/graph">) {
@@ -41,21 +45,21 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
       <div className="space-y-5">
         <div className="page-header">
           <div>
-            <p className="eyebrow">ภาพรวมการเชื่อมโยง</p>
-            <h1 className="page-title">แผนผังความสัมพันธ์</h1>
-            <p className="page-subtitle">{team.name} · {notes.length} โน้ต · {tasks.size} งานที่ถูกอ้างถึง · {edges.length} เส้นเชื่อม</p>
+            <p className="eyebrow">{tr("ภาพรวมการเชื่อมโยง")}</p>
+            <h1 className="page-title">{tr("แผนผังความสัมพันธ์")}</h1>
+            <p className="page-subtitle">{team.name} · {notes.length} {tr("โน้ต ·")}{" "}{tasks.size} {tr("งานที่ถูกอ้างถึง ·")}{" "}{edges.length} {tr("เส้นเชื่อม")}</p>
           </div>
         </div>
         {points.length === 0 ? (
-          <p className="card text-sm text-muted-foreground">ยังไม่มีโน้ต — สร้างโน้ตแล้วพิมพ์ [[ ในเนื้อหาเพื่อเชื่อมไปโน้ตอื่น แผนผังจะแสดงที่นี่</p>
+          <p className="card text-sm text-muted-foreground">{tr("ยังไม่มีโน้ต — สร้างโน้ตแล้วพิมพ์ [[ ในเนื้อหาเพื่อเชื่อมไปโน้ตอื่น แผนผังจะแสดงที่นี่")}</p>
         ) : (
           <div className="card p-2">
             <ForceGraph points={points} edges={edges} />
             <p className="flex flex-wrap justify-center gap-x-4 gap-y-1 px-2 pb-1 pt-3 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" />โน้ตที่มีความสัมพันธ์</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-success" />งาน</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-subtle" />โน้ตที่ยังไม่ถูกเชื่อม</span>
-              <span>ลากจุดเพื่อจัดวาง · ลากพื้นหลังเพื่อเลื่อน · หมุนล้อเมาส์เพื่อซูม · คลิกที่จุดเพื่อเปิด</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" />{tr("โน้ตที่มีความสัมพันธ์")}</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-success" />{tr("งาน")}</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-subtle" />{tr("โน้ตที่ยังไม่ถูกเชื่อม")}</span>
+              <span>{tr("ลากจุดเพื่อจัดวาง · ลากพื้นหลังเพื่อเลื่อน · หมุนล้อเมาส์เพื่อซูม · คลิกที่จุดเพื่อเปิด")}</span>
             </p>
           </div>
         )}

@@ -9,6 +9,7 @@ import { TaskFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
 import { Select } from "@/components/select";
+import { useT } from "@/components/i18n";
 
 export function TaskForm({
   teamId,
@@ -28,6 +29,7 @@ export function TaskForm({
   /** วันที่เลือกมาจากหน้า ปฏิทิน */
   defaultDue?: string;
 }) {
+  const tr = useT();
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
@@ -38,7 +40,7 @@ export function TaskForm({
     const { errors } = await uploadFiles({ taskId: result.id }, files, setProgress);
     setProgress(null);
     setFiles([]);
-    return errors.length > 0 ? { error: `สร้างงานแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${errors.join(" · ")}` } : result;
+    return errors.length > 0 ? { error: tr("สร้างงานแล้ว แต่แนบไฟล์ไม่สำเร็จ — {0}", [errors.join(" · ")]) } : result;
   };
   const { state, pending, formProps, field, error } = useZodForm(TaskFields, submit, { resetOnSuccess: true });
   const [moreOpen, setMoreOpen] = useState(Boolean(defaultDue));
@@ -50,32 +52,32 @@ export function TaskForm({
       <input type="hidden" name="teamId" value={teamId} />
       <div>
         <div className="flex items-start gap-2">
-          <label className="sr-only" htmlFor="task-title">ชื่องาน</label>
-          <input id="task-title" className="input flex-1" maxLength={200} placeholder={members ? "เพิ่มงาน… เช่น จัดทำรายงานประจำเดือน" : "เพิ่มงานของฉัน… เช่น จัดทำรายงานประจำเดือน"} required {...field("title")} />
-          <SubmitButton className="btn shrink-0" pending={pending} pendingText="กำลังเพิ่ม...">เพิ่มงาน</SubmitButton>
+          <label className="sr-only" htmlFor="task-title">{tr("ชื่องาน")}</label>
+          <input id="task-title" className="input flex-1" maxLength={200} placeholder={members ? tr("เพิ่มงาน… เช่น จัดทำรายงานประจำเดือน") : tr("เพิ่มงานของฉัน… เช่น จัดทำรายงานประจำเดือน")} required {...field("title")} />
+          <SubmitButton className="btn shrink-0" pending={pending} pendingText={tr("กำลังเพิ่ม...")}>{tr("เพิ่มงาน")}</SubmitButton>
         </div>
         <FieldError name="title" message={error("title")} />
       </div>
       <details className="group/more" open={moreOpen || hiddenError} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
         <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-lg text-xs font-medium text-muted-foreground marker:hidden hover:text-primary">
           <span aria-hidden="true" className="transition group-open/more:rotate-90">▸</span>
-          กำหนดส่ง{members ? " ผู้รับงาน" : ""} รายละเอียด{canAttach ? " และไฟล์แนบ" : ""}
+          {tr("กำหนดส่ง")}{members ? tr(" ผู้รับงาน") : ""} {tr("รายละเอียด")}{canAttach ? tr(" และไฟล์แนบ") : ""}
         </summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
           <div>
-            <label className="label" htmlFor="task-description">รายละเอียด</label>
-            <input id="task-description" className="input" maxLength={2000} placeholder="วางลิงก์ได้" {...field("description")} />
+            <label className="label" htmlFor="task-description">{tr("รายละเอียด")}</label>
+            <input id="task-description" className="input" maxLength={2000} placeholder={tr("วางลิงก์ได้")} {...field("description")} />
             <FieldError name="description" message={error("description")} />
           </div>
           {members ? (
             <div>
-              <label className="label" htmlFor="task-assignee">มอบหมายให้</label>
+              <label className="label" htmlFor="task-assignee">{tr("มอบหมายให้")}</label>
               <Select
                 id="task-assignee"
-                placeholder="เลือกสมาชิก"
+                placeholder={tr("เลือกสมาชิก")}
                 defaultValue={members.some((m) => m.id === selfId) ? selfId : (members[0]?.id ?? "")}
                 inputProps={field("assigneeId")}
-                options={members.map((m) => ({ value: m.id, label: `${m.name}${m.id === selfId ? " (ฉัน)" : ""}` }))}
+                options={members.map((m) => ({ value: m.id, label: `${m.name}${m.id === selfId ? tr(" (ฉัน)") : ""}` }))}
               />
               <FieldError name="assigneeId" message={error("assigneeId")} />
             </div>
@@ -83,7 +85,7 @@ export function TaskForm({
             <input type="hidden" value={selfId} {...field("assigneeId")} />
           )}
           <div>
-            <label className="label" htmlFor="task-due">กำหนดส่ง</label>
+            <label className="label" htmlFor="task-due">{tr("กำหนดส่ง")}</label>
             <input id="task-due" type="date" min={today} defaultValue={defaultDue} className="input" {...field("dueDate")} />
             <FieldError name="dueDate" message={error("dueDate")} />
           </div>
@@ -91,7 +93,7 @@ export function TaskForm({
             <div className="sm:col-span-3">
               <FilePicker
                 files={files}
-                text="แนบไฟล์"
+                text={tr("แนบไฟล์")}
                 onChange={(next, problem) => {
                   setFiles(next);
                   setFileError(problem);

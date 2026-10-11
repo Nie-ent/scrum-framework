@@ -10,6 +10,7 @@ import { LinkChips } from "./link-chips";
 import { EditorMenus, type MenuKeyHandler } from "./editor-menus";
 import { Tooltip } from "@/components/tooltip";
 import { Select } from "@/components/select";
+import { useT } from "@/components/i18n";
 
 /**
  * ตัวแก้ไขแบบเห็นผลทันที (ไม่ต้องรู้ Markdown): กดปุ่มจัดรูปแบบเหมือนโปรแกรมเอกสารทั่วไป
@@ -31,6 +32,7 @@ export function RichEditor({
   noteTitles: string[];
   tasks: { number: number; title: string }[];
 }) {
+  const tr = useT();
   const [markdown, setMarkdown] = useState(defaultValue);
   const [linking, setLinking] = useState(false);
   // เมนู / , [[ , # รับปุ่มลูกศร/Enter/Esc ก่อนตัวแก้ไข (ดู editor-menus.tsx)
@@ -42,7 +44,7 @@ export function RichEditor({
       TaskItem.configure({ nested: true }),
       TableKit,
       Markdown,
-      LinkChips.configure({ noteTitles, taskNumbers: tasks.map((t) => t.number) }),
+      LinkChips.configure({ noteTitles, taskNumbers: tasks.map((t) => t.number), tr }),
     ],
     content: defaultValue,
     contentType: "markdown",
@@ -51,7 +53,7 @@ export function RichEditor({
     // ให้ปุ่มบนแถบเครื่องมือแสดงสถานะ (เช่น ตัวหนาเปิดอยู่) ตามตำแหน่งเคอร์เซอร์
     shouldRerenderOnTransaction: true,
     editorProps: {
-      attributes: { class: "markdown min-h-80 px-4 py-3 outline-none", "aria-label": "เนื้อหาโน้ต", role: "textbox", "aria-multiline": "true" },
+      attributes: { class: "markdown min-h-80 px-4 py-3 outline-none", "aria-label": tr("เนื้อหาโน้ต"), role: "textbox", "aria-multiline": "true" },
       handleKeyDown: (_, event) => menuKeys.current?.(event) ?? false,
     },
     onUpdate: ({ editor }) => {
@@ -68,9 +70,9 @@ export function RichEditor({
       ) : (
         <div className="h-11 border-b border-slate-200 bg-slate-50" />
       )}
-      {editor ? <EditorContent editor={editor} /> : <div className="markdown min-h-80 whitespace-pre-wrap px-4 py-3 text-slate-400">กำลังเปิดตัวแก้ไข…</div>}
+      {editor ? <EditorContent editor={editor} /> : <div className="markdown min-h-80 whitespace-pre-wrap px-4 py-3 text-slate-400">{tr("กำลังเปิดตัวแก้ไข…")}</div>}
       {editor && <EditorMenus editor={editor} noteTitles={noteTitles} tasks={tasks} keyHandler={menuKeys} />}
-      <p className="border-t border-slate-100 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-500">พิมพ์ <kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">/</kbd> เพื่อแทรกหัวข้อ รายการ หรือตาราง · <kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">[[</kbd> เชื่อมไปโน้ต · <kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">#</kbd> เชื่อมไปงาน</p>
+      <p className="border-t border-slate-100 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-500">{tr("พิมพ์")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">/</kbd> {tr("เพื่อแทรกหัวข้อ รายการ หรือตาราง ·")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">[[</kbd> {tr("เชื่อมไปโน้ต ·")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">#</kbd> {tr("เชื่อมไปงาน")}</p>
     </div>
   );
 }
@@ -123,6 +125,7 @@ function Toolbar({
   noteTitles: string[];
   tasks: { number: number; title: string }[];
 }) {
+  const tr = useT();
   const [url, setUrl] = useState("");
   const chain = () => editor.chain().focus();
   const applyLink = () => {
@@ -135,49 +138,49 @@ function Toolbar({
 
   return (
     <div className="border-b border-slate-200 bg-slate-50">
-      <div role="toolbar" aria-label="จัดรูปแบบ" className="flex flex-wrap items-center gap-0.5 px-2 py-1.5">
-        <Button label="หัวข้อใหญ่ (พิมพ์ # เว้นวรรค)" shortcut={`${MOD}Alt+1`} active={editor.isActive("heading", { level: 1 })} onClick={() => chain().toggleHeading({ level: 1 }).run()}>หัวข้อ 1</Button>
-        <Button label="หัวข้อรอง (พิมพ์ ## เว้นวรรค)" shortcut={`${MOD}Alt+2`} active={editor.isActive("heading", { level: 2 })} onClick={() => chain().toggleHeading({ level: 2 }).run()}>หัวข้อ 2</Button>
-        <Button label="หัวข้อย่อย (พิมพ์ ### เว้นวรรค)" shortcut={`${MOD}Alt+3`} active={editor.isActive("heading", { level: 3 })} onClick={() => chain().toggleHeading({ level: 3 }).run()}>หัวข้อ 3</Button>
+      <div role="toolbar" aria-label={tr("จัดรูปแบบ")} className="flex flex-wrap items-center gap-0.5 px-2 py-1.5">
+        <Button label={tr("หัวข้อใหญ่ (พิมพ์ # เว้นวรรค)")} shortcut={`${MOD}Alt+1`} active={editor.isActive("heading", { level: 1 })} onClick={() => chain().toggleHeading({ level: 1 }).run()}>{tr("หัวข้อ 1")}</Button>
+        <Button label={tr("หัวข้อรอง (พิมพ์ ## เว้นวรรค)")} shortcut={`${MOD}Alt+2`} active={editor.isActive("heading", { level: 2 })} onClick={() => chain().toggleHeading({ level: 2 }).run()}>{tr("หัวข้อ 2")}</Button>
+        <Button label={tr("หัวข้อย่อย (พิมพ์ ### เว้นวรรค)")} shortcut={`${MOD}Alt+3`} active={editor.isActive("heading", { level: 3 })} onClick={() => chain().toggleHeading({ level: 3 }).run()}>{tr("หัวข้อ 3")}</Button>
         <Divider />
-        <Button label="ตัวหนา" shortcut={`${MOD}B`} active={editor.isActive("bold")} onClick={() => chain().toggleBold().run()}><b>B</b></Button>
-        <Button label="ตัวเอียง" shortcut={`${MOD}I`} active={editor.isActive("italic")} onClick={() => chain().toggleItalic().run()}><i>I</i></Button>
-        <Button label="ขีดฆ่า" shortcut={`${MOD}Shift+S`} active={editor.isActive("strike")} onClick={() => chain().toggleStrike().run()}><s>S</s></Button>
+        <Button label={tr("ตัวหนา")} shortcut={`${MOD}B`} active={editor.isActive("bold")} onClick={() => chain().toggleBold().run()}><b>B</b></Button>
+        <Button label={tr("ตัวเอียง")} shortcut={`${MOD}I`} active={editor.isActive("italic")} onClick={() => chain().toggleItalic().run()}><i>I</i></Button>
+        <Button label={tr("ขีดฆ่า")} shortcut={`${MOD}Shift+S`} active={editor.isActive("strike")} onClick={() => chain().toggleStrike().run()}><s>S</s></Button>
         <Divider />
-        <Button label="รายการแบบจุด (พิมพ์ - เว้นวรรค)" shortcut={`${MOD}Shift+8`} active={editor.isActive("bulletList")} onClick={() => chain().toggleBulletList().run()}>• รายการ</Button>
-        <Button label="รายการแบบตัวเลข (พิมพ์ 1. เว้นวรรค)" shortcut={`${MOD}Shift+7`} active={editor.isActive("orderedList")} onClick={() => chain().toggleOrderedList().run()}>1. รายการ</Button>
-        <Button label="สิ่งที่ต้องทำ ติ๊กได้ (พิมพ์ [ ] เว้นวรรค)" shortcut={`${MOD}Shift+9`} active={editor.isActive("taskList")} onClick={() => chain().toggleTaskList().run()}>☑ สิ่งที่ต้องทำ</Button>
+        <Button label={tr("รายการแบบจุด (พิมพ์ - เว้นวรรค)")} shortcut={`${MOD}Shift+8`} active={editor.isActive("bulletList")} onClick={() => chain().toggleBulletList().run()}>{tr("• รายการ")}</Button>
+        <Button label={tr("รายการแบบตัวเลข (พิมพ์ 1. เว้นวรรค)")} shortcut={`${MOD}Shift+7`} active={editor.isActive("orderedList")} onClick={() => chain().toggleOrderedList().run()}>{tr("1. รายการ")}</Button>
+        <Button label={tr("สิ่งที่ต้องทำ ติ๊กได้ (พิมพ์ [ ] เว้นวรรค)")} shortcut={`${MOD}Shift+9`} active={editor.isActive("taskList")} onClick={() => chain().toggleTaskList().run()}>{tr("☑ สิ่งที่ต้องทำ")}</Button>
         <Divider />
-        <Button label="ข้อความอ้างอิง (พิมพ์ > เว้นวรรค)" shortcut={`${MOD}Shift+B`} active={editor.isActive("blockquote")} onClick={() => chain().toggleBlockquote().run()}>❝</Button>
-        <Button label="แทรกตาราง 3×3" onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>ตาราง</Button>
+        <Button label={tr("ข้อความอ้างอิง (พิมพ์ > เว้นวรรค)")} shortcut={`${MOD}Shift+B`} active={editor.isActive("blockquote")} onClick={() => chain().toggleBlockquote().run()}>❝</Button>
+        <Button label={tr("แทรกตาราง 3×3")} onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>{tr("ตาราง")}</Button>
         {editor.isActive("table") && (
           <>
-            <Button label="เพิ่มแถว" onClick={() => chain().addRowAfter().run()}>+แถว</Button>
-            <Button label="เพิ่มคอลัมน์" onClick={() => chain().addColumnAfter().run()}>+คอลัมน์</Button>
-            <Button label="ลบตาราง" onClick={() => chain().deleteTable().run()}>ลบตาราง</Button>
+            <Button label={tr("เพิ่มแถว")} onClick={() => chain().addRowAfter().run()}>{tr("+แถว")}</Button>
+            <Button label={tr("เพิ่มคอลัมน์")} onClick={() => chain().addColumnAfter().run()}>{tr("+คอลัมน์")}</Button>
+            <Button label={tr("ลบตาราง")} onClick={() => chain().deleteTable().run()}>{tr("ลบตาราง")}</Button>
           </>
         )}
-        <Button label="ลิงก์เว็บ" active={editor.isActive("link") || linking} onClick={() => { setUrl(editor.getAttributes("link").href ?? ""); setLinking(!linking); }}>ลิงก์</Button>
+        <Button label={tr("ลิงก์เว็บ")} active={editor.isActive("link") || linking} onClick={() => { setUrl(editor.getAttributes("link").href ?? ""); setLinking(!linking); }}>{tr("ลิงก์")}</Button>
         <Divider />
-        <Button label="เลิกทำ" shortcut={`${MOD}Z`} onClick={() => chain().undo().run()}>↶</Button>
-        <Button label="ทำซ้ำ" shortcut={`${MOD}Shift+Z`} onClick={() => chain().redo().run()}>↷</Button>
+        <Button label={tr("เลิกทำ")} shortcut={`${MOD}Z`} onClick={() => chain().undo().run()}>↶</Button>
+        <Button label={tr("ทำซ้ำ")} shortcut={`${MOD}Shift+Z`} onClick={() => chain().redo().run()}>↷</Button>
         <span className="ml-auto flex flex-wrap gap-1.5">
           <Select
-            aria-label="เชื่อมไปโน้ตอื่น"
+            aria-label={tr("เชื่อมไปโน้ตอื่น")}
             size="sm"
             className="w-36"
             value=""
-            placeholder="+ เชื่อมไปโน้ต…"
+            placeholder={tr("+ เชื่อมไปโน้ต…")}
             onChange={(title) => chain().insertContent(`[[${title}]] `).run()}
             options={noteTitles.map((t) => ({ value: t, label: t }))}
           />
           {tasks.length > 0 && (
             <Select
-              aria-label="เชื่อมไปงาน"
+              aria-label={tr("เชื่อมไปงาน")}
               size="sm"
               className="w-36"
               value=""
-              placeholder="+ เชื่อมไปงาน…"
+              placeholder={tr("+ เชื่อมไปงาน…")}
               onChange={(number) => chain().insertContent(`#${number} `).run()}
               options={tasks.map((t) => ({ value: String(t.number), label: `#${t.number} ${t.title}` }))}
             />
@@ -196,12 +199,12 @@ function Toolbar({
                 applyLink();
               }
             }}
-            placeholder="https://… (เว้นว่างเพื่อเอาลิงก์ออก)"
-            aria-label="ที่อยู่ลิงก์"
+            placeholder={tr("https://… (เว้นว่างเพื่อเอาลิงก์ออก)")}
+            aria-label={tr("ที่อยู่ลิงก์")}
             className="input h-8 flex-1 py-1 text-sm"
             autoFocus
           />
-          <button type="button" className="btn-ghost min-h-8 px-3 py-1 text-xs" onClick={applyLink}>ตกลง</button>
+          <button type="button" className="btn-ghost min-h-8 px-3 py-1 text-xs" onClick={applyLink}>{tr("ตกลง")}</button>
         </div>
       )}
     </div>

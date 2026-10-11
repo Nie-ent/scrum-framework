@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/tooltip";
+import { I18nProvider } from "@/components/i18n";
+import { ensureLang } from "@/lib/i18n/server";
 
 const plex = IBM_Plex_Sans_Thai({
   variable: "--font-plex",
@@ -11,7 +13,7 @@ const plex = IBM_Plex_Sans_Thai({
 
 export const metadata: Metadata = {
   title: { default: "Pace", template: "%s · Pace" },
-  description: "Keep your team moving. — Daily scrum และภาพรวมทีม",
+  description: "Keep your team moving. — tasks, notes and team check-ins in one place",
   applicationName: "Pace",
   // iPhone: เปิดเต็มจอเมื่อเพิ่มลงหน้าจอโฮม
   appleWebApp: { capable: true, title: "Pace", statusBarStyle: "default" },
@@ -25,10 +27,11 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const lang = await ensureLang();
   return (
-    <html lang="th" className={`${plex.variable} h-full antialiased`}>
-      <body className="min-h-full bg-[#f7f8fc] text-slate-900 selection:bg-indigo-100"><TooltipProvider>{children}</TooltipProvider></body>
+    <html lang={lang} className={`${plex.variable} h-full antialiased`}>
+      <body className="min-h-full bg-[#f7f8fc] text-slate-900 selection:bg-indigo-100"><I18nProvider lang={lang}><TooltipProvider>{children}</TooltipProvider></I18nProvider></body>
     </html>
   );
 }

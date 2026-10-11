@@ -1,11 +1,12 @@
 import { deleteComment } from "@/app/actions/comments";
 import type { CommentRow, CommentTarget } from "@/lib/comments";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime } from "@/lib/format-dates";
 import { Avatar } from "@/components/avatar";
 import { CommentForm } from "@/components/comment-form";
 import { Icon } from "@/components/icons";
 import { AttachmentList } from "@/components/attachments";
 import { toFileItems } from "@/lib/attachments";
+import { tr } from "@/lib/i18n/server";
 
 const URL_PATTERN = /(https?:\/\/[^\s<>"]+)/g;
 
@@ -54,7 +55,7 @@ export function CommentThread({
     <details open={open} className="group/thread">
       <summary className={`inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg text-xs font-medium transition hover:text-indigo-700 ${comments.length > 0 ? "text-indigo-600" : "text-slate-400"}`}>
         <Icon name="comment" />
-        {comments.length > 0 ? `ความคิดเห็น ${comments.length}` : "แสดงความคิดเห็น"}
+        {comments.length > 0 ? tr("ความคิดเห็น {0}", [comments.length]) : tr("แสดงความคิดเห็น")}
       </summary>
       <div className="mt-2 space-y-3 rounded-xl bg-slate-50 p-3">
         {comments.length > 0 && (
@@ -69,13 +70,13 @@ export function CommentThread({
                     {(canModerate || c.author.id === viewerId) && (
                       <form action={deleteComment} className="ml-auto">
                         <input type="hidden" name="id" value={c.id} />
-                        <button className="text-slate-400 transition hover:text-rose-600" aria-label={`ลบความคิดเห็นของ ${c.author.name}`}>ลบ</button>
+                        <button className="text-slate-400 transition hover:text-rose-600" aria-label={tr("ลบความคิดเห็นของ {0}", [c.author.name])}>{tr("ลบ")}</button>
                       </form>
                     )}
                   </div>
                   {c.progressTo !== null && (
                     <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-lg bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 ring-1 ring-slate-200">
-                      <span className="font-medium text-slate-500">ความคืบหน้า</span>
+                      <span className="font-medium text-slate-500">{tr("ความคืบหน้า")}</span>
                       {c.progressFrom !== null && c.progressFrom !== c.progressTo && <><span className="text-slate-400">{c.progressFrom}%</span><span aria-hidden="true" className="text-slate-400">→</span></>}
                       <span className={c.progressTo >= 100 ? "text-emerald-600" : "text-indigo-600"}>{c.progressTo}%</span>
                     </p>
@@ -87,7 +88,7 @@ export function CommentThread({
             ))}
           </ul>
         )}
-        <CommentForm target={target} label={`ความคิดเห็นถึง ${subject}`} canAttach={canAttach} />
+        <CommentForm target={target} label={tr("ความคิดเห็นถึง {0}", [subject])} canAttach={canAttach} />
       </div>
     </details>
   );
@@ -96,6 +97,6 @@ export function CommentThread({
 function CommentFiles({ comment, viewerId, canModerate }: { comment: CommentRow; viewerId: string; canModerate: boolean }) {
   const files = toFileItems(comment.attachments, viewerId);
   // ความคิดเห็นที่มีแต่ไฟล์ และไฟล์ชั่วคราวนั้นหมดอายุไปแล้ว
-  if (files.length === 0) return comment.body || comment.progressTo !== null ? null : <p className="text-sm italic text-slate-400">ไฟล์แนบหมดอายุแล้ว</p>;
+  if (files.length === 0) return comment.body || comment.progressTo !== null ? null : <p className="text-sm italic text-slate-400">{tr("ไฟล์แนบหมดอายุแล้ว")}</p>;
   return <div className="mt-1"><AttachmentList files={files} canModerate={canModerate} /></div>;
 }

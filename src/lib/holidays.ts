@@ -1,3 +1,5 @@
+import { tr } from "./i18n/server";
+
 /**
  * วันหยุดนักขัตฤกษ์ของไทย — ใช้ไฮไลต์ในปฏิทิน
  * วันที่ตายตัวใช้ได้ทุกปี · วันตามจันทรคติ (มาฆบูชา วิสาขบูชา อาสาฬหบูชา เข้าพรรษา) ต้องเพิ่มรายปีใน LUNAR
@@ -37,10 +39,15 @@ const LUNAR: Record<string, string> = {
 };
 
 /** ชื่อวันหยุดนักขัตฤกษ์ของวันที่ (YYYY-MM-DD) ถ้าเป็นวันหยุด */
-export const holidayName = (key: string): string | undefined => LUNAR[key] ?? FIXED[key.slice(5)];
+const thaiName = (key: string): string | undefined => LUNAR[key] ?? FIXED[key.slice(5)];
+/** ชื่อวันหยุด (แปลตามภาษาที่ใช้อยู่) */
+export const holidayName = (key: string): string | undefined => {
+  const name = thaiName(key);
+  return name === undefined ? undefined : tr(name);
+};
 
 /** เสาร์–อาทิตย์ */
 export const isWeekend = (key: string): boolean => [0, 6].includes(new Date(`${key}T00:00:00Z`).getUTCDay());
 
 /** สีตัวเลขวันในปฏิทิน: นักขัตฤกษ์ = ฟ้า · เสาร์–อาทิตย์ = แดง */
-export const dayTone = (key: string): string => (holidayName(key) ? "text-sky-600" : isWeekend(key) ? "text-danger" : "text-foreground");
+export const dayTone = (key: string): string => (thaiName(key) ? "text-sky-600" : isWeekend(key) ? "text-danger" : "text-foreground");

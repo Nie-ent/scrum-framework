@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { moveNote } from "@/app/actions/notes";
+import { useT } from "@/components/i18n";
 
 const TYPE = "application/x-pace-note";
 const TOAST = "pace-note-toast";
@@ -29,6 +30,7 @@ export function dragProps(id: string, title: string) {
 
 /** ทำให้โฟลเดอร์ (หรือระดับบนสุด เมื่อ parentId = null) รับรายการที่ลากมาวางได้ */
 export function useDrop(parentId: string | null) {
+  const tr = useT();
   const [over, setOver] = useState(false);
   const [pending, start] = useTransition();
   return {
@@ -55,7 +57,7 @@ export function useDrop(parentId: string | null) {
           data.set("parentId", parentId ?? "");
           const result = await moveNote(undefined, data);
           if (result?.error) noteToast(result.error, true);
-          else noteToast("ย้ายแล้ว");
+          else noteToast(tr("ย้ายแล้ว"));
         });
       },
     },
@@ -64,6 +66,7 @@ export function useDrop(parentId: string | null) {
 
 /** ข้อความสั้น ๆ หลังลากวาง (สำเร็จ / ย้ายไม่ได้เพราะอะไร) */
 export function NoteToast() {
+  const tr = useT();
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
@@ -81,7 +84,7 @@ export function NoteToast() {
   if (!message) return null;
   return (
     <div role="status" className={`fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-medium shadow-overlay lg:bottom-8 ${message.error ? "bg-danger text-primary-foreground" : "bg-tooltip text-tooltip-foreground"}`}>
-      {message.text}
+      {tr(message.text)}
     </div>
   );
 }

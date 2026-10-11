@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime } from "@/lib/format-dates";
 import { linkify, noteKey, noteSnippet } from "@/lib/note-links";
 import { favoriteIds, listNotes, pathTo } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
@@ -14,8 +14,12 @@ import { ReadingSurface } from "@/components/notes/reading-surface";
 import { ItemMenuButton } from "@/components/notes/note-menu";
 import { FolderRows, NoteRows } from "@/components/notes/note-list";
 import { NotesShell, folderItems } from "@/components/notes/notes-shell";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "โน้ต" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("โน้ต") };
+}
 
 /** อ่าน/แก้โน้ต หรือดูเนื้อหาของโฟลเดอร์ */
 export default async function NotePage({ params, searchParams }: PageProps<"/notes/[id]">) {
@@ -43,7 +47,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   const crumbs = path.slice(0, -1);
   const shell = { team, nodes, activeId: note.id, openIds: path.map((p) => p.id), canManageTeam: canManage };
   const Breadcrumb = (
-    <nav aria-label="ตำแหน่ง" className="flex flex-wrap items-center gap-1 text-sm text-slate-500">
+    <nav aria-label={tr("ตำแหน่ง")} className="flex flex-wrap items-center gap-1 text-sm text-slate-500">
       <Link href={`/notes?team=${team.id}`} className="hover:text-indigo-700">{team.name}</Link>
       {crumbs.map((c) => (
         <span key={c.id} className="flex items-center gap-1"><span aria-hidden="true">/</span><Link href={`/notes/${c.id}`} className="hover:text-indigo-700">{c.title}</Link></span>
@@ -67,12 +71,12 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
           <div className="page-header">
             <div>
               <h1 className="page-title flex items-center gap-2"><Icon name="folder" className="h-7 w-7 text-warning" />{note.title}</h1>
-              <p className="page-subtitle">{children.length} รายการ</p>
+              <p className="page-subtitle">{children.length} {tr("รายการ")}</p>
             </div>
             <ItemMenuButton id={note.id} title={note.title} kind="FOLDER" />
           </div>
           {children.length === 0 ? (
-            <p className="card text-sm text-muted-foreground">โฟลเดอร์นี้ยังว่าง — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตในโฟลเดอร์นี้ หรือลากโน้ตมาวาง</p>
+            <p className="card text-sm text-muted-foreground">{tr("โฟลเดอร์นี้ยังว่าง — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตในโฟลเดอร์นี้ หรือลากโน้ตมาวาง")}</p>
           ) : (
             <>
               <FolderRows folders={folders} />
@@ -122,20 +126,20 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{note.title}</h1>
               <p className="mt-1 text-xs text-slate-500">
-                แก้ล่าสุดโดย {note.updatedBy?.name ?? "—"} · {formatDateTime(note.updatedAt)}
-                {note.createdBy && ` · สร้างโดย ${note.createdBy.name}`}
+                {tr("แก้ล่าสุดโดย")}{" "}{note.updatedBy?.name ?? "—"} · {formatDateTime(note.updatedAt)}
+                {note.createdBy && tr(" · สร้างโดย {0}", [note.createdBy.name])}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2"><Link href={`/notes/${note.id}?edit=1`} className="btn">แก้ไข</Link><ItemMenuButton id={note.id} title={note.title} kind="NOTE" /></div>
+            <div className="flex shrink-0 items-center gap-2"><Link href={`/notes/${note.id}?edit=1`} className="btn">{tr("แก้ไข")}</Link><ItemMenuButton id={note.id} title={note.title} kind="NOTE" /></div>
           </header>
-          {note.content.trim() ? <ReadingSurface><Markdown content={rendered} /></ReadingSurface> : <p className="text-sm text-slate-400">โน้ตนี้ยังว่าง — กด แก้ไข เพื่อเริ่มเขียน</p>}
+          {note.content.trim() ? <ReadingSurface><Markdown content={rendered} /></ReadingSurface> : <p className="text-sm text-slate-400">{tr("โน้ตนี้ยังว่าง — กด แก้ไข เพื่อเริ่มเขียน")}</p>}
         </article>
 
         <div className="grid gap-4 md:grid-cols-2">
           <section className="card">
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900"><Icon name="link" className="h-4 w-4 text-indigo-600" />โน้ตที่ลิงก์มาที่นี่ ({backlinks.length})</h2>
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900"><Icon name="link" className="h-4 w-4 text-indigo-600" />{tr("โน้ตที่ลิงก์มาที่นี่ (")}{backlinks.length})</h2>
             {backlinks.length === 0 ? (
-              <p className="text-sm text-slate-500">ยังไม่มีโน้ตไหนลิงก์มา — เขียน <code className="rounded bg-slate-100 px-1">[[{note.title}]]</code> ในโน้ตอื่นเพื่อเชื่อมกัน</p>
+              <p className="text-sm text-slate-500">{tr("ยังไม่มีโน้ตไหนลิงก์มา — เขียน")}{" "}<code className="rounded bg-slate-100 px-1">[[{note.title}]]</code> {tr("ในโน้ตอื่นเพื่อเชื่อมกัน")}</p>
             ) : (
               <ul className="space-y-1">
                 {backlinks.map((b) => (
@@ -145,9 +149,9 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
             )}
           </section>
           <section className="card">
-            <h2 className="mb-2 text-sm font-semibold text-slate-900">งานที่โน้ตนี้อ้างถึง ({linkedTasks.length})</h2>
+            <h2 className="mb-2 text-sm font-semibold text-slate-900">{tr("งานที่โน้ตนี้อ้างถึง (")}{linkedTasks.length})</h2>
             {linkedTasks.length === 0 ? (
-              <p className="text-sm text-slate-500">เขียน <code className="rounded bg-slate-100 px-1">#เลขงาน</code> ในเนื้อหาเพื่อเชื่อมกับงานของทีม</p>
+              <p className="text-sm text-slate-500">{tr("เขียน")}{" "}<code className="rounded bg-slate-100 px-1">{tr("#เลขงาน")}</code> {tr("ในเนื้อหาเพื่อเชื่อมกับงานของทีม")}</p>
             ) : (
               <ul className="space-y-1">
                 {linkedTasks.map((t) => (

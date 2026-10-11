@@ -10,6 +10,7 @@ import { Icon } from "@/components/icons";
 import { Select } from "@/components/select";
 import type { NoteNode } from "@/lib/notes";
 import { noteToast } from "./note-dnd";
+import { useT } from "@/components/i18n";
 
 const OPEN = "pace-note-menu";
 /** ส่งให้ NoteFab เปิดฟอร์มสร้าง — detail = โฟลเดอร์ที่จะสร้างข้างใน (null = โฟลเดอร์ที่เปิดอยู่) */
@@ -62,10 +63,11 @@ export function useItemMenu(id: string, title: string, kind: Item["kind"]) {
 
 /** ปุ่ม ⋯ เปิดเมนูเดียวกับคลิกขวา — ใช้ในหัวหน้าโน้ต/โฟลเดอร์ */
 export function ItemMenuButton({ id, title, kind }: Item) {
+  const tr = useT();
   return (
     <button
       type="button"
-      aria-label={`ตัวเลือกของ ${title}`}
+      aria-label={tr("ตัวเลือกของ {0}", [title])}
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
         openMenu({ id, title, kind }, r.right - 240, r.bottom + 6);
@@ -85,6 +87,7 @@ const glyph = "h-[1.15rem] w-[1.15rem] text-muted-foreground";
  * nodes = ทุกรายการของพื้นที่ (ใช้ทำตัวเลือกโฟลเดอร์ปลายทาง) · favorites = id ที่ติดดาวไว้
  */
 export function NoteMenuHost({ teamId, nodes, favorites }: { teamId: string; nodes: NoteNode[]; favorites: string[] }) {
+  const tr = useT();
   const [menu, setMenu] = useState<Target | null>(null);
   const [dialog, setDialog] = useState<{ type: "move" | "rename" | "delete"; item: Item } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -139,7 +142,7 @@ export function NoteMenuHost({ teamId, nodes, favorites }: { teamId: string; nod
       const parent = n.parentId ? nodes.find((p) => p.id === n.parentId) : undefined;
       return parent ? `${label(parent)} / ${n.title}` : n.title;
     };
-    return [{ value: "", label: "ระดับบนสุด" }, ...nodes.filter((n) => n.kind === "FOLDER" && !blocked.has(n.id)).map((n) => ({ value: n.id, label: label(n) })).sort((a, b) => a.label.localeCompare(b.label, "th"))];
+    return [{ value: "", label: tr("ระดับบนสุด") }, ...nodes.filter((n) => n.kind === "FOLDER" && !blocked.has(n.id)).map((n) => ({ value: n.id, label: label(n) })).sort((a, b) => a.label.localeCompare(b.label, "th"))];
   };
 
   const starred = menu ? favorites.includes(menu.id) : false;
@@ -151,34 +154,34 @@ export function NoteMenuHost({ teamId, nodes, favorites }: { teamId: string; nod
       {menu &&
         createPortal(
           <div className="fixed inset-0 z-[85]" onContextMenu={(e) => { e.preventDefault(); setMenu(null); }}>
-            <button type="button" aria-label="ปิดเมนู" onClick={() => setMenu(null)} className="absolute inset-0 cursor-default" />
+            <button type="button" aria-label={tr("ปิดเมนู")} onClick={() => setMenu(null)} className="absolute inset-0 cursor-default" />
             <div role="menu" aria-label={menu.title} style={{ left, top }} className="tooltip-pop absolute w-60 rounded-2xl border border-border bg-surface p-1.5 shadow-overlay">
               <p className="truncate px-2.5 pb-1 pt-1.5 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">{menu.title}</p>
               {menu.kind === "FOLDER" ? (
                 <button type="button" role="menuitem" className={row} onClick={() => { setMenu(null); openCreate({ id: menu.id, title: menu.title }); }}>
-                  <Icon name="note" className="h-[1.15rem] w-[1.15rem] text-primary" />สร้างโน้ตหรือโฟลเดอร์ในนี้
+                  <Icon name="note" className="h-[1.15rem] w-[1.15rem] text-primary" />{tr("สร้างโน้ตหรือโฟลเดอร์ในนี้")}
                 </button>
               ) : (
                 <Link role="menuitem" href={`/notes/${menu.id}?edit=1`} onClick={() => setMenu(null)} className={row}>
-                  <Icon name="note" className="h-[1.15rem] w-[1.15rem] text-primary" />แก้ไข
+                  <Icon name="note" className="h-[1.15rem] w-[1.15rem] text-primary" />{tr("แก้ไข")}
                 </Link>
               )}
               <Link role="menuitem" href={`/notes/${menu.id}`} onClick={() => setMenu(null)} className={row}>
-                <Icon name="open" className={glyph} />เปิด
+                <Icon name="open" className={glyph} />{tr("เปิด")}
               </Link>
               <button type="button" role="menuitem" className={row} onClick={() => { const id = menu.id; setMenu(null); run(toggleFavorite, { id }); }}>
-                <Icon name="star" filled={starred} className={`h-[1.15rem] w-[1.15rem] ${starred ? "text-warning" : "text-muted-foreground"}`} />{starred ? "เอาออกจากรายการโปรด" : "เพิ่มในรายการโปรด"}
+                <Icon name="star" filled={starred} className={`h-[1.15rem] w-[1.15rem] ${starred ? "text-warning" : "text-muted-foreground"}`} />{starred ? tr("เอาออกจากรายการโปรด") : tr("เพิ่มในรายการโปรด")}
               </button>
               {menu.kind === "FOLDER" && (
                 <button type="button" role="menuitem" className={row} onClick={() => ask("rename", menu)}>
-                  <Icon name="comment" className={glyph} />เปลี่ยนชื่อ
+                  <Icon name="comment" className={glyph} />{tr("เปลี่ยนชื่อ")}
                 </button>
               )}
               <button type="button" role="menuitem" className={row} onClick={() => ask("move", menu)}>
-                <Icon name="folder" className={glyph} />ย้ายไป…
+                <Icon name="folder" className={glyph} />{tr("ย้ายไป…")}
               </button>
               <button type="button" role="menuitem" className={`${row} mt-1 border-t border-border pt-1 text-danger`} onClick={() => ask("delete", menu)}>
-                <Icon name="trash" className="h-[1.15rem] w-[1.15rem]" />ลบ
+                <Icon name="trash" className="h-[1.15rem] w-[1.15rem]" />{tr("ลบ")}
               </button>
             </div>
           </div>,
@@ -187,7 +190,7 @@ export function NoteMenuHost({ teamId, nodes, favorites }: { teamId: string; nod
       {dialog &&
         createPortal(
           <div className="fixed inset-0 z-[80]">
-            <button type="button" aria-label="ปิด" onClick={() => setDialog(null)} className="absolute inset-0 cursor-default bg-foreground/25" />
+            <button type="button" aria-label={tr("ปิด")} onClick={() => setDialog(null)} className="absolute inset-0 cursor-default bg-foreground/25" />
             <form
               role="dialog"
               aria-modal="true"
@@ -203,20 +206,20 @@ export function NoteMenuHost({ teamId, nodes, favorites }: { teamId: string; nod
               className="tooltip-pop absolute inset-x-3 top-[calc(0.75rem+env(safe-area-inset-top))] mx-auto max-w-md space-y-3 rounded-2xl border border-border bg-surface p-4 shadow-overlay sm:top-24"
             >
               <p className="truncate text-sm font-semibold text-foreground">
-                {dialog.type === "move" ? "ย้าย" : dialog.type === "rename" ? "เปลี่ยนชื่อ" : "ลบ"} &quot;{dialog.item.title}&quot;
+                {dialog.type === "move" ? tr("ย้าย") : dialog.type === "rename" ? tr("เปลี่ยนชื่อ") : tr("ลบ")} &quot;{dialog.item.title}&quot;
               </p>
-              {dialog.type === "move" && <Select name="parentId" aria-label="ย้ายไปโฟลเดอร์" defaultValue={nodes.find((n) => n.id === dialog.item.id)?.parentId ?? ""} options={destinations(dialog.item)} />}
-              {dialog.type === "rename" && <input name="title" autoFocus required maxLength={120} defaultValue={dialog.item.title} aria-label="ชื่อโฟลเดอร์" className="input py-2" />}
+              {dialog.type === "move" && <Select name="parentId" aria-label={tr("ย้ายไปโฟลเดอร์")} defaultValue={nodes.find((n) => n.id === dialog.item.id)?.parentId ?? ""} options={destinations(dialog.item)} />}
+              {dialog.type === "rename" && <input name="title" autoFocus required maxLength={120} defaultValue={dialog.item.title} aria-label={tr("ชื่อโฟลเดอร์")} className="input py-2" />}
               {dialog.type === "delete" && (
                 <p className="text-sm leading-6 text-muted-foreground">
-                  {dialog.item.kind === "FOLDER" ? "โฟลเดอร์นี้และทุกอย่างข้างในจะถูกลบ" : "โน้ตนี้จะถูกลบ"} และลิงก์ที่ชี้มาจะหายไป — ลบได้เฉพาะคนที่สร้าง หรือหัวหน้า/เจ้าของทีม
+                  {dialog.item.kind === "FOLDER" ? tr("โฟลเดอร์นี้และทุกอย่างข้างในจะถูกลบ") : tr("โน้ตนี้จะถูกลบ")} {tr("และลิงก์ที่ชี้มาจะหายไป — ลบได้เฉพาะคนที่สร้าง หรือหัวหน้า/เจ้าของทีม")}
                 </p>
               )}
               {error && <p role="alert" className="text-sm font-medium text-danger">{error}</p>}
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setDialog(null)} className="btn-ghost min-h-10">ยกเลิก</button>
+                <button type="button" onClick={() => setDialog(null)} className="btn-ghost min-h-10">{tr("ยกเลิก")}</button>
                 <button disabled={pending} className={`btn min-h-10 ${dialog.type === "delete" ? "!bg-danger hover:brightness-95" : ""}`}>
-                  {pending ? "กำลังทำ..." : dialog.type === "move" ? "ย้าย" : dialog.type === "rename" ? "บันทึก" : "ลบ"}
+                  {pending ? tr("กำลังทำ...") : dialog.type === "move" ? tr("ย้าย") : dialog.type === "rename" ? tr("บันทึก") : tr("ลบ")}
                 </button>
               </div>
             </form>

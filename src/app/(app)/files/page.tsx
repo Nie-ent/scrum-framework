@@ -5,14 +5,19 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { toFileItems, withAttachments } from "@/lib/attachments";
 import { attachmentTtlDays } from "@/lib/attachment-store";
-import { dateToKey, formatDateKey, formatDateTime } from "@/lib/dates";
+import { dateToKey } from "@/lib/dates";
+import { formatDateKey, formatDateTime } from "@/lib/format-dates";
 import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { AttachmentList } from "@/components/attachments";
 import { EmptyState } from "@/components/ui-state";
 import { HelpTip } from "@/components/tooltip";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "ไฟล์สำคัญ" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("ไฟล์สำคัญ") };
+}
 
 /** ไฟล์แนบที่ถูก mark ว่าสำคัญ (เก็บถาวร) ของแต่ละทีม */
 export default async function FilesPage({ searchParams }: PageProps<"/files">) {
@@ -27,7 +32,7 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
     ...user.memberships.map((m) => m.team).filter((t) => !manageableIds.has(t.id)),
   ]);
   if (teams.length === 0) {
-    return <EmptyState title="คุณยังไม่ได้อยู่ในทีมไหน" description="ไฟล์ถูกแนบภายในทีม — ติดต่อผู้ดูแลระบบให้เพิ่มคุณเข้าทีมก่อน" />;
+    return <EmptyState title={tr("คุณยังไม่ได้อยู่ในทีมไหน")} description={tr("ไฟล์ถูกแนบภายในทีม — ติดต่อผู้ดูแลระบบให้เพิ่มคุณเข้าทีมก่อน")} />;
   }
   const team = (await pickSpace(teams, params.team))!;
   const canManage = manageableIds.has(team.id);
@@ -68,16 +73,16 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
   const source = (f: (typeof files)[number]) => {
     const taskTitle = f.task?.title ?? f.comment?.task?.title;
     const standup = f.comment?.standup;
-    return `${taskTitle ? `งาน: ${taskTitle}` : standup ? `เช็กอินของ ${standup.user.name} · ${formatDateKey(dateToKey(standup.date))}` : ""}${f.comment ? " (ในความคิดเห็น)" : ""}`;
+    return `${taskTitle ? tr("งาน: {0}", [taskTitle]) : standup ? tr("เช็กอินของ {0} · {1}", [standup.user.name, formatDateKey(dateToKey(standup.date))]) : ""}${f.comment ? tr(" (ในความคิดเห็น)") : ""}`;
   };
 
   return (
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">ไฟล์ที่เก็บไว้</p>
-          <h1 className="page-title flex items-center gap-1.5">ไฟล์สำคัญ <HelpTip title="ไฟล์ชั่วคราวกับไฟล์สำคัญ">{`ไฟล์ที่แนบในงานและความคิดเห็นจะถูกลบเองหลัง ${attachmentTtlDays()} วัน เพื่อไม่ให้พื้นที่เต็ม ถ้าทำเครื่องหมายว่าสำคัญ ไฟล์จะถูกเก็บไว้ถาวรและมารวมอยู่ที่หน้านี้`}</HelpTip></h1>
-          <p className="page-subtitle">{team.name} · {files.length} ไฟล์{q ? `ที่ชื่อตรงกับ "${q}"` : "ที่ทำเครื่องหมายให้เก็บไว้"}</p>
+          <p className="eyebrow">{tr("ไฟล์ที่เก็บไว้")}</p>
+          <h1 className="page-title flex items-center gap-1.5">{tr("ไฟล์สำคัญ")}{" "}<HelpTip title={tr("ไฟล์ชั่วคราวกับไฟล์สำคัญ")}>{tr("ไฟล์ที่แนบในงานและความคิดเห็นจะถูกลบเองหลัง {0} วัน เพื่อไม่ให้พื้นที่เต็ม ถ้าทำเครื่องหมายว่าสำคัญ ไฟล์จะถูกเก็บไว้ถาวรและมารวมอยู่ที่หน้านี้", [attachmentTtlDays()])}</HelpTip></h1>
+          <p className="page-subtitle">{team.name} · {files.length} {tr("ไฟล์")}{q ? tr("ที่ชื่อตรงกับ \"{0}\"", [q]) : tr("ที่ทำเครื่องหมายให้เก็บไว้")}</p>
         </div>
       </div>
 
@@ -86,11 +91,11 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
         <form action="/files" className="flex min-w-0 flex-1 basis-64 gap-2">
           <input type="hidden" name="team" value={team.id} />
           {view === "grid" && <input type="hidden" name="view" value="grid" />}
-          <input name="q" type="search" defaultValue={q} className="input py-2" placeholder="ค้นหาชื่อไฟล์" aria-label="ค้นหาชื่อไฟล์" />
-          <button className="btn-ghost shrink-0">ค้นหา</button>
+          <input name="q" type="search" defaultValue={q} className="input py-2" placeholder={tr("ค้นหาชื่อไฟล์")} aria-label={tr("ค้นหาชื่อไฟล์")} />
+          <button className="btn-ghost shrink-0">{tr("ค้นหา")}</button>
         </form>
-        <nav aria-label="มุมมอง" className="flex rounded-full bg-surface-sunken p-1">
-          {([["list", "รายการ"], ["grid", "ตาราง"]] as const).map(([v, label]) => (
+        <nav aria-label={tr("มุมมอง")} className="flex rounded-full bg-surface-sunken p-1">
+          {([["list", tr("รายการ")], ["grid", tr("ตาราง")]] as const).map(([v, label]) => (
             <Link key={v} href={link({ view: v })} aria-current={v === view ? "true" : undefined} className={`inline-flex min-h-8 items-center rounded-full px-3.5 text-sm transition ${v === view ? "bg-surface font-semibold text-primary shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>{label}</Link>
           ))}
         </nav>
@@ -98,9 +103,9 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
 
       {files.length === 0 ? (
         q ? (
-          <p className="card text-sm text-muted-foreground">ไม่พบไฟล์ที่ชื่อตรงกับ &quot;{q}&quot; · <Link href={`/files?team=${team.id}${view === "grid" ? "&view=grid" : ""}`} className="font-medium text-primary hover:text-primary-strong">ล้างการค้นหา</Link></p>
+          <p className="card text-sm text-muted-foreground">{tr("ไม่พบไฟล์ที่ชื่อตรงกับ \"")}{q}&quot; · <Link href={`/files?team=${team.id}${view === "grid" ? "&view=grid" : ""}`} className="font-medium text-primary hover:text-primary-strong">{tr("ล้างการค้นหา")}</Link></p>
         ) : (
-          <EmptyState title="ยังไม่มีไฟล์สำคัญ" description="คลิกขวาที่ไฟล์แนบในหน้า งาน หรือในความคิดเห็น (หรือกด ⋯) แล้วเลือก ทำเครื่องหมายว่าสำคัญ ไฟล์จะมาอยู่ที่นี่และไม่ถูกลบ" action={{ href: `/tasks?team=${team.id}`, label: "ไปหน้า งาน" }} />
+          <EmptyState title={tr("ยังไม่มีไฟล์สำคัญ")} description={tr("คลิกขวาที่ไฟล์แนบในหน้า งาน หรือในความคิดเห็น (หรือกด ⋯) แล้วเลือก ทำเครื่องหมายว่าสำคัญ ไฟล์จะมาอยู่ที่นี่และไม่ถูกลบ")} action={{ href: `/tasks?team=${team.id}`, label: tr("ไปหน้า งาน") }} />
         )
       ) : view === "grid" ? (
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -109,12 +114,12 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
             if (!item) return null;
             return (
               <li key={f.id} className="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-soft">
-                <a href={`/api/files/${f.id}`} target="_blank" rel="noopener noreferrer" aria-label={`เปิดไฟล์ ${f.name}`} className="flex aspect-[4/3] items-center justify-center bg-surface-sunken text-subtle transition hover:brightness-95">
+                <a href={`/api/files/${f.id}`} target="_blank" rel="noopener noreferrer" aria-label={tr("เปิดไฟล์ {0}", [f.name])} className="flex aspect-[4/3] items-center justify-center bg-surface-sunken text-subtle transition hover:brightness-95">
                   {item.isImage ? (
                     // eslint-disable-next-line @next/next/no-img-element -- ลิงก์ชั่วคราวจากที่เก็บไฟล์ ไม่ผ่าน next/image
                     <img src={`/api/files/${f.id}`} alt="" loading="lazy" className="size-full object-cover" />
                   ) : (
-                    <span className="flex flex-col items-center gap-1.5"><Icon name="paperclip" className="h-8 w-8" /><span className="text-2xs font-semibold uppercase tracking-wide">{f.name.includes(".") ? f.name.split(".").pop()!.slice(0, 5) : "ไฟล์"}</span></span>
+                    <span className="flex flex-col items-center gap-1.5"><Icon name="paperclip" className="h-8 w-8" /><span className="text-2xs font-semibold uppercase tracking-wide">{f.name.includes(".") ? f.name.split(".").pop()!.slice(0, 5) : tr("ไฟล์")}</span></span>
                   )}
                 </a>
                 <div className="min-w-0 space-y-1 p-2.5">
@@ -133,8 +138,8 @@ export default async function FilesPage({ searchParams }: PageProps<"/files">) {
                 <AttachmentList files={toFileItems([f], user.id)} canModerate={canManage} />
                 <p className="text-xs text-muted-foreground">
                   {source(f)}
-                  {f.uploader && ` · แนบโดย ${f.uploader.name}`}
-                  {f.importantAt && ` · เก็บไว้${f.importantBy ? `โดย ${f.importantBy.name}` : ""} ${formatDateTime(f.importantAt)}`}
+                  {f.uploader && tr(" · แนบโดย {0}", [f.uploader.name])}
+                  {f.importantAt && tr(" · เก็บไว้{0} {1}", [f.importantBy ? tr("โดย {0}", [f.importantBy.name]) : "", formatDateTime(f.importantAt)])}
                 </p>
               </li>
             ))}

@@ -23,25 +23,3 @@ export function shiftKey(key: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return dateToKey(d);
 }
-
-export function formatDateKey(key: string): string {
-  return new Intl.DateTimeFormat("th-TH", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(keyToDate(key));
-}
-
-/** เวลาที่โพสต์ เช่น "8 ต.ค. 14:05" ตาม timezone ของทีม */
-export function formatDateTime(date: Date): string {
-  return new Intl.DateTimeFormat("th-TH", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: TIMEZONE,
-  }).format(date);
-}

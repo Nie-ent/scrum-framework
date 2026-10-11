@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { deleteTask, restoreTask } from "@/app/actions/tasks";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
+import { useT } from "@/components/i18n";
 
 /** แถบเลิกทำแสดงอยู่กี่วินาที */
 const UNDO_SECONDS = 6;
@@ -18,6 +19,7 @@ const asForm = (id: string) => {
 
 /** ลบงาน (ซ่อนไว้ฝั่ง server) แล้วแสดงแถบ "เลิกทำ" ด้านล่างจอ */
 export function UndoDeleteProvider({ children }: { children: React.ReactNode }) {
+  const tr = useT();
   const [deleted, setDeleted] = useState<Deleted | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [restoring, startRestore] = useTransition();
@@ -34,13 +36,13 @@ export function UndoDeleteProvider({ children }: { children: React.ReactNode }) 
       setError(null);
       const result = await deleteTask(asForm(task.id));
       if (!result.ok) {
-        setError("ลบงานไม่สำเร็จ");
+        setError(tr("ลบงานไม่สำเร็จ"));
         return;
       }
       setDeleted({ ...task, key: Date.now() });
       hideLater();
     },
-    [hideLater],
+    [hideLater, tr],
   );
 
   const undo = () => {
@@ -50,7 +52,7 @@ export function UndoDeleteProvider({ children }: { children: React.ReactNode }) 
     startRestore(async () => {
       const result = await restoreTask(asForm(task.id));
       setDeleted(null);
-      if (!result.ok) setError("กู้คืนงานไม่สำเร็จ");
+      if (!result.ok) setError(tr("กู้คืนงานไม่สำเร็จ"));
     });
   };
 
@@ -66,14 +68,14 @@ export function UndoDeleteProvider({ children }: { children: React.ReactNode }) 
         >
           {deleted ? (
             <>
-              <span className="min-w-0 flex-1 truncate">ลบงาน &quot;{deleted.title}&quot; แล้ว</span>
+              <span className="min-w-0 flex-1 truncate">{tr("ลบงาน \"")}{deleted.title}{tr("\" แล้ว")}</span>
               <button
                 type="button"
                 onClick={undo}
                 disabled={restoring}
                 className="shrink-0 rounded-lg px-2 py-1 font-semibold text-indigo-300 transition hover:bg-white/10 hover:text-indigo-200"
               >
-                {restoring ? "กำลังกู้คืน…" : "เลิกทำ"}
+                {restoring ? tr("กำลังกู้คืน…") : tr("เลิกทำ")}
               </button>
               {/* แถบนับถอยหลัง */}
               <span
@@ -86,7 +88,7 @@ export function UndoDeleteProvider({ children }: { children: React.ReactNode }) 
           ) : (
             <>
               <span className="flex-1 text-rose-200">{error}</span>
-              <button type="button" onClick={() => setError(null)} className="shrink-0 px-2 text-white/70">ปิด</button>
+              <button type="button" onClick={() => setError(null)} className="shrink-0 px-2 text-white/70">{tr("ปิด")}</button>
             </>
           )}
         </div>
@@ -103,13 +105,14 @@ function useDeleteTask() {
 
 /** ปุ่ม × (เมาส์/คีย์บอร์ด) */
 export function DeleteTaskButton({ id, title }: { id: string; title: string }) {
+  const tr = useT();
   const remove = useDeleteTask();
   const [pending, start] = useTransition();
   return (
     <button
       type="button"
-      aria-label={`ลบงาน ${title}`}
-      title="ลบงาน"
+      aria-label={tr("ลบงาน {0}", [title])}
+      title={tr("ลบงาน")}
       disabled={pending}
       onClick={() => start(() => remove({ id, title }))}
       className="rounded-lg px-2 py-1 text-slate-400 transition hover:text-rose-600 disabled:opacity-40"
@@ -121,9 +124,10 @@ export function DeleteTaskButton({ id, title }: { id: string; title: string }) {
 
 /** ปัดขวาเพื่อลบ (มือถือ) */
 export function SwipeDeleteTask({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  const tr = useT();
   const remove = useDeleteTask();
   return (
-    <SwipeToDelete label="ลบงาน" onDelete={() => remove({ id, title })}>
+    <SwipeToDelete label={tr("ลบงาน")} onDelete={() => remove({ id, title })}>
       {children}
     </SwipeToDelete>
   );

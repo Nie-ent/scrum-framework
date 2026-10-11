@@ -2,20 +2,25 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
+import { dateToKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
+import { formatDateKey } from "@/lib/format-dates";
 import { dayTone, holidayName } from "@/lib/holidays";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { LinkSelect } from "@/components/select";
 import { EmptyState } from "@/components/ui-state";
 import { DueForm } from "./due-form";
+import { currentLocale, ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "ปฏิทินงาน" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("ปฏิทินงาน") };
+}
 
 const WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const VIEWS = [["month", "เดือน"], ["week", "สัปดาห์"], ["day", "วัน"]] as const;
 type View = (typeof VIEWS)[number][0];
-const fmt = (key: string, options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("th-TH", { ...options, timeZone: "UTC" }).format(keyToDate(key));
+const fmt = (key: string, options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(currentLocale(), { ...options, timeZone: "UTC" }).format(keyToDate(key));
 const monthLabel = (month: string) => fmt(`${month}-01`, { month: "long", year: "numeric" });
 const shiftMonth = (month: string, by: number) => {
   const d = keyToDate(`${month}-01`);
@@ -35,7 +40,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const today = todayKey();
   const { teams, manageableIds } = await getWorkspaceTeams(user);
   if (teams.length === 0) {
-    return <EmptyState title="ยังไม่มีพื้นที่ทำงาน" description="ลองโหลดหน้าใหม่อีกครั้ง" />;
+    return <EmptyState title={tr("ยังไม่มีพื้นที่ทำงาน")} description={tr("ลองโหลดหน้าใหม่อีกครั้ง")} />;
   }
   const team = (await pickSpace(teams, params.team))!;
   const canManage = manageableIds.has(team.id);
@@ -91,7 +96,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       : view === "week"
         ? `${fmt(rangeStart, { day: "numeric", month: "short" })} – ${fmt(rangeEnd, { day: "numeric", month: "short", year: "numeric" })}`
         : formatDateKey(anchor);
-  const unit = { month: "เดือน", week: "สัปดาห์", day: "วัน" }[view];
+  const unit = { month: tr("เดือน"), week: tr("สัปดาห์"), day: tr("วัน") }[view];
   // ตัวเลือกเดือน: ย้อนหลังและล่วงหน้า 12 เดือนจากเดือนที่ดูอยู่
   const monthHref = (m: string) => href(view, m === today.slice(0, 7) ? today : `${m}-01`);
   const monthOptions = Array.from({ length: 25 }, (_, i) => shiftMonth(month, i - 12)).map((m) => ({ value: monthHref(m), label: monthLabel(m) }));
@@ -102,7 +107,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         {t.number !== null && <span className="mr-1.5 tabular-nums text-subtle">#{t.number}</span>}
         <span className={t.progress >= 100 ? "text-subtle line-through" : "font-medium"}>{t.title}</span>
         <span className="ml-2 text-xs text-muted-foreground">
-          {t.progress}%{shared && ` · ${t.assigneeId === user.id ? "ของฉัน" : t.assignee.name}`}
+          {t.progress}%{shared && ` · ${t.assigneeId === user.id ? tr("ของฉัน") : t.assignee.name}`}
         </span>
       </Link>
       {canEdit(t) && <DueForm id={t.id} title={t.title} dueDate={t.dueDate ? dateToKey(t.dueDate) : null} />}
@@ -115,7 +120,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   );
   const AddLink = ({ day }: { day: string }) =>
     day >= today ? (
-      <Link href={`/tasks?team=${team.id}&due=${day}#new`} aria-label={`เพิ่มงานกำหนดส่ง ${formatDateKey(day)}`} title="เพิ่มงานในวันนี้" className="rounded px-1 text-sm leading-none text-subtle opacity-0 transition hover:text-primary focus:opacity-100 group-hover/day:opacity-100">+</Link>
+      <Link href={`/tasks?team=${team.id}&due=${day}#new`} aria-label={tr("เพิ่มงานกำหนดส่ง {0}", [formatDateKey(day)])} title={tr("เพิ่มงานในวันนี้")} className="rounded px-1 text-sm leading-none text-subtle opacity-0 transition hover:text-primary focus:opacity-100 group-hover/day:opacity-100">+</Link>
     ) : null;
   const arrow = "flex size-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-sunken hover:text-foreground";
   // รายการเรียงตามวัน: สัปดาห์แสดงครบทุกวัน (กดลงไปดูวันได้) · เดือนแสดงเฉพาะวันที่มีงาน
@@ -125,34 +130,34 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     <div className="space-y-5">
       <div className="page-header">
         <div>
-          <p className="eyebrow">ตารางงาน</p>
-          <h1 className="page-title">ปฏิทินงาน</h1>
-          <p className="page-subtitle">{team.name} · {rangeLabel} · {inRange.length} งานที่มีกำหนดส่งใน{unit}นี้</p>
+          <p className="eyebrow">{tr("ตารางงาน")}</p>
+          <h1 className="page-title">{tr("ปฏิทินงาน")}</h1>
+          <p className="page-subtitle">{team.name} · {rangeLabel} · {tr("{0} งานที่มีกำหนดส่งใน{1}นี้", [inRange.length, unit])}</p>
         </div>
-        <Link className="btn" href={`/tasks?team=${team.id}${view === "day" && anchor >= today ? `&due=${anchor}` : ""}#new`}>+ เพิ่มงาน</Link>
+        <Link className="btn" href={`/tasks?team=${team.id}${view === "day" && anchor >= today ? `&due=${anchor}` : ""}#new`}>{tr("+ เพิ่มงาน")}</Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <nav aria-label="มุมมอง" className="flex rounded-full bg-surface-sunken p-1">
-          {VIEWS.map(([v, label]) => (
-            <Link key={v} href={href(v, anchor)} aria-current={v === view ? "true" : undefined} className={`inline-flex min-h-8 items-center rounded-full px-3.5 text-sm transition ${v === view ? "bg-surface font-semibold text-primary shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>{label}</Link>
+        <nav aria-label={tr("มุมมอง")} className="flex rounded-full bg-surface-sunken p-1">
+          {VIEWS.map(([v, viewLabel]) => (
+            <Link key={v} href={href(v, anchor)} aria-current={v === view ? "true" : undefined} className={`inline-flex min-h-8 items-center rounded-full px-3.5 text-sm transition ${v === view ? "bg-surface font-semibold text-primary shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>{tr(viewLabel)}</Link>
           ))}
         </nav>
-        <LinkSelect aria-label="เลือกเดือน" className="w-44 !min-h-10 !text-sm" value={monthHref(month)} options={monthOptions} />
+        <LinkSelect aria-label={tr("เลือกเดือน")} className="w-44 !min-h-10 !text-sm" value={monthHref(month)} options={monthOptions} />
         <div className="ml-auto flex items-center gap-1">
           {!(anchor === today || (view === "month" && month === today.slice(0, 7)) || (view === "week" && rangeStart === weekStart(today))) && (
-            <Link href={href(view, today)} className="rounded-full px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary-soft">วันนี้</Link>
+            <Link href={href(view, today)} className="rounded-full px-3 py-1.5 text-sm font-medium text-primary transition hover:bg-primary-soft">{tr("วันนี้")}</Link>
           )}
-          <Link href={step(-1)} aria-label={`${unit}ก่อนหน้า`} className={arrow}>‹</Link>
-          <Link href={step(1)} aria-label={`${unit}ถัดไป`} className={arrow}>›</Link>
+          <Link href={step(-1)} aria-label={tr("{0}ก่อนหน้า", [unit])} className={arrow}>‹</Link>
+          <Link href={step(1)} aria-label={tr("{0}ถัดไป", [unit])} className={arrow}>›</Link>
         </div>
       </div>
 
       {/* ตาราง (จอใหญ่): เดือน = ช่องเตี้ย เห็นได้ 3 งานต่อวัน · สัปดาห์ = ช่องสูง เห็นทุกงาน */}
       {view !== "day" && (
-        <section className="hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-soft md:block" aria-label={`ปฏิทิน ${rangeLabel}`}>
+        <section className="hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-soft md:block" aria-label={tr("ปฏิทิน {0}", [rangeLabel])}>
           <div className="grid grid-cols-7 border-b border-border bg-surface-sunken text-center text-xs font-semibold text-muted-foreground">
-            {WEEKDAYS.map((d, i) => <div key={d} className={`py-2 ${i === 0 || i === 6 ? "text-danger" : ""}`}>{d}</div>)}
+            {WEEKDAYS.map((d, i) => <div key={d} className={`py-2 ${i === 0 || i === 6 ? "text-danger" : ""}`}>{tr(d)}</div>)}
           </div>
           <div className="grid grid-cols-7">
             {days.map((key) => {
@@ -164,8 +169,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                   <div className="mb-1 flex items-center justify-between">
                     <Link
                       href={deeper(key)}
-                      title={view === "month" ? "ดูสัปดาห์นี้" : "ดูวันนี้"}
-                      aria-label={`${formatDateKey(key)} — ${view === "month" ? "ดูสัปดาห์นี้" : "ดูวันนี้"}`}
+                      title={view === "month" ? tr("ดูสัปดาห์นี้") : tr("ดูวันนี้")}
+                      aria-label={`${formatDateKey(key)} — ${view === "month" ? tr("ดูสัปดาห์นี้") : tr("ดูวันนี้")}`}
                       className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs tabular-nums transition hover:ring-2 hover:ring-primary/40 ${key === today ? "bg-primary font-semibold text-primary-foreground" : outside ? `${dayTone(key)} opacity-40` : dayTone(key)}`}
                     >
                       {Number(key.slice(8))}
@@ -175,29 +180,29 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                   </div>
                   <ul className="space-y-1">
                     {tasks.slice(0, limit).map((t) => <Chip key={t.id} t={t} day={key} />)}
-                    {tasks.length > limit && <li><Link href={deeper(key)} className="px-1.5 text-xs text-muted-foreground hover:text-primary">+ อีก {tasks.length - limit} งาน</Link></li>}
+                    {tasks.length > limit && <li><Link href={deeper(key)} className="px-1.5 text-xs text-muted-foreground hover:text-primary">{tr("+ อีก")}{" "}{tasks.length - limit} {tr("งาน")}</Link></li>}
                   </ul>
                 </div>
               );
             })}
           </div>
           <p className="flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-primary-soft ring-1 ring-primary/30" />งานของฉัน</span>
-            {shared && <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-surface-sunken ring-1 ring-border-strong" />งานของคนอื่น</span>}
-            <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-danger-soft ring-1 ring-danger/30" />เลยกำหนด</span>
-            <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-success-soft ring-1 ring-success/30" />เสร็จแล้ว</span>
-            <span className="font-medium text-danger">เสาร์–อาทิตย์</span>
-            <span className="font-medium text-sky-600">วันหยุดนักขัตฤกษ์</span>
-            <span>กดตัวเลขวันเพื่อดู{view === "month" ? "สัปดาห์นั้น" : "วันนั้น"}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-primary-soft ring-1 ring-primary/30" />{tr("งานของฉัน")}</span>
+            {shared && <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-surface-sunken ring-1 ring-border-strong" />{tr("งานของคนอื่น")}</span>}
+            <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-danger-soft ring-1 ring-danger/30" />{tr("เลยกำหนด")}</span>
+            <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded bg-success-soft ring-1 ring-success/30" />{tr("เสร็จแล้ว")}</span>
+            <span className="font-medium text-danger">{tr("เสาร์–อาทิตย์")}</span>
+            <span className="font-medium text-sky-600">{tr("วันหยุดนักขัตฤกษ์")}</span>
+            <span>{tr("กดตัวเลขวันเพื่อดู")}{view === "month" ? tr("สัปดาห์นั้น") : tr("วันนั้น")}</span>
           </p>
         </section>
       )}
 
       <section className="card">
-        <h2 className="mb-1 font-semibold text-foreground">{view === "day" ? `งานของ ${formatDateKey(anchor)}` : `งาน${unit}นี้ เรียงตามวัน`}</h2>
+        <h2 className="mb-1 font-semibold text-foreground">{view === "day" ? tr("งานของ {0}", [formatDateKey(anchor)]) : tr("งาน{0}นี้ เรียงตามวัน", [unit])}</h2>
         {view === "day" && holidayName(anchor) && <p className="text-sm font-medium text-sky-600">{holidayName(anchor)}</p>}
         {listDays.length === 0 || (view === "day" && inRange.length === 0) ? (
-          <p className="text-sm text-muted-foreground">{view === "day" ? "ไม่มีงานที่กำหนดส่งวันนี้" : "ยังไม่มีงานที่กำหนดส่งในเดือนนี้ — เพิ่มงานแล้วใส่กำหนดส่ง หรือกำหนดวันให้งานด้านล่าง"}</p>
+          <p className="text-sm text-muted-foreground">{view === "day" ? tr("ไม่มีงานที่กำหนดส่งวันนี้") : tr("ยังไม่มีงานที่กำหนดส่งในเดือนนี้ — เพิ่มงานแล้วใส่กำหนดส่ง หรือกำหนดวันให้งานด้านล่าง")}</p>
         ) : view === "day" ? (
           <ul className="divide-y divide-border">{inRange.map((t) => <TaskLine key={t.id} t={t} />)}</ul>
         ) : (
@@ -205,11 +210,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
             <div key={key} className="border-t border-border py-2 first:border-t-0">
               <h3 className="text-xs font-semibold">
                 <Link href={deeper(key)} className={`hover:underline ${key === today ? "text-primary" : dayTone(key) === "text-foreground" ? (key < today ? "text-subtle" : "text-muted-foreground") : dayTone(key)}`}>
-                  {formatDateKey(key)}{key === today && " · วันนี้"}
+                  {formatDateKey(key)}{key === today && tr(" · วันนี้")}
                 </Link>
                 {holidayName(key) && <span className="ml-1.5 font-medium text-sky-600">{holidayName(key)}</span>}
               </h3>
-              {(byDay.get(key) ?? []).length === 0 ? <p className="py-1 text-xs text-subtle">ไม่มีงาน</p> : <ul className="divide-y divide-border/60">{byDay.get(key)!.map((t) => <TaskLine key={t.id} t={t} />)}</ul>}
+              {(byDay.get(key) ?? []).length === 0 ? <p className="py-1 text-xs text-subtle">{tr("ไม่มีงาน")}</p> : <ul className="divide-y divide-border/60">{byDay.get(key)!.map((t) => <TaskLine key={t.id} t={t} />)}</ul>}
             </div>
           ))
         )}
@@ -217,8 +222,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
       {unscheduled.length > 0 && (
         <section className="card">
-          <h2 className="font-semibold text-foreground">งานที่ยังไม่มีกำหนดส่ง ({unscheduled.length})</h2>
-          <p className="mb-1 text-sm text-muted-foreground">เลือกวันแล้วกดบันทึก งานจะขึ้นในปฏิทิน</p>
+          <h2 className="font-semibold text-foreground">{tr("งานที่ยังไม่มีกำหนดส่ง (")}{unscheduled.length})</h2>
+          <p className="mb-1 text-sm text-muted-foreground">{tr("เลือกวันแล้วกดบันทึก งานจะขึ้นในปฏิทิน")}</p>
           <ul className="divide-y divide-border">{unscheduled.map((t) => <TaskLine key={t.id} t={t} />)}</ul>
         </section>
       )}

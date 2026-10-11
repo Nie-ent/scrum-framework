@@ -5,6 +5,7 @@ import { useForm, type FieldValues, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
 import type { FormState } from "@/app/actions/auth";
+import { useT } from "@/components/i18n";
 
 /**
  * ฟอร์มที่ตรวจด้วย zod ในเบราว์เซอร์ (react-hook-form) แล้วส่งเข้า server action
@@ -63,6 +64,7 @@ export function useZodForm<S extends z.ZodType<FieldValues, FieldValues>>(
 
 /** ข้อความผิดพลาดใต้ช่องกรอก */
 export function FieldError({ name, message }: { name: string; message?: string }) {
+  const tr = useT();
   if (!message) return null;
-  return <p id={`${name}-error`} role="alert" className="mt-1 text-xs font-medium text-rose-700">{message}</p>;
+  return <p id={`${name}-error`} role="alert" className="mt-1 text-xs font-medium text-rose-700">{tr(message)}</p>;
 }

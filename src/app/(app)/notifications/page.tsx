@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 import { markAllNotificationsRead } from "@/app/actions/notifications";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime } from "@/lib/format-dates";
 import { EmptyState } from "@/components/ui-state";
+import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "แจ้งเตือน" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("แจ้งเตือน") };
+}
 
 export default async function NotificationsPage() {
   const user = await requireUser();
@@ -16,19 +20,19 @@ export default async function NotificationsPage() {
     <div className="max-w-3xl space-y-6">
       <div className="page-header">
         <div>
-          <p className="eyebrow">ความเคลื่อนไหวถึงคุณ</p>
-          <h1 className="page-title">แจ้งเตือน</h1>
-          <p className="page-subtitle">{unread > 0 ? `ยังไม่ได้อ่าน ${unread} รายการ` : "อ่านครบแล้ว"}</p>
+          <p className="eyebrow">{tr("ความเคลื่อนไหวถึงคุณ")}</p>
+          <h1 className="page-title">{tr("แจ้งเตือน")}</h1>
+          <p className="page-subtitle">{unread > 0 ? tr("ยังไม่ได้อ่าน {0} รายการ", [unread]) : tr("อ่านครบแล้ว")}</p>
         </div>
         {unread > 0 && (
           <form action={markAllNotificationsRead}>
-            <button className="btn-ghost">ทำเครื่องหมายว่าอ่านแล้วทั้งหมด</button>
+            <button className="btn-ghost">{tr("ทำเครื่องหมายว่าอ่านแล้วทั้งหมด")}</button>
           </form>
         )}
       </div>
 
       {items.length === 0 ? (
-        <EmptyState title="ยังไม่มีแจ้งเตือน" description="เมื่อมีคนมอบหมายงาน แสดงความคิดเห็น หรือเชิญคุณเข้าทีม จะแสดงที่นี่" />
+        <EmptyState title={tr("ยังไม่มีแจ้งเตือน")} description={tr("เมื่อมีคนมอบหมายงาน แสดงความคิดเห็น หรือเชิญคุณเข้าทีม จะแสดงที่นี่")} />
       ) : (
         <ul className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           {items.map((n) => (
@@ -38,7 +42,7 @@ export default async function NotificationsPage() {
                 href={`/api/notifications/${n.id}`}
                 className={`flex gap-3 px-4 py-3.5 transition hover:bg-slate-50 sm:px-5 ${n.readAt ? "" : "bg-indigo-50/40"}`}
               >
-                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.readAt ? "bg-transparent" : "bg-indigo-500"}`} aria-label={n.readAt ? undefined : "ยังไม่ได้อ่าน"} />
+                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.readAt ? "bg-transparent" : "bg-indigo-500"}`} aria-label={n.readAt ? undefined : tr("ยังไม่ได้อ่าน")} />
                 <span className="min-w-0 flex-1">
                   <span className={`block text-sm ${n.readAt ? "text-slate-700" : "font-semibold text-slate-900"}`}>{n.title}</span>
                   <span className="mt-0.5 line-clamp-2 block text-sm text-slate-500">{n.body}</span>

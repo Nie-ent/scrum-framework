@@ -2,6 +2,7 @@ import { Extension } from "@tiptap/react";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { noteKey } from "@/lib/note-links";
+import type { Translate } from "@/lib/i18n/core";
 
 const PATTERN = /\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]+?))?\]\]|(^|[\s(])#(\d{1,6})(?![\w-])/g;
 
@@ -10,12 +11,13 @@ const PATTERN = /\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]+?))?\]\]|(^|[\s(])#(\d{1,6})(
  * — เป็นการตกแต่งการแสดงผลอย่างเดียว เนื้อหาที่บันทึกยังเป็นข้อความเดิม
  * เมื่อเคอร์เซอร์อยู่ในป้าย วงเล็บจะกลับมาให้เห็นเพื่อแก้ไขได้ตามปกติ
  */
-export const LinkChips = Extension.create<{ noteTitles: string[]; taskNumbers: number[] }>({
+export const LinkChips = Extension.create<{ noteTitles: string[]; taskNumbers: number[]; tr: Translate }>({
   name: "linkChips",
-  addOptions: () => ({ noteTitles: [], taskNumbers: [] }),
+  addOptions: () => ({ noteTitles: [], taskNumbers: [], tr: (text: string) => text }),
   addProseMirrorPlugins() {
     const known = new Set(this.options.noteTitles.map(noteKey));
     const tasks = new Set(this.options.taskNumbers);
+    const tr = this.options.tr;
     return [
       new Plugin({
         key: new PluginKey("linkChips"),
@@ -41,11 +43,11 @@ export const LinkChips = Extension.create<{ noteTitles: string[]; taskNumbers: n
                   // ซ่อน [[ , ]] และส่วน "ชื่อ|" เมื่อมีข้อความที่แสดงแทน
                   const labelStart = match[2] !== undefined ? end - 2 - match[2].length : start + 2;
                   decorations.push(Decoration.inline(start, labelStart, { class: "note-chip-hidden" }));
-                  decorations.push(Decoration.inline(labelStart, end - 2, { class: chip, title: exists ? `ไปที่โน้ต ${match[1].trim()}` : `ยังไม่มีโน้ต ${match[1].trim()} — สร้างได้หลังบันทึก` }));
+                  decorations.push(Decoration.inline(labelStart, end - 2, { class: chip, title: exists ? tr("ไปที่โน้ต {0}", [match[1].trim()]) : tr("ยังไม่มีโน้ต {0} — สร้างได้หลังบันทึก", [match[1].trim()]) }));
                   decorations.push(Decoration.inline(end - 2, end, { class: "note-chip-hidden" }));
                 } else if (match[4] !== undefined && tasks.has(Number(match[4]))) {
                   const start = pos + match.index + match[3].length;
-                  decorations.push(Decoration.inline(start, start + 1 + match[4].length, { class: "task-chip", title: `งานเลข ${match[4]}` }));
+                  decorations.push(Decoration.inline(start, start + 1 + match[4].length, { class: "task-chip", title: tr("งานเลข {0}", [match[4]]) }));
                 }
               }
             });

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { keyToDate, todayKey } from "@/lib/dates";
 import { dayTone, holidayName, isWeekend } from "@/lib/holidays";
+import { currentLocale, tr } from "@/lib/i18n/server";
 
 const DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const Chevron = ({ left = false }: { left?: boolean }) => (
@@ -29,7 +30,7 @@ export function DashboardCalendar({ dateKey, monthKey, teamId, view, submitted =
   const monthHref = (delta: number) => `/dashboard?date=${dateKey}&month=${new Date(Date.UTC(year, month + delta, 1)).toISOString().slice(0, 7)}${rest}`;
   const canNext = monthKey < today.slice(0, 7);
   const arrow = "flex size-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-sunken hover:text-foreground";
-  const monthLabel = new Intl.DateTimeFormat("th-TH", { month: "long", year: "numeric", timeZone: "UTC" }).format(first);
+  const monthLabel = new Intl.DateTimeFormat(currentLocale(), { month: "long", year: "numeric", timeZone: "UTC" }).format(first);
   const status = (key: string) => {
     if (key > today || expected === 0) return null;
     const count = submitted[key] ?? 0;
@@ -41,15 +42,15 @@ export function DashboardCalendar({ dateKey, monthKey, teamId, view, submitted =
   const holidays = days.flatMap((key) => (holidayName(key) ? [{ key, name: holidayName(key)! }] : []));
 
   return (
-    <section className="card p-4" aria-label="ปฏิทินเลือกวันที่">
+    <section className="card p-4" aria-label={tr("ปฏิทินเลือกวันที่")}>
       <div className="mb-3 flex items-center gap-1">
         <h2 className="min-w-0 flex-1 truncate font-semibold text-foreground">{monthLabel}</h2>
-        {dateKey !== today && <Link href={href(today)} scroll={false} className="rounded-full px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary-soft">วันนี้</Link>}
-        <Link href={monthHref(-1)} scroll={false} aria-label="เดือนก่อนหน้า" className={arrow}><Chevron left /></Link>
-        {canNext ? <Link href={monthHref(1)} scroll={false} aria-label="เดือนถัดไป" className={arrow}><Chevron /></Link> : <span aria-hidden="true" className={`${arrow} pointer-events-none opacity-30`}><Chevron /></span>}
+        {dateKey !== today && <Link href={href(today)} scroll={false} className="rounded-full px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary-soft">{tr("วันนี้")}</Link>}
+        <Link href={monthHref(-1)} scroll={false} aria-label={tr("เดือนก่อนหน้า")} className={arrow}><Chevron left /></Link>
+        {canNext ? <Link href={monthHref(1)} scroll={false} aria-label={tr("เดือนถัดไป")} className={arrow}><Chevron /></Link> : <span aria-hidden="true" className={`${arrow} pointer-events-none opacity-30`}><Chevron /></span>}
       </div>
       <div className="grid grid-cols-7 justify-items-center gap-y-1 text-center text-xs">
-        {DAYS.map((day, i) => <span key={day} className={`py-1 font-medium ${i === 0 || i === 6 ? "text-danger" : "text-subtle"}`}>{day}</span>)}
+        {DAYS.map((day, i) => <span key={day} className={`py-1 font-medium ${i === 0 || i === 6 ? "text-danger" : "text-subtle"}`}>{tr(day)}</span>)}
         {Array.from({ length: first.getUTCDay() }, (_, index) => <span key={`blank-${index}`} />)}
         {days.map((key) => {
           const day = Number(key.slice(8));
@@ -57,7 +58,7 @@ export function DashboardCalendar({ dateKey, monthKey, teamId, view, submitted =
           const state = status(key);
           const holiday = holidayName(key);
           const count = submitted[key] ?? 0;
-          const label = [holiday, state ? `เช็กอิน ${count}/${expected}` : null].filter(Boolean).join(" · ") || undefined;
+          const label = [holiday, state ? tr("เช็กอิน {0}/{1}", [count, expected]) : null].filter(Boolean).join(" · ") || undefined;
           const body = (
             <>
               <span className={`flex size-7 items-center justify-center rounded-full tabular-nums transition ${isSelected ? "bg-primary font-semibold text-primary-foreground" : `${dayTone(key)} ${key === today ? "bg-primary-soft font-semibold" : ""} group-hover:bg-surface-sunken`}`}>{day}</span>
@@ -72,11 +73,11 @@ export function DashboardCalendar({ dateKey, monthKey, teamId, view, submitted =
         })}
       </div>
       <ul className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-3 text-2xs text-muted-foreground">
-        <li className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-success" />ส่งครบ</li>
-        <li className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-warning" />ไม่ครบ</li>
-        <li className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-danger" />ไม่มีใครส่ง</li>
-        <li className="text-danger">เสาร์–อาทิตย์</li>
-        <li className="text-sky-600">นักขัตฤกษ์</li>
+        <li className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-success" />{tr("ส่งครบ")}</li>
+        <li className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-warning" />{tr("ไม่ครบ")}</li>
+        <li className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-danger" />{tr("ไม่มีใครส่ง")}</li>
+        <li className="text-danger">{tr("เสาร์–อาทิตย์")}</li>
+        <li className="text-sky-600">{tr("นักขัตฤกษ์")}</li>
       </ul>
       {holidays.length > 0 && (
         <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">

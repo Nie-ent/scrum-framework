@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { sendTestPush, subscribePush, unsubscribePush } from "@/app/actions/push";
+import { useT } from "@/components/i18n";
 
 type Status = "loading" | "unsupported" | "off" | "on" | "denied";
 
@@ -15,6 +16,7 @@ const isSupported = () => "serviceWorker" in navigator && "PushManager" in windo
 
 /** เปิด/ปิดการแจ้งเตือนเช็กอินของ "เครื่องนี้" */
 export function NotificationSettings({ publicKey }: { publicKey: string | null }) {
+  const tr = useT();
   const [status, setStatus] = useState<Status>("loading");
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -42,7 +44,7 @@ export function NotificationSettings({ publicKey }: { publicKey: string | null }
       try {
         await task();
       } catch {
-        setMessage({ tone: "error", text: "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง" });
+        setMessage({ tone: "error", text: tr("เกิดข้อผิดพลาด ลองใหม่อีกครั้ง") });
       }
     });
 
@@ -68,7 +70,7 @@ export function NotificationSettings({ publicKey }: { publicKey: string | null }
         return;
       }
       setStatus("on");
-      setMessage({ tone: "ok", text: "เปิดการแจ้งเตือนบนเครื่องนี้แล้ว" });
+      setMessage({ tone: "ok", text: tr("เปิดการแจ้งเตือนบนเครื่องนี้แล้ว") });
     });
 
   const disable = () =>
@@ -80,46 +82,46 @@ export function NotificationSettings({ publicKey }: { publicKey: string | null }
         await subscription.unsubscribe();
       }
       setStatus("off");
-      setMessage({ tone: "ok", text: "ปิดการแจ้งเตือนบนเครื่องนี้แล้ว" });
+      setMessage({ tone: "ok", text: tr("ปิดการแจ้งเตือนบนเครื่องนี้แล้ว") });
     });
 
   const test = () =>
     run(async () => {
       const result = await sendTestPush();
-      setMessage(result.ok ? { tone: "ok", text: result.message ?? "ส่งแล้ว" } : { tone: "error", text: result.error });
+      setMessage(result.ok ? { tone: "ok", text: result.message ?? tr("ส่งแล้ว") } : { tone: "error", text: result.error });
     });
 
   return (
     <section className="card space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold text-slate-900">แจ้งเตือนเช็กอิน</h2>
-          <p className="text-sm text-slate-500">เตือนตอนเช้าวันทำงาน ถ้ายังไม่ได้ส่งเช็กอินของวันนั้น</p>
+          <h2 className="font-semibold text-slate-900">{tr("แจ้งเตือนเช็กอิน")}</h2>
+          <p className="text-sm text-slate-500">{tr("เตือนตอนเช้าวันทำงาน ถ้ายังไม่ได้ส่งเช็กอินของวันนั้น")}</p>
         </div>
-        {status === "on" && <span className="badge badge-success shrink-0">เปิดอยู่</span>}
-        {status === "off" && <span className="badge badge-neutral shrink-0">ปิดอยู่</span>}
+        {status === "on" && <span className="badge badge-success shrink-0">{tr("เปิดอยู่")}</span>}
+        {status === "off" && <span className="badge badge-neutral shrink-0">{tr("ปิดอยู่")}</span>}
       </div>
 
       {!publicKey ? (
-        <p className="text-sm text-slate-500">ระบบยังไม่ได้ตั้งค่าการแจ้งเตือน — ติดต่อผู้ดูแลระบบ</p>
+        <p className="text-sm text-slate-500">{tr("ระบบยังไม่ได้ตั้งค่าการแจ้งเตือน — ติดต่อผู้ดูแลระบบ")}</p>
       ) : status === "loading" ? (
-        <p className="text-sm text-slate-400">กำลังตรวจสอบ…</p>
+        <p className="text-sm text-slate-400">{tr("กำลังตรวจสอบ…")}</p>
       ) : status === "unsupported" ? (
         <p className="text-sm text-slate-500">
-          เบราว์เซอร์นี้ยังรับการแจ้งเตือนไม่ได้ — บน iPhone ให้เปิดด้วย Safari แล้วกด Share → &quot;เพิ่มไปยังหน้าจอโฮม&quot; จากนั้นเปิด Pace จากไอคอนบนหน้าจอ (ต้องเป็น iOS 16.4 ขึ้นไป)
+          {tr("เบราว์เซอร์นี้ยังรับการแจ้งเตือนไม่ได้ — บน iPhone ให้เปิดด้วย Safari แล้วกด Share → \"เพิ่มไปยังหน้าจอโฮม\" จากนั้นเปิด Pace จากไอคอนบนหน้าจอ (ต้องเป็น iOS 16.4 ขึ้นไป)")}
         </p>
       ) : status === "denied" ? (
-        <p className="text-sm text-slate-500">การแจ้งเตือนถูกบล็อกไว้ — เปิดอนุญาตให้เว็บนี้ในการตั้งค่าของเบราว์เซอร์ก่อน แล้วโหลดหน้านี้ใหม่</p>
+        <p className="text-sm text-slate-500">{tr("การแจ้งเตือนถูกบล็อกไว้ — เปิดอนุญาตให้เว็บนี้ในการตั้งค่าของเบราว์เซอร์ก่อน แล้วโหลดหน้านี้ใหม่")}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {status === "on" ? (
             <>
-              <button type="button" className="btn-ghost" onClick={test} disabled={pending}>ส่งแจ้งเตือนทดสอบ</button>
-              <button type="button" className="btn-ghost" onClick={disable} disabled={pending}>ปิดบนเครื่องนี้</button>
+              <button type="button" className="btn-ghost" onClick={test} disabled={pending}>{tr("ส่งแจ้งเตือนทดสอบ")}</button>
+              <button type="button" className="btn-ghost" onClick={disable} disabled={pending}>{tr("ปิดบนเครื่องนี้")}</button>
             </>
           ) : (
             <button type="button" className="btn" onClick={enable} disabled={pending}>
-              {pending ? "กำลังเปิด…" : "เปิดการแจ้งเตือนบนเครื่องนี้"}
+              {pending ? tr("กำลังเปิด…") : tr("เปิดการแจ้งเตือนบนเครื่องนี้")}
             </button>
           )}
         </div>
@@ -130,7 +132,7 @@ export function NotificationSettings({ publicKey }: { publicKey: string | null }
           {message.text}
         </p>
       )}
-      <p className="text-xs text-slate-400">ตั้งค่าแยกรายเครื่อง — ถ้าใช้ทั้งมือถือและคอมพิวเตอร์ ให้เปิดในเครื่องที่อยากรับแจ้งเตือน</p>
+      <p className="text-xs text-slate-400">{tr("ตั้งค่าแยกรายเครื่อง — ถ้าใช้ทั้งมือถือและคอมพิวเตอร์ ให้เปิดในเครื่องที่อยากรับแจ้งเตือน")}</p>
     </section>
   );
 }

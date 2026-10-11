@@ -7,8 +7,10 @@ import type { CommentTarget } from "@/lib/comments";
 import { uploadFiles, type UploadProgress } from "@/lib/upload-client";
 import { FilePicker, PickedFiles, UploadProgressBar } from "@/components/attachments";
 import { SubmitButton } from "@/components/form";
+import { useT } from "@/components/i18n";
 
 export function CommentForm({ target, label, canAttach }: { target: CommentTarget; label: string; canAttach: boolean }) {
+  const tr = useT();
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
@@ -45,7 +47,7 @@ export function CommentForm({ target, label, canAttach }: { target: CommentTarge
           maxLength={2000}
           required={files.length === 0}
           aria-label={label}
-          placeholder="เขียนความคิดเห็น… (วางลิงก์ได้)"
+          placeholder={tr("เขียนความคิดเห็น… (วางลิงก์ได้)")}
           className="input min-h-10 flex-1 resize-y py-2 text-sm"
         />
         {canAttach && (
@@ -57,7 +59,7 @@ export function CommentForm({ target, label, canAttach }: { target: CommentTarge
             }}
           />
         )}
-        <SubmitButton className="btn-ghost min-h-10 shrink-0 px-3 text-sm" pendingText="กำลังส่ง…">ส่ง</SubmitButton>
+        <SubmitButton className="btn-ghost min-h-10 shrink-0 px-3 text-sm" pendingText={tr("กำลังส่ง…")}>{tr("ส่ง")}</SubmitButton>
       </div>
       {progress ? <UploadProgressBar progress={progress} /> : <PickedFiles files={files} onRemove={(i) => setFiles(files.filter((_, n) => n !== i))} />}
       {error && <p role="alert" className="text-xs font-medium text-rose-700">{error}</p>}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { removeAvatar, updateProfile, uploadAvatar } from "@/app/actions/profile";
 import { Avatar } from "@/components/avatar";
 import { FormMessage, SubmitButton } from "@/components/form";
+import { useT } from "@/components/i18n";
 
 const AVATAR_SIZE = 256;
 
@@ -36,6 +37,7 @@ export function ProfileForm({
 }: {
   user: { id: string; name: string; email: string; avatarUpdatedAt: Date | null; summary: string };
 }) {
+  const tr = useT();
   const router = useRouter();
   const [state, action] = useActionState(updateProfile, undefined);
   const [preview, setPreview] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export function ProfileForm({
     e.target.value = ""; // เลือกไฟล์เดิมซ้ำได้
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      setPhotoMessage({ tone: "error", text: "กรุณาเลือกไฟล์รูปภาพ" });
+      setPhotoMessage({ tone: "error", text: tr("กรุณาเลือกไฟล์รูปภาพ") });
       return;
     }
     startUpload(async () => {
@@ -61,14 +63,14 @@ export function ProfileForm({
         const result = await uploadAvatar(data);
         if (!result.ok) {
           setPreview(null);
-          setPhotoMessage({ tone: "error", text: result.error ?? "อัปโหลดไม่สำเร็จ" });
+          setPhotoMessage({ tone: "error", text: result.error ?? tr("อัปโหลดไม่สำเร็จ") });
           return;
         }
-        setPhotoMessage({ tone: "ok", text: "เปลี่ยนรูปโปรไฟล์แล้ว" });
+        setPhotoMessage({ tone: "ok", text: tr("เปลี่ยนรูปโปรไฟล์แล้ว") });
         router.refresh();
       } catch {
         setPreview(null);
-        setPhotoMessage({ tone: "error", text: "เปิดไฟล์รูปนี้ไม่ได้ ลองใช้ไฟล์ JPG หรือ PNG" });
+        setPhotoMessage({ tone: "error", text: tr("เปิดไฟล์รูปนี้ไม่ได้ ลองใช้ไฟล์ JPG หรือ PNG") });
       }
     });
   }
@@ -77,7 +79,7 @@ export function ProfileForm({
     startUpload(async () => {
       await removeAvatar();
       setPreview(null);
-      setPhotoMessage({ tone: "ok", text: "ลบรูปโปรไฟล์แล้ว" });
+      setPhotoMessage({ tone: "ok", text: tr("ลบรูปโปรไฟล์แล้ว") });
       router.refresh();
     });
   }
@@ -86,7 +88,7 @@ export function ProfileForm({
 
   return (
     <section className="card space-y-5">
-      <p className="eyebrow">โปรไฟล์</p>
+      <p className="eyebrow">{tr("โปรไฟล์")}</p>
       <div className="flex items-center gap-4">
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element -- พรีวิวจากไฟล์ในเครื่อง
@@ -97,15 +99,15 @@ export function ProfileForm({
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-ghost" disabled={uploading} onClick={() => fileInput.current?.click()}>
-              {uploading ? "กำลังอัปโหลด…" : hasPhoto ? "เปลี่ยนรูป" : "เพิ่มรูปโปรไฟล์"}
+              {uploading ? tr("กำลังอัปโหลด…") : hasPhoto ? tr("เปลี่ยนรูป") : tr("เพิ่มรูปโปรไฟล์")}
             </button>
             {hasPhoto && (
               <button type="button" className="btn-ghost text-rose-700" disabled={uploading} onClick={onRemove}>
-                ลบรูป
+                {tr("ลบรูป")}
               </button>
             )}
           </div>
-          <p className="text-xs text-slate-400">ระบบจะครอปตรงกลางเป็นสี่เหลี่ยมจัตุรัสให้อัตโนมัติ</p>
+          <p className="text-xs text-slate-400">{tr("ระบบจะครอปตรงกลางเป็นสี่เหลี่ยมจัตุรัสให้อัตโนมัติ")}</p>
           <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={onPick} />
         </div>
       </div>
@@ -117,18 +119,18 @@ export function ProfileForm({
 
       <form action={action} className="space-y-4 border-t border-slate-100 pt-5">
         <div>
-          <label className="label" htmlFor="profile-name">ชื่อที่แสดง</label>
+          <label className="label" htmlFor="profile-name">{tr("ชื่อที่แสดง")}</label>
           <input id="profile-name" name="name" className="input" defaultValue={user.name} maxLength={100} required />
         </div>
         <div>
-          <label className="label" htmlFor="profile-email">อีเมล</label>
+          <label className="label" htmlFor="profile-email">{tr("อีเมล")}</label>
           <input id="profile-email" className="input bg-slate-50 text-slate-500" value={user.email} readOnly />
-          <p className="mt-1 text-xs text-slate-400">ใช้สำหรับ login — ถ้าต้องการเปลี่ยน ติดต่อผู้ดูแลระบบ</p>
+          <p className="mt-1 text-xs text-slate-400">{tr("ใช้สำหรับ login — ถ้าต้องการเปลี่ยน ติดต่อผู้ดูแลระบบ")}</p>
         </div>
         <p className="text-sm text-slate-500">{user.summary}</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FormMessage state={state} />
-          <SubmitButton className="btn ml-auto">บันทึกโปรไฟล์</SubmitButton>
+          <SubmitButton className="btn ml-auto">{tr("บันทึกโปรไฟล์")}</SubmitButton>
         </div>
       </form>
     </section>

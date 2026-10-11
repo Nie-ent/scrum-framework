@@ -6,6 +6,7 @@ import { prisma } from "./db";
 import { SESSION_COOKIE, decryptSession } from "./session";
 import { canViewOverview } from "./permissions";
 import { ensurePersonalSpace } from "./personal";
+import { ensureLang } from "./i18n/server";
 
 /** โหลด user จาก DB ทุก request เพื่อให้การเปลี่ยน role มีผลทันที */
 const loadUser = (id: string) =>
@@ -15,6 +16,8 @@ const loadUser = (id: string) =>
   });
 
 export const getCurrentUser = cache(async () => {
+  // ทุกหน้าที่ล็อกอินผ่านจุดนี้ — ตั้งภาษาของคำขอให้ tr() ใช้
+  await ensureLang();
   const session = await decryptSession((await cookies()).get(SESSION_COOKIE)?.value);
   if (!session) return null;
   let user = await loadUser(session.userId);
