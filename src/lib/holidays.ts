@@ -42,5 +42,5 @@ export const holidayName = (key: string): string | undefined => LUNAR[key] ?? FI
 /** เสาร์–อาทิตย์ */
 export const isWeekend = (key: string): boolean => [0, 6].includes(new Date(`${key}T00:00:00Z`).getUTCDay());
 
-/** สีตัวเลขวันในปฏิทิน: นักขัตฤกษ์ = แดง · เสาร์–อาทิตย์ = ฟ้า */
-export const dayTone = (key: string): string => (holidayName(key) ? "text-danger" : isWeekend(key) ? "text-sky-600" : "text-foreground");
+/** สีตัวเลขวันในปฏิทิน: นักขัตฤกษ์ = ฟ้า · เสาร์–อาทิตย์ = แดง */
+export const dayTone = (key: string): string => (holidayName(key) ? "text-sky-600" : isWeekend(key) ? "text-danger" : "text-foreground");

@@ -6,8 +6,7 @@ import { requireOverviewAccess } from "@/lib/auth";
 import { getMeetingUrl, getVisibleTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { toTasks } from "@/lib/tasks";
-import { dateToKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
-import { DateStepper } from "@/components/date-stepper";
+import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
@@ -40,8 +39,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   const trendStart = shiftKey(dateKey, -(TREND_DAYS - 1));
   // ทั้งเดือนที่กำลังดู: จำนวนคนที่เช็กอินในแต่ละวัน (จุดสีในปฏิทิน)
-  const monthStart = `${dateKey.slice(0, 7)}-01`;
-  const monthEnd = dateToKey(new Date(Date.UTC(Number(dateKey.slice(0, 4)), Number(dateKey.slice(5, 7)), 0)));
+  // เดือนที่ปฏิทินแสดง: เลื่อนดูเดือนอื่นได้โดยไม่เปลี่ยนวันที่กำลังดู (?month=YYYY-MM)
+  const monthKey = typeof params.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(params.month) && params.month <= today.slice(0, 7) ? params.month : dateKey.slice(0, 7);
+  const monthStart = `${monthKey}-01`;
+  const monthEnd = dateToKey(new Date(Date.UTC(Number(monthKey.slice(0, 4)), Number(monthKey.slice(5, 7)), 0)));
   const [memberships, standups, meetingUrl, monthly] = await Promise.all([
     prisma.teamMember.findMany({
       // เฉพาะคนที่ต้องเช็กอิน — ไม่นับคนที่อยู่ในทีมในฐานะผู้ดูแลอย่างเดียว
@@ -95,13 +96,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <div>
           <p className="eyebrow">สุขภาพทีม</p>
           <h1 className="page-title">ภาพรวมทีม</h1>
-          <p className="page-subtitle">{scopeLabel}</p>
+          <p className="page-subtitle">{scopeLabel} · {formatDateKey(dateKey)}{dateKey === today && " (วันนี้)"}</p>
           {meetingUrl && (
             <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn mt-3 gap-1.5"><Icon name="video" />เข้าห้องประชุม</a>
           )}
         </div>
-        {/* ทีมเลือกจากตัวเลือกพื้นที่ที่แถบเมนู — ตรงนี้เลือกเฉพาะวัน */}
-        <DateStepper key={dateKey} dateKey={dateKey} today={today} path="/dashboard" query={`team=${teamId}${viewParam}`} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -113,7 +112,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <TeamHealthChart submitted={submitted.length} total={rows.length} />
-        <DashboardCalendar dateKey={dateKey} teamId={teamId} view={view === "grid" ? "grid" : undefined} submitted={submittedByDay} expected={rows.length} />
+        <DashboardCalendar dateKey={dateKey} monthKey={monthKey} teamId={teamId} view={view === "grid" ? "grid" : undefined} submitted={submittedByDay} expected={rows.length} />
       </div>
 
       {(blockers.length > 0 || missing.length > 0) && (
