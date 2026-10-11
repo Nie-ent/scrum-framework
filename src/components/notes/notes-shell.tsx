@@ -21,6 +21,13 @@ export function folderOptions(nodes: NoteNode[], excludeIds: string[] = []): { i
   return out;
 }
 
+/** โฟลเดอร์ใต้ parentId พร้อมโฟลเดอร์ย่อยทุกชั้น (count = จำนวนรายการข้างในชั้นแรก) — สำหรับ FolderRows */
+export function folderItems(nodes: NoteNode[], parentId: string | null): { id: string; title: string; count: number; children: ReturnType<typeof folderItems> }[] {
+  return nodes
+    .filter((n) => n.kind === "FOLDER" && n.parentId === parentId)
+    .map((f) => ({ id: f.id, title: f.title, count: nodes.filter((n) => n.parentId === f.id).length, children: folderItems(nodes, f.id) }));
+}
+
 /**
  * โครงหน้าโน้ต (แบบแอปโน้ตบนมือถือ)
  * จอใหญ่: แถบซ้าย = โฟลเดอร์และโน้ตทั้งหมด ลากวางเพื่อย้ายได้ · ขวา = เนื้อหา
@@ -57,7 +64,7 @@ export function NotesShell({
       <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
         <div className="rounded-2xl border border-border bg-surface p-2.5 shadow-soft">
           <p className="truncate px-2 pb-2 pt-1 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">{team.personalOfId ? "พื้นที่ส่วนตัว" : team.name}</p>
-          <RootDrop href={`/notes?team=${team.id}`} active={!activeId} count={noteCount} />
+          <RootDrop href={`/notes?team=${team.id}&view=all`} active={!activeId} count={noteCount} />
           <Link href={`/notes/graph?team=${team.id}`} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-foreground transition hover:bg-surface-sunken">
             <Icon name="link" className="h-4 w-4 text-primary" />
             แผนผังความสัมพันธ์

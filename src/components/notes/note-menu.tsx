@@ -23,7 +23,7 @@ export function useFolderMenu(id: string, title: string) {
   };
   const open = (x: number, y: number) => window.dispatchEvent(new CustomEvent<Target>(OPEN, { detail: { id, title, x, y } }));
   return {
-    style: { WebkitTouchCallout: "none" } as React.CSSProperties,
+    style: { WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" } as React.CSSProperties,
     onContextMenu(e: React.MouseEvent) {
       e.preventDefault();
       cancel();

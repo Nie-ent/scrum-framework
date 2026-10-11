@@ -7,7 +7,7 @@ import type { NoteTreeNode } from "@/lib/notes";
 import { dragProps, useDrop } from "./note-dnd";
 import { useFolderMenu } from "./note-menu";
 
-const row = "flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm transition";
+const row = "flex min-h-9 select-none items-center gap-1.5 rounded-lg px-2 text-sm transition";
 const tone = (active: boolean) => (active ? "bg-primary-soft font-semibold text-primary" : "text-foreground hover:bg-surface-sunken");
 
 function Folder({ node, activeId, openIds }: { node: NoteTreeNode; activeId?: string; openIds: string[] }) {

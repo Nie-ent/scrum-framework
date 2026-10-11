@@ -8,8 +8,8 @@ import { listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
-import { FolderRows, NoteRows } from "@/components/notes/note-list";
-import { NotesShell } from "@/components/notes/notes-shell";
+import { FolderRows, NoteRows, SystemRow } from "@/components/notes/note-list";
+import { NotesShell, folderItems } from "@/components/notes/notes-shell";
 import { EmptyState } from "@/components/ui-state";
 
 export const metadata: Metadata = { title: "โน้ต" };
@@ -24,6 +24,8 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   }
   const team = (await pickSpace(teams, params.team))!;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
+  // หน้าแรกแสดงเฉพาะโฟลเดอร์ — รายการโน้ตจะเห็นเมื่อเข้าโฟลเดอร์ หรือเลือก "โน้ตทั้งหมด" / "ยังไม่อยู่ในโฟลเดอร์"
+  const view = params.view === "all" || params.view === "loose" ? params.view : null;
 
   const [nodes, notes] = await Promise.all([
     listNotes(team.id),
@@ -32,16 +34,19 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
         teamId: team.id,
         kind: "NOTE",
         deletedAt: null,
+        ...(view === "loose" && !q ? { parentId: null } : {}),
         ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {}),
       },
       select: { id: true, parentId: true, title: true, content: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
-      take: q ? 50 : 200,
+      take: q ? 50 : view ? 300 : 0,
     }),
   ]);
   const titleOf = new Map(nodes.map((n) => [n.id, n.title]));
   const noteCount = nodes.filter((n) => n.kind === "NOTE").length;
-  const folders = nodes.filter((n) => n.kind === "FOLDER" && !n.parentId).map((f) => ({ id: f.id, title: f.title, count: nodes.filter((n) => n.parentId === f.id).length }));
+  const looseCount = nodes.filter((n) => n.kind === "NOTE" && !n.parentId).length;
+  const folders = folderItems(nodes, null);
+  const home = `/notes?team=${team.id}`;
   const items = notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content, q), folder: n.parentId ? titleOf.get(n.parentId) : undefined }));
 
   return (
@@ -59,7 +64,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
           <section className="space-y-2.5">
             <div className="flex items-center justify-between gap-3 px-1">
               <h2 className="text-sm font-semibold text-muted-foreground">ผลการค้นหา &quot;{q}&quot; ({items.length})</h2>
-              <Link href={`/notes?team=${team.id}`} className="text-sm font-medium text-primary hover:text-primary-strong">ล้างการค้นหา</Link>
+              <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">ล้างการค้นหา</Link>
             </div>
             {items.length === 0 ? <p className="card text-sm text-muted-foreground">ไม่พบโน้ตที่ตรงกับคำค้น</p> : <NoteRows notes={items} />}
           </section>
@@ -73,18 +78,23 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
             </ul>
           </div>
         ) : (
-          <>
-            {folders.length > 0 && (
-              <section className="space-y-2.5">
-                <h2 className="px-1 text-sm font-semibold text-muted-foreground">โฟลเดอร์</h2>
-                <FolderRows folders={folders} />
-              </section>
-            )}
+          view ? (
             <section className="space-y-2.5">
-              <h2 className="px-1 text-sm font-semibold text-muted-foreground">โน้ตทั้งหมด</h2>
+              <div className="flex items-center justify-between gap-3 px-1">
+                <h2 className="text-sm font-semibold text-muted-foreground">{view === "all" ? "โน้ตทั้งหมด" : "ยังไม่อยู่ในโฟลเดอร์"} ({items.length})</h2>
+                <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">‹ โฟลเดอร์</Link>
+              </div>
               {items.length === 0 ? <p className="card text-sm text-muted-foreground">ยังไม่มีโน้ต — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตแรก</p> : <NoteRows notes={items} />}
             </section>
-          </>
+          ) : (
+            <section className="space-y-2.5">
+              <h2 className="px-1 text-sm font-semibold text-muted-foreground">โฟลเดอร์</h2>
+              <FolderRows folders={folders}>
+                <SystemRow href={`${home}&view=all`} label="โน้ตทั้งหมด" count={noteCount} />
+                {looseCount > 0 && <SystemRow href={`${home}&view=loose`} label="ยังไม่อยู่ในโฟลเดอร์" count={looseCount} />}
+              </FolderRows>
+            </section>
+          )
         )}
       </div>
     </NotesShell>

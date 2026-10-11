@@ -1,39 +1,69 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Icon } from "@/components/icons";
 import { dragProps, useDrop } from "./note-dnd";
 import { useFolderMenu } from "./note-menu";
 
-export type FolderItem = { id: string; title: string; count: number };
+export type FolderItem = { id: string; title: string; count: number; children?: FolderItem[] };
 export type NoteItem = { id: string; title: string; when: string; snippet: string; folder?: string };
 
 const group = "divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-soft";
-const Chevron = () => (
-  <svg viewBox="0 0 20 20" fill="currentColor" className="size-4 shrink-0 text-subtle" aria-hidden="true">
+const Chevron = ({ className = "text-subtle" }: { className?: string }) => (
+  <svg viewBox="0 0 20 20" fill="currentColor" className={`size-4 shrink-0 ${className}`} aria-hidden="true">
     <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.17 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clipRule="evenodd" />
   </svg>
 );
 
-function FolderRow({ folder }: { folder: FolderItem }) {
+function FolderRow({ folder, depth }: { folder: FolderItem; depth: number }) {
   const drop = useDrop(folder.id);
   const menu = useFolderMenu(folder.id, folder.title);
+  const [open, setOpen] = useState(false);
+  const subs = folder.children ?? [];
   return (
-    <li>
-      <Link href={`/notes/${folder.id}`} {...dragProps(folder.id, folder.title)} {...drop.props} {...menu} className={`flex min-h-12 items-center gap-3 px-4 transition ${drop.over ? "bg-primary-soft ring-2 ring-inset ring-primary" : "hover:bg-surface-sunken"} ${drop.pending ? "opacity-60" : ""}`}>
-        <Icon name="folder" className="h-5 w-5 text-warning" />
-        <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-foreground">{folder.title}</span>
-        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{folder.count}</span>
-        <Chevron />
-      </Link>
-    </li>
+    <>
+      <li {...dragProps(folder.id, folder.title)} {...drop.props} {...menu} className={`flex min-h-12 select-none items-center transition ${drop.over ? "bg-primary-soft ring-2 ring-inset ring-primary" : "hover:bg-surface-sunken"} ${drop.pending ? "opacity-60" : ""}`}>
+        <Link href={`/notes/${folder.id}`} draggable={false} style={{ paddingLeft: `${1 + depth * 1.5}rem` }} className="flex min-h-12 min-w-0 flex-1 items-center gap-3">
+          <Icon name="folder" className="h-5 w-5 text-warning" />
+          <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-foreground">{folder.title}</span>
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{folder.count}</span>
+        </Link>
+        {subs.length > 0 ? (
+          // มีโฟลเดอร์ย่อย: ลูกศรกางดูโฟลเดอร์ย่อยตรงนี้ (กดชื่อ = เข้าโฟลเดอร์)
+          <button type="button" aria-expanded={open} aria-label={open ? `พับโฟลเดอร์ย่อยของ ${folder.title}` : `ดูโฟลเดอร์ย่อยของ ${folder.title}`} onClick={() => setOpen(!open)} className="flex size-12 shrink-0 items-center justify-center text-primary">
+            <span className={`flex size-7 items-center justify-center rounded-full bg-primary-soft transition ${open ? "rotate-90" : ""}`}><Chevron className="text-primary" /></span>
+          </button>
+        ) : (
+          <Link href={`/notes/${folder.id}`} draggable={false} tabIndex={-1} aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center"><Chevron /></Link>
+        )}
+      </li>
+      {open && subs.map((f) => <FolderRow key={f.id} folder={f} depth={depth + 1} />)}
+    </>
   );
 }
 
-/** รายการโฟลเดอร์แบบกลุ่มโค้งมน — ลากโน้ตมาวางบนโฟลเดอร์เพื่อย้าย */
-export function FolderRows({ folders }: { folders: FolderItem[] }) {
-  if (folders.length === 0) return null;
-  return <ul className={group}>{folders.map((f) => <FolderRow key={f.id} folder={f} />)}</ul>;
+/**
+ * รายการโฟลเดอร์แบบกลุ่มโค้งมน — กดชื่อเพื่อเข้าโฟลเดอร์ · ลูกศรสีม่วง = มีโฟลเดอร์ย่อย กดเพื่อกางดู
+ * ลากโน้ตมาวางบนโฟลเดอร์เพื่อย้าย · คลิกขวา/กดค้างเพื่อสร้างข้างใน
+ */
+export function FolderRows({ folders, children }: { folders: FolderItem[]; children?: React.ReactNode }) {
+  if (folders.length === 0 && !children) return null;
+  return <ul className={group}>{children}{folders.map((f) => <FolderRow key={f.id} folder={f} depth={0} />)}</ul>;
+}
+
+/** แถวพิเศษบนสุดของรายการโฟลเดอร์ เช่น "โน้ตทั้งหมด" */
+export function SystemRow({ href, label, count, icon = "note" }: { href: string; label: string; count: number; icon?: "note" | "folder" }) {
+  return (
+    <li>
+      <Link href={href} className="flex min-h-12 items-center gap-3 pl-4 transition hover:bg-surface-sunken">
+        <Icon name={icon} className="h-5 w-5 text-primary" />
+        <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-foreground">{label}</span>
+        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{count}</span>
+        <span className="flex size-12 shrink-0 items-center justify-center"><Chevron /></span>
+      </Link>
+    </li>
+  );
 }
 
 /** รายการโน้ต: ชื่อ · เวลาที่แก้ล่าสุด · ข้อความขึ้นต้น */
@@ -43,7 +73,7 @@ export function NoteRows({ notes }: { notes: NoteItem[] }) {
     <ul className={group}>
       {notes.map((n) => (
         <li key={n.id}>
-          <Link href={`/notes/${n.id}`} {...dragProps(n.id, n.title)} className="block px-4 py-3 transition hover:bg-surface-sunken">
+          <Link href={`/notes/${n.id}`} {...dragProps(n.id, n.title)} style={{ WebkitTouchCallout: "none" }} className="block select-none px-4 py-3 transition hover:bg-surface-sunken">
             <span className="block truncate text-[0.95rem] font-semibold text-foreground">{n.title}</span>
             <span className="mt-0.5 flex gap-2 text-sm text-muted-foreground">
               <span className="shrink-0 tabular-nums text-foreground/70">{n.when}</span>

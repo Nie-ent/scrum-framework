@@ -13,7 +13,7 @@ import { NoteEditor } from "@/components/notes/note-editor";
 import { ReadingSurface } from "@/components/notes/reading-surface";
 import { DeleteNoteButton, MoveForm, RenameFolderForm } from "@/components/notes/note-forms";
 import { FolderRows, NoteRows } from "@/components/notes/note-list";
-import { NotesShell, folderOptions } from "@/components/notes/notes-shell";
+import { NotesShell, folderItems, folderOptions } from "@/components/notes/notes-shell";
 
 export const metadata: Metadata = { title: "โน้ต" };
 
@@ -60,7 +60,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
       select: { id: true, title: true, content: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
     });
-    const folders = children.filter((c) => c.kind === "FOLDER").map((f) => ({ id: f.id, title: f.title, count: nodes.filter((n) => n.parentId === f.id).length }));
+    const folders = folderItems(nodes, note.id);
     return (
       <NotesShell {...shell}>
         <div className="mx-auto max-w-3xl space-y-6">
