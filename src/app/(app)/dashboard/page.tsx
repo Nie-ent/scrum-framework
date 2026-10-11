@@ -39,7 +39,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const scopeIds = [teamId];
 
   const trendStart = shiftKey(dateKey, -(TREND_DAYS - 1));
-  const [memberships, standups, meetingUrl] = await Promise.all([
+  // ทั้งเดือนที่กำลังดู: จำนวนคนที่เช็กอินในแต่ละวัน (จุดสีในปฏิทิน)
+  const monthStart = `${dateKey.slice(0, 7)}-01`;
+  const monthEnd = dateToKey(new Date(Date.UTC(Number(dateKey.slice(0, 4)), Number(dateKey.slice(5, 7)), 0)));
+  const [memberships, standups, meetingUrl, monthly] = await Promise.all([
     prisma.teamMember.findMany({
       // เฉพาะคนที่ต้องเช็กอิน — ไม่นับคนที่อยู่ในทีมในฐานะผู้ดูแลอย่างเดียว
       where: { teamId: { in: scopeIds }, participates: true, user: { active: true } },
@@ -51,7 +54,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       include: { comments: withComments },
     }),
     getMeetingUrl(teamId),
+    prisma.standup.findMany({
+      where: { teamId: { in: scopeIds }, date: { gte: keyToDate(monthStart), lte: keyToDate(monthEnd) } },
+      select: { date: true, userId: true },
+    }),
   ]);
+  const memberIds = new Set(memberships.map((m) => m.userId));
+  const submittedByDay: Record<string, number> = {};
+  for (const s of monthly) if (memberIds.has(s.userId)) submittedByDay[dateToKey(s.date)] = (submittedByDay[dateToKey(s.date)] ?? 0) + 1;
 
   // 1 แถว = 1 คนในทีมนั้น (คนที่อยู่หลายทีมจะมีแถวแยกต่อทีมเมื่อดู "ทุกทีม")
   const rows = memberships.map(({ user, team, title }) => {
@@ -103,7 +113,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <TeamHealthChart submitted={submitted.length} total={rows.length} />
-        <DashboardCalendar dateKey={dateKey} teamId={teamId} view={view === "grid" ? "grid" : undefined} />
+        <DashboardCalendar dateKey={dateKey} teamId={teamId} view={view === "grid" ? "grid" : undefined} submitted={submittedByDay} expected={rows.length} />
       </div>
 
       {(blockers.length > 0 || missing.length > 0) && (

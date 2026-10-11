@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import * as P from "@radix-ui/react-popover";
+import { dayTone, holidayName } from "@/lib/holidays";
 
 const DAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -80,7 +81,8 @@ export function DateStepper({ dateKey, today, path, query = "" }: { dateKey: str
                       aria-current={selected ? "date" : undefined}
                       aria-label={fmt(key, { dateStyle: "long" })}
                       onClick={() => go(key)}
-                      className={`flex size-9 items-center justify-center rounded-full tabular-nums transition disabled:pointer-events-none disabled:text-subtle disabled:opacity-40 ${selected ? "bg-primary font-semibold text-primary-foreground" : key === today ? "bg-primary-soft font-semibold text-primary" : "text-foreground hover:bg-surface-sunken"}`}
+                      className={`flex size-9 items-center justify-center rounded-full tabular-nums transition disabled:pointer-events-none disabled:text-subtle disabled:opacity-40 ${selected ? "bg-primary font-semibold text-primary-foreground" : key === today ? `bg-primary-soft font-semibold ${dayTone(key)}` : `${dayTone(key)} hover:bg-surface-sunken`}`}
+                      title={holidayName(key)}
                     >
                       {i + 1}
                     </button>
