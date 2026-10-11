@@ -70,13 +70,19 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const finished = tasks.filter((t) => t.progress >= 100).sort((a, b) => (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0));
   const overdue = open.filter((t) => t.dueDate && dateToKey(t.dueDate) < today).length;
 
+  // ตัวกรองจากลิงก์ (เช่นป้าย "เลยกำหนด" ในหน้าสถิติ): เฉพาะงานเลยกำหนด และ/หรือของคนเดียว
+  const onlyOverdue = params.overdue === "1";
+  const who = typeof params.who === "string" ? tasks.find((t) => t.assignee.id === params.who)?.assignee : undefined;
+  const filtered = onlyOverdue || Boolean(who);
+  const shown = open.filter((t) => (!onlyOverdue || (t.dueDate && dateToKey(t.dueDate) < today)) && (!who || t.assignee.id === who.id));
+
   // จัดกลุ่มตามคน — งานของตัวเองขึ้นก่อน
-  const groups = [...new Map(open.map((t) => [t.assignee.id, t.assignee])).values()]
+  const groups = [...new Map(shown.map((t) => [t.assignee.id, t.assignee])).values()]
     .map((assignee) => ({
       id: assignee.id,
       name: assignee.id === user.id ? "งานของฉัน" : assignee.name,
       person: assignee,
-      tasks: open.filter((t) => t.assignee.id === assignee.id),
+      tasks: shown.filter((t) => t.assignee.id === assignee.id),
     }))
     .sort((a, b) => Number(b.id === user.id) - Number(a.id === user.id));
   const mine = open.filter((t) => t.assignee.id === user.id);
@@ -84,7 +90,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   type TaskRow = (typeof tasks)[number];
   const canDelete = (t: TaskRow) => canManage || (t.assignee.id === user.id && t.createdBy?.id === user.id);
   const canUpdate = (t: TaskRow) => canManage || t.assignee.id === user.id;
-  const base = `/tasks?team=${team.id}`;
+  const all = `/tasks?team=${team.id}`;
+  const base = `${all}${onlyOverdue ? "&overdue=1" : ""}${who ? `&who=${who.id}` : ""}`;
   const detailHref = (t: TaskRow) => (t.number === null ? base : `${base}&task=${t.number}`);
   const selected = typeof params.task === "string" ? tasks.find((t) => String(t.number) === params.task) : undefined;
 
@@ -149,7 +156,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             <h1 className="page-title">งาน</h1>
             <p className="page-subtitle">
               {team.name} · ค้างอยู่ {open.length} งาน{shared && mine.length !== open.length && ` (ของฉัน ${mine.length})`}
-              {overdue > 0 && <span className="text-danger"> · เลยกำหนด {overdue}</span>}
+              {overdue > 0 && <> · <Link href={`${all}&overdue=1`} className="font-medium text-danger underline-offset-2 hover:underline">เลยกำหนด {overdue}</Link></>}
             </p>
           </div>
         </div>
@@ -158,7 +165,18 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           <TaskForm key={`${team.id}:${defaultDue ?? ""}`} canAttach={canAttach} defaultDue={defaultDue} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
         </section>
 
-        {open.length === 0 ? (
+        {filtered && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-sunken px-4 py-2.5 text-sm">
+            <span className="text-foreground">
+              กำลังแสดงเฉพาะ{onlyOverdue ? "งานที่เลยกำหนด" : "งานค้าง"}{who && <>ของ <b className="font-semibold">{who.name}</b></>} · {shown.length} งาน
+            </span>
+            <Link href={all} className="font-medium text-primary hover:text-primary-strong">ดูงานทั้งหมด</Link>
+          </div>
+        )}
+
+        {filtered && shown.length === 0 ? (
+          <p className="card text-sm text-muted-foreground">ไม่มีงานที่ตรงกับตัวกรองนี้</p>
+        ) : open.length === 0 ? (
           <EmptyState title="ไม่มีงานค้าง" description={shared ? "เพิ่มงานจากช่องด้านบน งานของคุณจะไปขึ้นในหน้าเช็กอินด้วย" : "พิมพ์ชื่องานในช่องด้านบนแล้วกด Enter เพื่อเริ่มรายการของคุณ"} />
         ) : (
           groups.map((g) => (
@@ -172,7 +190,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           ))
         )}
 
-        {finished.length > 0 && (
+        {!filtered && finished.length > 0 && (
           <details className="card" open={selected ? selected.progress >= 100 : undefined}>
             <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">เสร็จแล้ว ({finished.length})</summary>
             <ul className="mt-2 divide-y divide-border">{finished.slice(0, 30).map(renderTask)}</ul>

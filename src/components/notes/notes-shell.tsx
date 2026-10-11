@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { NoteToast } from "@/components/notes/note-dnd";
 import { NoteFab } from "@/components/notes/note-fab";
+import { FolderMenu } from "@/components/notes/note-menu";
 import { NoteTree, RootDrop } from "@/components/notes/note-tree";
 import { buildTree, type NoteNode, type NoteTreeNode } from "@/lib/notes";
 import type { TeamRow } from "@/lib/teams";
@@ -67,7 +68,7 @@ export function NotesShell({
             </div>
           )}
           <p className="mt-2 border-t border-border px-2 pb-1 pt-2.5 text-xs leading-5 text-muted-foreground">
-            {tree.length > 0 && <>ลากโน้ตไปวางบนโฟลเดอร์เพื่อย้าย · </>}
+            {tree.length > 0 && <>ลากไปวางบนโฟลเดอร์เพื่อย้าย · คลิกขวาที่โฟลเดอร์เพื่อสร้างโน้ตในนั้น · </>}
             {team.personalOfId ? (
               <>เห็นเฉพาะคุณ</>
             ) : (
@@ -77,7 +78,8 @@ export function NotesShell({
         </div>
       </aside>
       <div className="min-w-0">{children}</div>
-      {fab && <NoteFab key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} q={q} />}
+      <NoteFab key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} q={q} buttons={fab} />
+      <FolderMenu />
       <NoteToast />
     </div>
   );

@@ -63,7 +63,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label="เช็กอิน" value={me.rate === null ? "—" : `${me.rate}%`} hint={`${me.submitted} จาก ${me.expected} วันทำงาน`} tone="text-indigo-600" />
             <Stat label="ส่งต่อเนื่อง" value={`${me.streak} วัน`} hint="วันทำงานติดต่อกันล่าสุด" tone="text-emerald-600" />
-            <Stat label="งานที่ทำเสร็จ" value={me.tasksDone} hint={`ค้างอยู่ ${me.tasksOpen}${me.tasksOverdue > 0 ? ` · เลยกำหนด ${me.tasksOverdue}` : ""}`} tone="text-slate-900" />
+            <Stat label="งานที่ทำเสร็จ" value={me.tasksDone} hint={<>ค้างอยู่ {me.tasksOpen}{me.tasksOverdue > 0 && <> · <Link href={`/tasks?team=${team.id}&overdue=1&who=${user.id}`} className="font-medium text-danger underline-offset-2 hover:underline">เลยกำหนด {me.tasksOverdue} ›</Link></>}</>} tone="text-slate-900" />
             <Stat label="ความคิดเห็น" value={me.comments} hint={`ขอความช่วยเหลือ ${me.blockers} ครั้ง`} tone="text-slate-900" />
           </div>
         </section>
@@ -73,7 +73,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
         <h2 className="mb-3 font-semibold text-slate-900">ทั้งทีม</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="เช็กอินเฉลี่ย" value={teamRate === null ? "—" : `${teamRate}%`} hint={`${rows.length} คนที่ต้องเช็กอิน`} tone="text-indigo-600" />
-          <Stat label="งานที่ทำเสร็จ" value={total("tasksDone")} hint={total("tasksOverdue") > 0 ? `เลยกำหนด ${total("tasksOverdue")} งาน` : "ไม่มีงานเลยกำหนด"} tone="text-slate-900" />
+          <Stat label="งานที่ทำเสร็จ" value={total("tasksDone")} hint={total("tasksOverdue") > 0 ? <Link href={`/tasks?team=${team.id}&overdue=1`} className="font-medium text-danger underline-offset-2 hover:underline">เลยกำหนด {total("tasksOverdue")} งาน ›</Link> : "ไม่มีงานเลยกำหนด"} tone="text-slate-900" />
           <Stat label="ความคิดเห็น" value={total("comments")} hint="ใต้งานและเช็กอิน" tone="text-slate-900" />
           <Stat label="ขอความช่วยเหลือ" value={total("blockers")} hint="จำนวนเช็กอินที่ขอความช่วยเหลือ" tone="text-rose-600" />
         </div>
@@ -102,7 +102,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {[...rows].sort((a, b) => (a.rate ?? 101) - (b.rate ?? 101)).map((r) => <Row key={r.userId} row={r} />)}
+                  {[...rows].sort((a, b) => (a.rate ?? 101) - (b.rate ?? 101)).map((r) => <Row key={r.userId} row={r} teamId={team.id} />)}
                 </tbody>
               </table>
             </div>
@@ -112,7 +112,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
   );
 }
 
-function Stat({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint: string; tone: string }) {
+function Stat({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint: React.ReactNode; tone: string }) {
   return (
     <div className="card py-4">
       <div className="text-sm font-medium text-slate-500">{label}</div>
@@ -122,7 +122,7 @@ function Stat({ label, value, hint, tone }: { label: string; value: React.ReactN
   );
 }
 
-function Row({ row: r }: { row: MemberStats }) {
+function Row({ row: r, teamId }: { row: MemberStats; teamId: string }) {
   return (
     <tr className="transition hover:bg-indigo-50/40">
       <td className="px-5 py-3">
@@ -150,7 +150,7 @@ function Row({ row: r }: { row: MemberStats }) {
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">
         {/* ป้ายอยู่ซ้ายของตัวเลข — ตัวเลขจึงชิดขวาตรงกันทุกแถว */}
         <span className="inline-flex items-center justify-end gap-2 whitespace-nowrap">
-          {r.tasksOverdue > 0 && <span className="badge badge-danger">เลยกำหนด {r.tasksOverdue}</span>}
+          {r.tasksOverdue > 0 && <Link href={`/tasks?team=${teamId}&overdue=1&who=${r.userId}`} title="ดูงานที่เลยกำหนด" className="badge badge-danger transition hover:brightness-95">เลยกำหนด {r.tasksOverdue} ›</Link>}
           {r.tasksOpen}
         </span>
       </td>

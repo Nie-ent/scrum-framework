@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { dragProps, useDrop } from "./note-dnd";
+import { useFolderMenu } from "./note-menu";
 
 export type FolderItem = { id: string; title: string; count: number };
 export type NoteItem = { id: string; title: string; when: string; snippet: string; folder?: string };
@@ -16,9 +17,10 @@ const Chevron = () => (
 
 function FolderRow({ folder }: { folder: FolderItem }) {
   const drop = useDrop(folder.id);
+  const menu = useFolderMenu(folder.id, folder.title);
   return (
     <li>
-      <Link href={`/notes/${folder.id}`} {...dragProps(folder.id, folder.title)} {...drop.props} className={`flex min-h-12 items-center gap-3 px-4 transition ${drop.over ? "bg-primary-soft ring-2 ring-inset ring-primary" : "hover:bg-surface-sunken"} ${drop.pending ? "opacity-60" : ""}`}>
+      <Link href={`/notes/${folder.id}`} {...dragProps(folder.id, folder.title)} {...drop.props} {...menu} className={`flex min-h-12 items-center gap-3 px-4 transition ${drop.over ? "bg-primary-soft ring-2 ring-inset ring-primary" : "hover:bg-surface-sunken"} ${drop.pending ? "opacity-60" : ""}`}>
         <Icon name="folder" className="h-5 w-5 text-warning" />
         <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-foreground">{folder.title}</span>
         <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{folder.count}</span>
