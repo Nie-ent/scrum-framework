@@ -7,6 +7,7 @@ import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { EmptyState } from "@/components/ui-state";
 import { DueForm } from "./due-form";
+import { dayTone, holidayName } from "@/lib/holidays";
 
 export const metadata: Metadata = { title: "ปฏิทินงาน" };
 
@@ -100,7 +101,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       {/* ตารางเดือน — จอเล็กใช้รายการด้านล่างแทน */}
       <section className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block" aria-label={`ปฏิทิน ${monthLabel(month)}`}>
         <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-semibold text-slate-500">
-          {WEEKDAYS.map((d) => <div key={d} className="py-2">{d}</div>)}
+          {WEEKDAYS.map((d, i) => <div key={d} className={`py-2 ${i === 0 || i === 6 ? "text-danger" : ""}`}>{d}</div>)}
         </div>
         <div className="grid grid-cols-7">
           {days.map((key) => {
@@ -109,7 +110,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
             return (
               <div key={key} className={`group/day min-h-28 border-b border-r border-slate-100 p-1.5 [&:nth-child(7n)]:border-r-0 ${outside ? "bg-slate-50/60" : ""}`}>
                 <div className="mb-1 flex items-center justify-between">
-                  <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs tabular-nums ${key === today ? "bg-indigo-600 font-semibold text-white" : outside ? "text-slate-300" : "text-slate-600"}`}>{Number(key.slice(8))}</span>
+                  <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs tabular-nums ${key === today ? "bg-indigo-600 font-semibold text-white" : outside ? `${dayTone(key)} opacity-40` : dayTone(key)}`}>{Number(key.slice(8))}</span>
+                  {holidayName(key) && <span title={holidayName(key)} className={`mx-1 min-w-0 flex-1 truncate text-2xs font-medium text-sky-600 ${outside ? "opacity-40" : ""}`}>{holidayName(key)}</span>}
                   {key >= today && (
                     <Link href={`/tasks?team=${team.id}&due=${key}#new`} aria-label={`เพิ่มงานกำหนดส่ง ${formatDateKey(key)}`} title="เพิ่มงานในวันนี้" className="rounded px-1 text-sm leading-none text-slate-300 opacity-0 transition hover:text-indigo-600 focus:opacity-100 group-hover/day:opacity-100">+</Link>
                   )}
@@ -131,6 +133,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           {shared && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-slate-300" />งานของคนอื่น</span>}
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-rose-200" />เลยกำหนด</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded bg-emerald-200" />เสร็จแล้ว</span>
+          <span className="font-medium text-danger">เสาร์–อาทิตย์</span>
+          <span className="font-medium text-sky-600">วันหยุดนักขัตฤกษ์</span>
           <span>ชี้ที่วันแล้วกด + เพื่อเพิ่มงานในวันนั้น</span>
         </p>
       </section>
@@ -143,7 +147,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           [...new Set(inMonth.map((t) => dateToKey(t.dueDate!)))].map((key) => (
             <div key={key} className="border-t border-slate-100 py-2 first:border-t-0">
               <h3 className={`text-xs font-semibold ${key === today ? "text-indigo-700" : key < today ? "text-slate-400" : "text-slate-600"}`}>
-                {formatDateKey(key)}{key === today && " · วันนี้"}
+                {formatDateKey(key)}{key === today && " · วันนี้"}{holidayName(key) && <span className="ml-1.5 font-medium text-sky-600">{holidayName(key)}</span>}
               </h3>
               <ul className="divide-y divide-slate-50">{byDay.get(key)!.map((t) => <TaskLine key={t.id} t={t} />)}</ul>
             </div>

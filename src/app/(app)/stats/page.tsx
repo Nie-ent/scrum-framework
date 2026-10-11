@@ -148,8 +148,11 @@ function Row({ row: r }: { row: MemberStats }) {
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">{r.streak} วัน</td>
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">{r.tasksDone}</td>
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">
-        {r.tasksOpen}
-        {r.tasksOverdue > 0 && <span className="ml-1.5 badge badge-danger">เลยกำหนด {r.tasksOverdue}</span>}
+        {/* ป้ายอยู่ซ้ายของตัวเลข — ตัวเลขจึงชิดขวาตรงกันทุกแถว */}
+        <span className="inline-flex items-center justify-end gap-2 whitespace-nowrap">
+          {r.tasksOverdue > 0 && <span className="badge badge-danger">เลยกำหนด {r.tasksOverdue}</span>}
+          {r.tasksOpen}
+        </span>
       </td>
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">{r.comments}</td>
       <td className="px-5 py-3 text-right tabular-nums text-slate-700">{r.blockers}</td>
