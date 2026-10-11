@@ -37,7 +37,6 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       items: [
         { href: "/tasks", label: "รายการงาน", icon: "tasks" },
         { href: "/calendar", label: "ปฏิทิน", icon: "calendar" },
-        { href: "/files", label: "ไฟล์สำคัญ", icon: "files" },
       ],
     },
     { title: "ความรู้", items: [{ href: "/notes", label: "โน้ต", icon: "notes" }] },
@@ -59,7 +58,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // มือถือ: 4 ปลายทาง — หมวด งาน และ ภาพรวม มีแท็บย่อยที่หัวหน้า (SectionTabs) · บัญชีอยู่ที่รูปโปรไฟล์บนแถบหัว
   const bottom = [
     { href: "/standup", label: "วันนี้", icon: "checkin" as const },
-    { href: "/tasks", label: "งาน", icon: "tasks" as const, match: ["/calendar", "/files"] },
+    { href: "/tasks", label: "งาน", icon: "tasks" as const, match: ["/calendar"] },
     { href: "/notes", label: "โน้ต", icon: "notes" as const },
     { href: overview ? "/dashboard" : "/teams", label: "ภาพรวม", icon: "overview" as const, match: ["/dashboard", "/stats", "/teams"] },
   ];

@@ -42,6 +42,10 @@ export function AccountMenu({ name, email, admin, children }: { name: string; em
               <NavGlyph icon="calendar" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
               ประวัติเช็กอิน
             </Link>
+            <Link href="/files" onClick={close} className={item}>
+              <NavGlyph icon="files" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
+              ไฟล์สำคัญ
+            </Link>
             {admin && (
               <Link href="/admin" onClick={close} className={item}>
                 <NavGlyph icon="admin" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />

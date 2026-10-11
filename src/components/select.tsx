@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import * as P from "@radix-ui/react-popover";
 
 export type SelectOption = { value: string; label: string; disabled?: boolean };
@@ -95,7 +96,18 @@ export function Select({
         </svg>
       </P.Trigger>
       <P.Portal>
-        <P.Content align="start" sideOffset={6} collisionPadding={12} className="tooltip-pop z-[90] min-w-(--radix-popover-trigger-width) max-w-[min(22rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-surface p-1 shadow-overlay">
+        <P.Content
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          // เปิดแล้วไปที่ตัวเลือกปัจจุบัน (รายการยาวจะเลื่อนมาให้เห็น)
+          onOpenAutoFocus={(e) => {
+            const current = list.current?.querySelector<HTMLButtonElement>('[aria-selected="true"]');
+            if (!current) return;
+            e.preventDefault();
+            current.focus();
+          }}
+          className="tooltip-pop z-[90] min-w-(--radix-popover-trigger-width) max-w-[min(22rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-surface p-1 shadow-overlay">
           <div ref={list} role="listbox" aria-label={ariaLabel} onKeyDown={move} className="max-h-[min(18rem,50vh)] overflow-y-auto">
             {options.map((o) => (
               <button
@@ -121,4 +133,10 @@ export function Select({
       </P.Portal>
     </P.Root>
   );
+}
+
+/** dropdown ที่เลือกแล้วพาไปหน้านั้นทันที — value ของแต่ละตัวเลือกคือ URL */
+export function LinkSelect({ options, value, className, size, "aria-label": ariaLabel }: { options: SelectOption[]; value: string; className?: string; size?: "sm" | "md"; "aria-label"?: string }) {
+  const router = useRouter();
+  return <Select options={options} value={value} onChange={(href) => router.push(href)} className={className} size={size} aria-label={ariaLabel} />;
 }

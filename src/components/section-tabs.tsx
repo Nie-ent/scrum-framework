@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 /**
  * แท็บย่อยของหมวดเมนูบนจอเล็ก (จอใหญ่เห็นรายการย่อยในเมนูด้านข้างอยู่แล้ว)
- * งาน = รายการ · ปฏิทิน · ไฟล์สำคัญ   |   ภาพรวม = ภาพรวมทีม · สถิติ · ทีมและคำเชิญ
+ * งาน = รายการ · ปฏิทิน   |   ภาพรวม = ภาพรวมทีม · สถิติ · ทีมและคำเชิญ
  */
 export function SectionTabs({ canOverview }: { canOverview: boolean }) {
   const pathname = usePathname();
@@ -14,7 +14,6 @@ export function SectionTabs({ canOverview }: { canOverview: boolean }) {
     [
       { href: "/tasks", label: "รายการงาน" },
       { href: "/calendar", label: "ปฏิทิน" },
-      { href: "/files", label: "ไฟล์สำคัญ" },
     ],
     [
       ...(canOverview ? [{ href: "/dashboard", label: "ภาพรวมทีม" }] : []),
