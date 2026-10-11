@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Icon } from "@/components/icons";
-import { NewItemForm } from "@/components/notes/note-forms";
+import { NoteToast } from "@/components/notes/note-dnd";
+import { NoteFab } from "@/components/notes/note-fab";
+import { NoteTree, RootDrop } from "@/components/notes/note-tree";
 import { buildTree, type NoteNode, type NoteTreeNode } from "@/lib/notes";
 import type { TeamRow } from "@/lib/teams";
 
@@ -18,45 +20,11 @@ export function folderOptions(nodes: NoteNode[], excludeIds: string[] = []): { i
   return out;
 }
 
-function Tree({ nodes, activeId, openIds }: { nodes: NoteTreeNode[]; activeId?: string; openIds: Set<string> }) {
-  if (nodes.length === 0) return null;
-  return (
-    <ul className="space-y-0.5">
-      {nodes.map((n) =>
-        n.kind === "FOLDER" ? (
-          <li key={n.id}>
-            <details open={openIds.has(n.id) || n.children.length <= 8} className="group/folder">
-              <summary className={`flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm marker:hidden hover:bg-slate-100 ${n.id === activeId ? "bg-indigo-50 font-semibold text-indigo-700" : "text-slate-700"}`}>
-                <span aria-hidden="true" className="w-3 shrink-0 text-xs text-slate-400 transition group-open/folder:rotate-90">▸</span>
-                <Icon name="folder" className="h-4 w-4 text-amber-500" />
-                <Link href={`/notes/${n.id}`} className="min-w-0 flex-1 truncate">{n.title}</Link>
-                <span className="shrink-0 text-xs text-slate-400">{n.children.length}</span>
-              </summary>
-              <div className="ml-3 border-l border-slate-200 pl-2">
-                {n.children.length > 0 ? <Tree nodes={n.children} activeId={activeId} openIds={openIds} /> : <p className="px-2 py-1 text-xs text-slate-400">ว่าง</p>}
-              </div>
-            </details>
-          </li>
-        ) : (
-          <li key={n.id}>
-            <Link
-              href={`/notes/${n.id}`}
-              aria-current={n.id === activeId ? "page" : undefined}
-              className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 pl-[1.375rem] text-sm transition hover:bg-slate-100 ${n.id === activeId ? "bg-indigo-50 font-semibold text-indigo-700" : "text-slate-700"}`}
-            >
-              <Icon name="note" className="h-4 w-4 text-slate-400" />
-              <span className="min-w-0 flex-1 truncate">{n.title}</span>
-            </Link>
-          </li>
-        ),
-      )}
-    </ul>
-  );
-}
-
 /**
- * โครงหน้าโน้ต: แถบซ้าย = ทีม + ต้นไม้โฟลเดอร์/โน้ต + สร้างใหม่ · ขวา = เนื้อหา
- * บนมือถือ: หน้าอ่านโน้ตแสดงเนื้อหาก่อน (contentFirst)
+ * โครงหน้าโน้ต (แบบแอปโน้ตบนมือถือ)
+ * จอใหญ่: แถบซ้าย = โฟลเดอร์และโน้ตทั้งหมด ลากวางเพื่อย้ายได้ · ขวา = เนื้อหา
+ * มือถือ: ไม่มีแถบซ้าย — ไล่จากรายการโฟลเดอร์/โน้ตในหน้าเนื้อหาแทน
+ * ปุ่มลอยมุมขวาล่าง: ค้นหา และ + สร้างใหม่
  */
 export function NotesShell({
   team,
@@ -64,62 +32,53 @@ export function NotesShell({
   activeId,
   openIds = [],
   canManageTeam,
-  contentFirst = false,
+  fab = true,
+  q,
   children,
 }: {
   team: TeamRow;
-  /** ไม่ได้ใช้แสดงผลแล้ว (เลือกพื้นที่จากตัวเลือกใน layout) — คงไว้ให้หน้าเรียกแบบเดิมได้ */
-  teams?: TeamRow[];
   nodes: NoteNode[];
   activeId?: string;
   /** โฟลเดอร์ที่ต้องกางไว้ (เส้นทางไปยังรายการที่เปิดอยู่) */
   openIds?: string[];
   canManageTeam: boolean;
-  /** มือถือ: แสดงเนื้อหาก่อนแถบต้นไม้ */
-  contentFirst?: boolean;
+  /** ซ่อนปุ่มลอย (เช่นตอนกำลังแก้โน้ต) */
+  fab?: boolean;
+  /** คำค้นปัจจุบัน */
+  q?: string;
   children: React.ReactNode;
 }) {
   const tree = buildTree(nodes);
   const noteCount = nodes.filter((n) => n.kind === "NOTE").length;
   const activeFolder = nodes.find((n) => n.id === activeId && n.kind === "FOLDER")?.id ?? nodes.find((n) => n.id === activeId)?.parentId ?? null;
   return (
-    <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
-      {/* มือถือ: ตอนอ่านโน้ต เนื้อหาขึ้นก่อน แล้วต้นไม้อยู่ด้านล่าง */}
-      <aside className={`lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto ${contentFirst ? "order-last lg:order-none" : ""}`}>
-        <div className="card p-3 sm:p-4">
-          <div className="flex items-center justify-between gap-2">
-            <span className="min-w-0">
-              <span className="eyebrow block">พื้นที่</span>
-              <span className="block truncate font-semibold text-slate-900">{team.name}</span>
-            </span>
-            <span className="badge badge-neutral shrink-0">{noteCount} โน้ต</span>
-          </div>
-          <div className="mt-3 space-y-4">
-            <form action="/notes" className="flex gap-2">
-              <input type="hidden" name="team" value={team.id} />
-              <input name="q" type="search" className="input py-2" placeholder="ค้นหาในโน้ต" aria-label="ค้นหาในโน้ต" />
-            </form>
-            <div>
-              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                <Link href={`/notes?team=${team.id}`} className="font-medium text-slate-500 hover:text-indigo-700">ภาพรวม</Link>
-                <Link href={`/notes/graph?team=${team.id}`} className="font-medium text-slate-500 hover:text-indigo-700">แผนผังความสัมพันธ์</Link>
-              </div>
-              {tree.length === 0 ? <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">ยังไม่มีโน้ต — สร้างโน้ตแรกด้านล่าง</p> : <Tree nodes={tree} activeId={activeId} openIds={new Set(openIds)} />}
+    <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
+        <div className="rounded-2xl border border-border bg-surface p-2.5 shadow-soft">
+          <p className="truncate px-2 pb-2 pt-1 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">{team.personalOfId ? "พื้นที่ส่วนตัว" : team.name}</p>
+          <RootDrop href={`/notes?team=${team.id}`} active={!activeId} count={noteCount} />
+          <Link href={`/notes/graph?team=${team.id}`} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-foreground transition hover:bg-surface-sunken">
+            <Icon name="link" className="h-4 w-4 text-primary" />
+            แผนผังความสัมพันธ์
+          </Link>
+          {tree.length > 0 && (
+            <div className="mt-2 border-t border-border pt-2">
+              <NoteTree nodes={tree} activeId={activeId} openIds={openIds} />
             </div>
-            <div className="border-t border-slate-100 pt-3">
-              <NewItemForm key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} />
-            </div>
-            <p className="border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
-              {team.personalOfId ? (
-                <>โน้ตในพื้นที่ส่วนตัวเห็นเฉพาะคุณ · อยากทำร่วมกับคนอื่น <Link href="/teams" className="font-medium text-indigo-600 hover:text-indigo-800">สร้างทีม</Link></>
-              ) : (
-                <>ทุกคนในทีม {team.name} อ่านและแก้โน้ตเหล่านี้ได้{canManageTeam && <> · <Link href={`/teams/${team.id}`} className="font-medium text-indigo-600 hover:text-indigo-800">เชิญคนเข้าทีม</Link></>}</>
-              )}
-            </p>
-          </div>
+          )}
+          <p className="mt-2 border-t border-border px-2 pb-1 pt-2.5 text-xs leading-5 text-muted-foreground">
+            {tree.length > 0 && <>ลากโน้ตไปวางบนโฟลเดอร์เพื่อย้าย · </>}
+            {team.personalOfId ? (
+              <>เห็นเฉพาะคุณ</>
+            ) : (
+              <>ทุกคนในทีมอ่านและแก้ได้{canManageTeam && <> · <Link href={`/teams/${team.id}`} className="font-medium text-primary hover:text-primary-strong">เชิญคน</Link></>}</>
+            )}
+          </p>
         </div>
       </aside>
       <div className="min-w-0">{children}</div>
+      {fab && <NoteFab key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} q={q} />}
+      <NoteToast />
     </div>
   );
 }

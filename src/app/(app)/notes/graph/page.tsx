@@ -55,7 +55,7 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
   const short = (label: string) => (label.length > 22 ? `${label.slice(0, 21)}…` : label);
 
   return (
-    <NotesShell team={team} teams={teams} nodes={nodes} canManageTeam={manageableIds.has(team.id)} contentFirst>
+    <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)}>
       <div className="space-y-5">
         <div className="page-header">
           <div>

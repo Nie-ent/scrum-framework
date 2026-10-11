@@ -21,7 +21,7 @@ export default async function NewNotePage({ searchParams }: PageProps<"/notes/ne
   const parent = typeof params.parent === "string" && nodes.some((n) => n.id === params.parent && n.kind === "FOLDER") ? params.parent : null;
 
   return (
-    <NotesShell team={team} teams={teams} nodes={nodes} canManageTeam={manageableIds.has(team.id)} contentFirst>
+    <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)}>
       <div className="card max-w-xl space-y-4">
         <div>
           <p className="eyebrow">โน้ตใหม่</p>

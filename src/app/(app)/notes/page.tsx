@@ -3,16 +3,18 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
+import { noteSnippet } from "@/lib/note-links";
 import { listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
+import { FolderRows, NoteRows } from "@/components/notes/note-list";
 import { NotesShell } from "@/components/notes/notes-shell";
 import { EmptyState } from "@/components/ui-state";
 
 export const metadata: Metadata = { title: "โน้ต" };
 
-/** ภาพรวมโน้ตของทีม: โน้ตที่แก้ล่าสุด หรือผลการค้นหา */
+/** หน้าแรกของโน้ต: โฟลเดอร์ + โน้ตทั้งหมด (แก้ล่าสุดขึ้นก่อน) หรือผลการค้นหา */
 export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   const user = await requireUser();
   const params = await searchParams;
@@ -23,7 +25,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   const team = (await pickSpace(teams, params.team))!;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
 
-  const [nodes, notes, linkCount] = await Promise.all([
+  const [nodes, notes] = await Promise.all([
     listNotes(team.id),
     prisma.note.findMany({
       where: {
@@ -32,68 +34,57 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
         deletedAt: null,
         ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {}),
       },
-      select: { id: true, title: true, content: true, updatedAt: true, updatedBy: { select: { name: true } }, _count: { select: { linksIn: true, linksOut: true } } },
+      select: { id: true, parentId: true, title: true, content: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
-      take: q ? 50 : 12,
+      take: q ? 50 : 200,
     }),
-    prisma.noteLink.count({ where: { from: { teamId: team.id, deletedAt: null } } }),
   ]);
-  const snippet = (content: string) => {
-    const plain = content.replace(/[#>*_`\[\]]/g, "").replace(/\s+/g, " ").trim();
-    const at = q ? plain.toLowerCase().indexOf(q.toLowerCase()) : -1;
-    const start = at > 60 ? at - 60 : 0;
-    return (start > 0 ? "…" : "") + plain.slice(start, start + 160) + (plain.length > start + 160 ? "…" : "");
-  };
+  const titleOf = new Map(nodes.map((n) => [n.id, n.title]));
+  const noteCount = nodes.filter((n) => n.kind === "NOTE").length;
+  const folders = nodes.filter((n) => n.kind === "FOLDER" && !n.parentId).map((f) => ({ id: f.id, title: f.title, count: nodes.filter((n) => n.parentId === f.id).length }));
+  const items = notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content, q), folder: n.parentId ? titleOf.get(n.parentId) : undefined }));
 
   return (
-    <NotesShell team={team} teams={teams} nodes={nodes} canManageTeam={manageableIds.has(team.id)}>
-      <div className="space-y-6">
+    <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)} q={q}>
+      <div className="mx-auto max-w-3xl space-y-6">
         <div className="page-header">
           <div>
-            <p className="eyebrow">คลังความรู้</p>
             <h1 className="page-title">โน้ต</h1>
-            <p className="page-subtitle">
-              {team.name} · {nodes.filter((n) => n.kind === "NOTE").length} โน้ต · {nodes.filter((n) => n.kind === "FOLDER").length} โฟลเดอร์ · {linkCount} ความสัมพันธ์
-            </p>
+            <p className="page-subtitle">{team.personalOfId ? "พื้นที่ส่วนตัว" : team.name} · {noteCount} โน้ต</p>
           </div>
-          <Link href={`/notes/graph?team=${team.id}`} className="btn-ghost gap-1.5"><Icon name="link" className="h-4 w-4 text-indigo-600" />แผนผังความสัมพันธ์</Link>
+          <Link href={`/notes/graph?team=${team.id}`} className="btn-ghost gap-1.5 lg:hidden"><Icon name="link" className="h-4 w-4 text-primary" />แผนผัง</Link>
         </div>
 
-        {nodes.length === 0 ? (
+        {q ? (
+          <section className="space-y-2.5">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <h2 className="text-sm font-semibold text-muted-foreground">ผลการค้นหา &quot;{q}&quot; ({items.length})</h2>
+              <Link href={`/notes?team=${team.id}`} className="text-sm font-medium text-primary hover:text-primary-strong">ล้างการค้นหา</Link>
+            </div>
+            {items.length === 0 ? <p className="card text-sm text-muted-foreground">ไม่พบโน้ตที่ตรงกับคำค้น</p> : <NoteRows notes={items} />}
+          </section>
+        ) : nodes.length === 0 ? (
           <div className="card space-y-3">
-            <h2 className="font-semibold text-slate-900">เริ่มฐานความรู้ของทีม</h2>
-            <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-600">
-              <li>สร้าง<b className="font-semibold text-slate-800">โฟลเดอร์</b>และ<b className="font-semibold text-slate-800">โน้ต</b>จากแถบด้านซ้าย เขียนด้วย Markdown</li>
-              <li>เชื่อมโน้ตเข้าหากันด้วย <code className="rounded bg-slate-100 px-1">[[ชื่อโน้ต]]</code> — โน้ตปลายทางจะเห็นว่าใครลิงก์มา</li>
-              <li>อ้างถึงงานของทีมด้วย <code className="rounded bg-slate-100 px-1">#เลขงาน</code> — โน้ตจะไปขึ้นใต้งานนั้นในหน้า งาน</li>
-              <li>ทุกคนในทีมอ่านและแก้ได้ เชิญคนเพิ่มได้จากหน้าจัดการทีม</li>
+            <h2 className="font-semibold text-foreground">เริ่มจดโน้ตแรกของคุณ</h2>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">
+              <li>กดปุ่ม <b className="font-semibold text-foreground">+</b> มุมขวาล่าง เพื่อสร้างโน้ตหรือโฟลเดอร์</li>
+              <li>ลากโน้ตไปวางบนโฟลเดอร์เพื่อจัดหมวดหมู่</li>
+              <li>ในโน้ต พิมพ์ <b className="font-semibold text-foreground">[[</b> เพื่อเชื่อมไปโน้ตอื่น หรือ <b className="font-semibold text-foreground">#</b> เพื่ออ้างถึงงาน</li>
             </ul>
           </div>
         ) : (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-semibold text-slate-900">{q ? `ผลการค้นหา "${q}" (${notes.length})` : "แก้ไขล่าสุด"}</h2>
-              {q && <Link href={`/notes?team=${team.id}`} className="text-sm text-slate-500 hover:text-indigo-700">ล้างการค้นหา</Link>}
-            </div>
-            {notes.length === 0 ? (
-              <p className="card text-sm text-slate-500">{q ? "ไม่พบโน้ตที่ตรงกับคำค้น" : "ยังไม่มีโน้ต มีแต่โฟลเดอร์ — สร้างโน้ตจากแถบด้านซ้าย"}</p>
-            ) : (
-              <ul className="grid gap-3 md:grid-cols-2">
-                {notes.map((n) => (
-                  <li key={n.id}>
-                    <Link href={`/notes/${n.id}`} className="card flex h-full flex-col gap-2 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
-                      <span className="flex items-center gap-2 font-semibold text-slate-900"><Icon name="note" className="h-4 w-4 text-slate-400" /><span className="min-w-0 truncate">{n.title}</span></span>
-                      <span className="line-clamp-2 min-h-10 text-sm text-slate-500">{snippet(n.content) || "ยังไม่มีเนื้อหา"}</span>
-                      <span className="mt-auto flex flex-wrap items-center gap-x-3 text-xs text-slate-400">
-                        <span>{n.updatedBy?.name ?? "—"} · {formatDateTime(n.updatedAt)}</span>
-                        {n._count.linksIn + n._count.linksOut > 0 && <span className="inline-flex items-center gap-1"><Icon name="link" className="h-3.5 w-3.5" />{n._count.linksIn + n._count.linksOut}</span>}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+          <>
+            {folders.length > 0 && (
+              <section className="space-y-2.5">
+                <h2 className="px-1 text-sm font-semibold text-muted-foreground">โฟลเดอร์</h2>
+                <FolderRows folders={folders} />
+              </section>
             )}
-          </section>
+            <section className="space-y-2.5">
+              <h2 className="px-1 text-sm font-semibold text-muted-foreground">โน้ตทั้งหมด</h2>
+              {items.length === 0 ? <p className="card text-sm text-muted-foreground">ยังไม่มีโน้ต — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตแรก</p> : <NoteRows notes={items} />}
+            </section>
+          </>
         )}
       </div>
     </NotesShell>

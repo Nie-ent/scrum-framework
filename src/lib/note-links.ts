@@ -64,3 +64,15 @@ export function renameLinks(content: string, oldTitle: string, newTitle: string)
     )
     .join("");
 }
+
+/** ข้อความล้วนสั้น ๆ จากเนื้อหาโน้ต สำหรับแสดงในรายการ — ถ้ามีคำค้นจะตัดให้เห็นช่วงที่ตรง */
+export function noteSnippet(content: string, q = ""): string {
+  const plain = content
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
+    .replace(/[#>*_`~|\[\]]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const at = q ? plain.toLowerCase().indexOf(q.toLowerCase()) : -1;
+  const start = at > 60 ? at - 60 : 0;
+  return (start > 0 ? "…" : "") + plain.slice(start, start + 160) + (plain.length > start + 160 ? "…" : "");
+}

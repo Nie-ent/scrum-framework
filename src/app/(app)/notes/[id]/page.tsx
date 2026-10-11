@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
-import { linkify, noteKey } from "@/lib/note-links";
+import { linkify, noteKey, noteSnippet } from "@/lib/note-links";
 import { descendantIds, listNotes, pathTo } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { Icon } from "@/components/icons";
@@ -12,6 +12,7 @@ import { Markdown } from "@/components/notes/markdown";
 import { NoteEditor } from "@/components/notes/note-editor";
 import { ReadingSurface } from "@/components/notes/reading-surface";
 import { DeleteNoteButton, MoveForm, RenameFolderForm } from "@/components/notes/note-forms";
+import { FolderRows, NoteRows } from "@/components/notes/note-list";
 import { NotesShell, folderOptions } from "@/components/notes/notes-shell";
 
 export const metadata: Metadata = { title: "โน้ต" };
@@ -41,7 +42,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   ]);
   const path = pathTo(nodes, note.id);
   const crumbs = path.slice(0, -1);
-  const shell = { team, teams, nodes, activeId: note.id, openIds: path.map((p) => p.id), canManageTeam: canManage };
+  const shell = { team, nodes, activeId: note.id, openIds: path.map((p) => p.id), canManageTeam: canManage };
   const Breadcrumb = (
     <nav aria-label="ตำแหน่ง" className="flex flex-wrap items-center gap-1 text-sm text-slate-500">
       <Link href={`/notes?team=${team.id}`} className="hover:text-indigo-700">{team.name}</Link>
@@ -54,33 +55,30 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   if (note.kind === "FOLDER") {
     const children = nodes.filter((n) => n.parentId === note.id);
     const inside = descendantIds(nodes, note.id).length - 1;
+    const notes = await prisma.note.findMany({
+      where: { parentId: note.id, kind: "NOTE", deletedAt: null },
+      select: { id: true, title: true, content: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    const folders = children.filter((c) => c.kind === "FOLDER").map((f) => ({ id: f.id, title: f.title, count: nodes.filter((n) => n.parentId === f.id).length }));
     return (
       <NotesShell {...shell}>
-        <div className="space-y-6">
+        <div className="mx-auto max-w-3xl space-y-6">
           {Breadcrumb}
           <div className="page-header">
             <div>
-              <p className="eyebrow">โฟลเดอร์</p>
-              <h1 className="page-title flex items-center gap-2"><Icon name="folder" className="h-7 w-7 text-amber-500" />{note.title}</h1>
+              <h1 className="page-title flex items-center gap-2"><Icon name="folder" className="h-7 w-7 text-warning" />{note.title}</h1>
               <p className="page-subtitle">{children.length} รายการ</p>
             </div>
           </div>
-          <section className="card">
-            {children.length === 0 ? (
-              <p className="text-sm text-slate-500">โฟลเดอร์นี้ยังว่าง — สร้างโน้ตหรือโฟลเดอร์ย่อยจากแถบด้านซ้าย (ระบบเลือกโฟลเดอร์นี้ให้แล้ว)</p>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {children.map((c) => (
-                  <li key={c.id}>
-                    <Link href={`/notes/${c.id}`} className="flex items-center gap-2.5 py-2.5 text-sm font-medium text-slate-800 hover:text-indigo-700">
-                      <Icon name={c.kind === "FOLDER" ? "folder" : "note"} className={`h-4 w-4 ${c.kind === "FOLDER" ? "text-amber-500" : "text-slate-400"}`} />
-                      {c.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {children.length === 0 ? (
+            <p className="card text-sm text-muted-foreground">โฟลเดอร์นี้ยังว่าง — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตในโฟลเดอร์นี้ หรือลากโน้ตมาวาง</p>
+          ) : (
+            <>
+              <FolderRows folders={folders} />
+              <NoteRows notes={notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content) }))} />
+            </>
+          )}
           <section className="card space-y-4">
             <h2 className="font-semibold text-slate-900">จัดการโฟลเดอร์</h2>
             <RenameFolderForm id={note.id} title={note.title} />
@@ -95,7 +93,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   const others = nodes.filter((n) => n.kind === "NOTE" && n.id !== note.id);
   if (editing) {
     return (
-      <NotesShell {...shell} contentFirst>
+      <NotesShell {...shell} fab={false}>
         <div className="space-y-4">
           {Breadcrumb}
           <div className="card">
@@ -122,7 +120,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   const linkedTasks = taskLinks.flatMap((l) => (l.toTask && !l.toTask.deletedAt ? [l.toTask] : []));
 
   return (
-    <NotesShell {...shell} contentFirst>
+    <NotesShell {...shell}>
       <div className="space-y-5">
         {Breadcrumb}
         <article className="card">

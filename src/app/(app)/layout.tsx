@@ -6,6 +6,7 @@ import { NavLink } from "@/components/nav-link";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canAdmin, canViewOverview } from "@/lib/permissions";
+import { AccountMenu } from "@/components/account-menu";
 import { Avatar } from "@/components/avatar";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { SectionTabs } from "@/components/section-tabs";
@@ -41,7 +42,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     },
     { title: "ความรู้", items: [{ href: "/notes", label: "โน้ต", icon: "notes" }] },
     {
-      title: "ทีม",
+      title: "ภาพรวม",
       items: [
         { href: "/dashboard", label: "ภาพรวมทีม", icon: "overview", show: overview },
         { href: "/stats", label: "สถิติ", icon: "stats" },
@@ -55,13 +56,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       ],
     },
   ];
-  // มือถือ: 5 ปลายทาง — หมวด งาน และ ทีม มีแท็บย่อยที่หัวหน้า (SectionTabs)
+  // มือถือ: 4 ปลายทาง — หมวด งาน และ ภาพรวม มีแท็บย่อยที่หัวหน้า (SectionTabs) · บัญชีอยู่ที่รูปโปรไฟล์บนแถบหัว
   const bottom = [
     { href: "/standup", label: "วันนี้", icon: "checkin" as const },
     { href: "/tasks", label: "งาน", icon: "tasks" as const, match: ["/calendar", "/files"] },
     { href: "/notes", label: "โน้ต", icon: "notes" as const },
-    { href: overview ? "/dashboard" : "/teams", label: "ทีม", icon: "teams" as const, match: ["/dashboard", "/stats", "/teams"] },
-    { href: "/account", label: "บัญชี", icon: "account" as const, match: ["/admin"] },
+    { href: overview ? "/dashboard" : "/teams", label: "ภาพรวม", icon: "overview" as const, match: ["/dashboard", "/stats", "/teams"] },
   ];
 
   return (
@@ -104,18 +104,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             {unread > 0 && <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-danger ring-2 ring-surface" />}
           </Link>
           </Tooltip>
-          {/* ชื่อผู้ใช้พาไปหน้าบัญชี — ปุ่มออกจากระบบอยู่ในหน้านั้น */}
-          <Link
-            href="/account"
-            aria-label={`บัญชีของ ${user.name}`}
-            className="flex min-w-0 items-center gap-2.5 rounded-xl leading-tight transition hover:bg-surface-sunken lg:rounded-2xl lg:bg-surface-sunken lg:p-3"
-          >
+          {/* รูปโปรไฟล์ = เมนูบัญชี (ตั้งค่า · ออกจากระบบ) */}
+          <AccountMenu name={user.name} email={user.email} admin={canAdmin(level)}>
             <Avatar user={user} size={32} />
-            <div className="hidden min-w-0 lg:block">
-              <div className="truncate text-sm font-semibold text-foreground">{user.name}</div>
-              <div className="mt-0.5 truncate text-xs text-muted-foreground">บัญชีและการตั้งค่า</div>
-            </div>
-          </Link>
+          </AccountMenu>
           </div>
         </div>
       </header>

@@ -6,7 +6,8 @@ import { requireOverviewAccess } from "@/lib/auth";
 import { getMeetingUrl, getVisibleTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { toTasks } from "@/lib/tasks";
-import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
+import { dateToKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
+import { DateStepper } from "@/components/date-stepper";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
 import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
@@ -84,31 +85,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         <div>
           <p className="eyebrow">สุขภาพทีม</p>
           <h1 className="page-title">ภาพรวมทีม</h1>
-          <p className="page-subtitle">
-            {scopeLabel} · {formatDateKey(dateKey)}
-            {dateKey === today && " (วันนี้)"}
-          </p>
+          <p className="page-subtitle">{scopeLabel}</p>
           {meetingUrl && (
             <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="btn mt-3 gap-1.5"><Icon name="video" />เข้าห้องประชุม</a>
           )}
         </div>
-        <div className="card flex w-full flex-wrap items-center gap-2 p-2 sm:w-auto">
-          <Link className="btn-ghost" href={href(shiftKey(dateKey, -1))}>← ก่อนหน้า</Link>
-          <form className="order-last flex min-w-0 basis-full gap-2 sm:order-none sm:basis-auto" action="/dashboard">
-            {view === "grid" && <input type="hidden" name="view" value="grid" />}
-            <input aria-label="วันที่" type="date" name="date" defaultValue={dateKey} max={today} className="input min-h-10 min-w-0 flex-1 py-1.5 sm:w-auto sm:flex-none" />
-            <select aria-label="ทีม" name="team" defaultValue={teamId} className="input min-h-10 min-w-0 flex-1 py-1.5 sm:w-auto sm:flex-none">
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.parentId && teams.some((p) => p.id === t.parentId) ? "\u00a0\u00a0└ " : ""}
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <button className="btn-ghost">ดู</button>
-          </form>
-          {dateKey < today && <Link className="btn-ghost" href={href(shiftKey(dateKey, 1))}>ถัดไป →</Link>}
-        </div>
+        {/* ทีมเลือกจากตัวเลือกพื้นที่ที่แถบเมนู — ตรงนี้เลือกเฉพาะวัน */}
+        <DateStepper key={dateKey} dateKey={dateKey} today={today} path="/dashboard" query={`team=${teamId}${viewParam}`} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
