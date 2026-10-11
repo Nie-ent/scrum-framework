@@ -9,6 +9,7 @@ import { TableKit } from "@tiptap/extension-table";
 import { LinkChips } from "./link-chips";
 import { EditorMenus, type MenuKeyHandler } from "./editor-menus";
 import { Tooltip } from "@/components/tooltip";
+import { Select } from "@/components/select";
 
 /**
  * ตัวแก้ไขแบบเห็นผลทันที (ไม่ต้องรู้ Markdown): กดปุ่มจัดรูปแบบเหมือนโปรแกรมเอกสารทั่วไป
@@ -161,25 +162,25 @@ function Toolbar({
         <Button label="เลิกทำ" shortcut={`${MOD}Z`} onClick={() => chain().undo().run()}>↶</Button>
         <Button label="ทำซ้ำ" shortcut={`${MOD}Shift+Z`} onClick={() => chain().redo().run()}>↷</Button>
         <span className="ml-auto flex flex-wrap gap-1.5">
-          <select
+          <Select
             aria-label="เชื่อมไปโน้ตอื่น"
-            className="h-8 max-w-44 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700"
+            size="sm"
+            className="w-36"
             value=""
-            onChange={(e) => e.target.value && chain().insertContent(`[[${e.target.value}]] `).run()}
-          >
-            <option value="">+ เชื่อมไปโน้ต…</option>
-            {noteTitles.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
+            placeholder="+ เชื่อมไปโน้ต…"
+            onChange={(title) => chain().insertContent(`[[${title}]] `).run()}
+            options={noteTitles.map((t) => ({ value: t, label: t }))}
+          />
           {tasks.length > 0 && (
-            <select
+            <Select
               aria-label="เชื่อมไปงาน"
-              className="h-8 max-w-44 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700"
+              size="sm"
+              className="w-36"
               value=""
-              onChange={(e) => e.target.value && chain().insertContent(`#${e.target.value} `).run()}
-            >
-              <option value="">+ เชื่อมไปงาน…</option>
-              {tasks.map((t) => <option key={t.number} value={t.number}>#{t.number} {t.title}</option>)}
-            </select>
+              placeholder="+ เชื่อมไปงาน…"
+              onChange={(number) => chain().insertContent(`#${number} `).run()}
+              options={tasks.map((t) => ({ value: String(t.number), label: `#${t.number} ${t.title}` }))}
+            />
           )}
         </span>
       </div>

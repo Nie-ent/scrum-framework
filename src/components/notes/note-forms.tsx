@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { createNote, deleteNote, moveNote, renameFolder } from "@/app/actions/notes";
 import { FormMessage, SubmitButton } from "@/components/form";
+import { Select } from "@/components/select";
 
 type Folder = { id: string; label: string };
 
@@ -14,10 +15,7 @@ export function NewItemForm({ teamId, folders, parentId, title = "", autoFocus =
       <input type="hidden" name="teamId" value={teamId} />
       <input name="title" className="input py-2" maxLength={120} required autoFocus={autoFocus} defaultValue={title} placeholder="ชื่อโน้ตหรือโฟลเดอร์ใหม่" aria-label="ชื่อโน้ตหรือโฟลเดอร์ใหม่" />
       {folders.length > 0 && (
-        <select name="parentId" className="input py-2" defaultValue={parentId ?? ""} aria-label="สร้างไว้ในโฟลเดอร์">
-          <option value="">ระดับบนสุด</option>
-          {folders.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-        </select>
+        <Select name="parentId" defaultValue={parentId ?? ""} aria-label="สร้างไว้ในโฟลเดอร์" options={[{ value: "", label: "ระดับบนสุด" }, ...folders.map((f) => ({ value: f.id, label: f.label }))]} />
       )}
       <div className="flex gap-2">
         <button name="kind" value="NOTE" className="btn min-h-9 flex-1 px-3 py-1.5 text-sm">+ โน้ต</button>
@@ -34,10 +32,7 @@ export function MoveForm({ id, folders, parentId }: { id: string; folders: Folde
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="id" value={id} />
-      <select name="parentId" className="input w-auto min-w-40 flex-1 py-2" defaultValue={parentId ?? ""} aria-label="ย้ายไปโฟลเดอร์">
-        <option value="">ระดับบนสุด</option>
-        {folders.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-      </select>
+      <Select name="parentId" className="min-w-40 flex-1" defaultValue={parentId ?? ""} aria-label="ย้ายไปโฟลเดอร์" options={[{ value: "", label: "ระดับบนสุด" }, ...folders.map((f) => ({ value: f.id, label: f.label }))]} />
       <SubmitButton className="btn-ghost" pendingText="กำลังย้าย...">ย้าย</SubmitButton>
       <span className="basis-full empty:hidden"><FormMessage state={state} /></span>
     </form>

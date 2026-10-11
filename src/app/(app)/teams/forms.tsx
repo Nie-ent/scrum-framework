@@ -7,6 +7,7 @@ import { InviteFields, TeamFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
 import { HelpTip } from "@/components/tooltip";
+import { Select } from "@/components/select";
 
 const TITLE_HINT = "เช่น ผู้จัดการ, นักออกแบบ, ฝ่ายขาย";
 
@@ -82,10 +83,7 @@ export function InviteForm({
           <label className="label mb-0" htmlFor="invite-access">สิทธิ์</label>
           <HelpTip title="สิทธิ์ในทีม">สมาชิก: ทำงานและเช็กอินของตัวเอง เห็นงานของเพื่อนร่วมทีม · หัวหน้าทีม: เห็นภาพรวมและมอบหมายงานได้ · เจ้าของทีม: จัดการสมาชิกและตั้งค่าทีมได้ด้วย</HelpTip>
         </div>
-        <select id="invite-access" className="input" defaultValue="MEMBER" {...field("access")}>
-          <option value="MEMBER">สมาชิก</option>
-          {canInviteLead && <option value="LEAD">หัวหน้าทีม</option>}
-        </select>
+        <Select id="invite-access" defaultValue="MEMBER" inputProps={field("access")} options={[{ value: "MEMBER", label: "สมาชิก" }, ...(canInviteLead ? [{ value: "LEAD", label: "หัวหน้าทีม" }] : [])]} />
       </div>
       <SubmitButton className="btn sm:mt-[1.875rem]" pendingText="กำลังเชิญ..." pending={pending}>เชิญ</SubmitButton>
       <div className="space-y-2 sm:col-span-4">
@@ -122,11 +120,7 @@ export function MemberForm({ teamId, member, self }: { teamId: string; member: M
         <input type="hidden" name="teamId" value={teamId} />
         <input type="hidden" name="userId" value={member.userId} />
         <input name="title" defaultValue={member.title ?? ""} maxLength={40} list="team-titles-edit" placeholder="บทบาท" aria-label={`บทบาทของ ${member.name}`} className="input w-36 py-1.5" />
-        <select name="access" defaultValue={member.access} aria-label={`สิทธิ์ของ ${member.name}`} className="input w-32 py-1.5">
-          <option value="MEMBER">สมาชิก</option>
-          <option value="LEAD">หัวหน้าทีม</option>
-          <option value="OWNER">เจ้าของทีม</option>
-        </select>
+        <Select name="access" defaultValue={member.access} aria-label={`สิทธิ์ของ ${member.name}`} className="w-36 !min-h-10 !text-sm" options={[{ value: "MEMBER", label: "สมาชิก" }, { value: "LEAD", label: "หัวหน้าทีม" }, { value: "OWNER", label: "เจ้าของทีม" }]} />
         <label className="flex items-center gap-1.5 text-xs text-slate-600" title="ไม่ติ๊ก = ผู้ดูแลอย่างเดียว ไม่ต้องเช็กอินและไม่ถูกนับในภาพรวม">
           <input type="checkbox" name="participates" defaultChecked={member.participates} /> เช็กอิน
         </label>

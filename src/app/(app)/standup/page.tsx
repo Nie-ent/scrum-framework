@@ -49,16 +49,13 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
   }
   // พื้นที่ส่วนตัว: ใช้ฟอร์มเดียวกันเป็นบันทึกประจำวันของตัวเอง (ไม่มีส่วนของเพื่อนร่วมทีม)
   const personal = Boolean(team.personalOfId);
-  const [history, submittedToday, myTasks, teammates, manageableIds, meetingUrl, dueNow] = await Promise.all([
+  const [history, myTasks, teammates, manageableIds, meetingUrl, dueNow] = await Promise.all([
     prisma.standup.findMany({
       where: { userId: user.id, teamId: team.id },
       include: { comments: withComments },
       orderBy: { date: "desc" },
-      take: 15,
-    }),
-    prisma.standup.findMany({
-      where: { userId: user.id, date: keyToDate(today) },
-      select: { teamId: true },
+      // ต้องใช้แค่ของวันนี้กับครั้งก่อนหน้า (ยกงานมา) — ประวัติทั้งหมดอยู่ที่ /standup/history
+      take: 2,
     }),
     // งานที่ได้รับมอบหมายในทีมนี้ (รวมที่เสร็จแล้ว เพื่อใช้ตรวจ taskId ในเช็กอินเก่า)
     prisma.task.findMany({
@@ -93,12 +90,11 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
       // งานที่ตัวเองสร้าง (รวมที่พิมพ์ในเช็กอิน) แก้ชื่อได้ — งานที่คนอื่นมอบหมายแก้ได้เฉพาะ %
       return { ...rest, taskId, text: linked.title, ...(useTaskProgress ? { progress: linked.progress } : {}), ...(linked.createdById === user.id ? { editable: true } : {}) };
     });
-  const doneTeams = new Set(submittedToday.map((s) => s.teamId));
   const current = history.find((s) => dateToKey(s.date) === today);
   const previous = history.find((s) => s.date < keyToDate(today));
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="mx-auto max-w-4xl">
       <section>
         <div className="page-header mb-6">
           <div>
@@ -113,25 +109,6 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
             <Link href={`/stats?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="stats" className="h-4 w-4 text-indigo-600" />สถิติของฉัน</Link>
           </div>
         </div>
-
-        {teams.length > 1 && (
-          <nav aria-label="เลือกทีม" className="mb-4 flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
-            {teams.map((t) => (
-              <Link
-                key={t.id}
-                href={`/standup?team=${t.id}`}
-                aria-current={t.id === team.id ? "page" : undefined}
-                className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3 text-sm transition ${
-                  t.id === team.id ? "bg-white font-semibold text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-950"
-                }`}
-              >
-                {t.name}
-                <span className={`h-1.5 w-1.5 rounded-full ${doneTeams.has(t.id) ? "bg-emerald-500" : "bg-amber-400"}`} aria-label={doneTeams.has(t.id) ? "ส่งแล้ว" : "ยังไม่ส่ง"} />
-              </Link>
-            ))}
-          </nav>
-        )}
-
 
         <GettingStarted spaceId={team.id} personal={personal} />
 
@@ -222,22 +199,6 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
         </section>}
       </section>
 
-      <aside className="xl:border-l xl:border-slate-200 xl:pl-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-800">ประวัติ · {team.name}</h2>
-          <span className="badge badge-neutral">15 รายการล่าสุด</span>
-        </div>
-        <div className="space-y-3">
-          {history.filter((s) => s !== current).map((s) => (
-            <div key={s.id} className="rounded-2xl border border-slate-200/80 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between text-sm font-medium text-slate-500"><span>{formatDateKey(dateToKey(s.date))}</span><span className="h-2 w-2 rounded-full bg-emerald-500" aria-label="ส่งแล้ว" /></div>
-              <StandupSections standup={s} />
-              <div className="mt-2"><CommentThread canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={canModerate} subject={`เช็กอิน ${formatDateKey(dateToKey(s.date))}`} /></div>
-            </div>
-          ))}
-          {history.length === 0 && <p className="text-sm text-slate-500">ยังไม่มีประวัติในทีมนี้</p>}
-        </div>
-      </aside>
     </div>
   );
 }

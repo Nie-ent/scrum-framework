@@ -38,6 +38,10 @@ export function AccountMenu({ name, email, admin, children }: { name: string; em
               <NavGlyph icon="account" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
               บัญชีและการตั้งค่า
             </Link>
+            <Link href="/standup/history" onClick={close} className={item}>
+              <NavGlyph icon="calendar" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
+              ประวัติเช็กอิน
+            </Link>
             {admin && (
               <Link href="/admin" onClick={close} className={item}>
                 <NavGlyph icon="admin" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />

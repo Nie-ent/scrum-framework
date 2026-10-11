@@ -8,6 +8,7 @@ import { FilePicker, PickedFiles, UploadProgressBar } from "@/components/attachm
 import { TaskFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
+import { Select } from "@/components/select";
 
 export function TaskForm({
   teamId,
@@ -69,12 +70,13 @@ export function TaskForm({
           {members ? (
             <div>
               <label className="label" htmlFor="task-assignee">มอบหมายให้</label>
-              <select id="task-assignee" className="input" defaultValue={members.some((m) => m.id === selfId) ? selfId : (members[0]?.id ?? "")} required {...field("assigneeId")}>
-                <option value="" disabled>เลือกสมาชิก</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}{m.id === selfId ? " (ฉัน)" : ""}</option>
-                ))}
-              </select>
+              <Select
+                id="task-assignee"
+                placeholder="เลือกสมาชิก"
+                defaultValue={members.some((m) => m.id === selfId) ? selfId : (members[0]?.id ?? "")}
+                inputProps={field("assigneeId")}
+                options={members.map((m) => ({ value: m.id, label: `${m.name}${m.id === selfId ? " (ฉัน)" : ""}` }))}
+              />
               <FieldError name="assigneeId" message={error("assigneeId")} />
             </div>
           ) : (

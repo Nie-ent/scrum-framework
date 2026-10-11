@@ -43,12 +43,7 @@ export function DateStepper({ dateKey, today, path, query = "" }: { dateKey: str
   const isToday = dateKey === today;
 
   return (
-    <div className="flex items-center gap-2">
-      {!isToday && (
-        <button type="button" onClick={() => go(today)} className="rounded-full px-3 py-2 text-sm font-medium text-primary transition hover:bg-primary-soft">
-          กลับมาวันนี้
-        </button>
-      )}
+    <div className="flex flex-col items-start gap-1 sm:items-end">
       <div className="flex items-center rounded-full border border-border bg-surface p-0.5 shadow-soft">
         <button type="button" aria-label="วันก่อนหน้า" onClick={() => go(shift(dateKey, -1))} className={arrow}><Chevron left /></button>
         <P.Root
@@ -97,6 +92,10 @@ export function DateStepper({ dateKey, today, path, query = "" }: { dateKey: str
         </P.Root>
         <button type="button" aria-label="วันถัดไป" onClick={() => go(shift(dateKey, 1))} disabled={dateKey >= today} className={arrow}><Chevron /></button>
       </div>
+      {/* จองที่ไว้เสมอ — ปุ่มโผล่ใต้ตัวเลือกวันโดยไม่ดันส่วนอื่นของหน้า */}
+      <button type="button" onClick={() => go(today)} tabIndex={isToday ? -1 : 0} aria-hidden={isToday} className={`rounded-full px-3 py-1 text-sm font-medium text-primary transition hover:bg-primary-soft ${isToday ? "invisible" : ""}`}>
+        กลับมาวันนี้
+      </button>
     </div>
   );
 }

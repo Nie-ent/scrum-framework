@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { saveRole, saveTeam, saveUser } from "@/app/actions/admin";
 import { FormMessage, SubmitButton } from "@/components/form";
+import { Select } from "@/components/select";
 
 type Option = { id: string; name: string };
 
@@ -43,20 +44,15 @@ export function TeamForm({
     <form action={action} className="flex flex-wrap items-start gap-2">
       {team && <input type="hidden" name="id" value={team.id} />}
       <input className="input max-w-xs" name="name" defaultValue={team?.name} placeholder="ชื่อทีม" required />
-      <select
-        className="input max-w-56"
+      <Select
+        className="w-56"
         name="parentId"
+        aria-label="ระดับของทีม"
         defaultValue={team?.parentId ?? ""}
         disabled={hasChildren}
         title={hasChildren ? "ทีมที่มีทีมย่อยต้องเป็นทีมระดับบน" : undefined}
-      >
-        <option value="">— ทีมระดับบน —</option>
-        {parents
-          .filter((p) => p.id !== team?.id)
-          .map((p) => (
-            <option key={p.id} value={p.id}>ทีมย่อยของ {p.name}</option>
-          ))}
-      </select>
+        options={[{ value: "", label: "ทีมระดับบน" }, ...parents.filter((p) => p.id !== team?.id).map((p) => ({ value: p.id, label: `ทีมย่อยของ ${p.name}` }))]}
+      />
       <SubmitButton className={team ? "btn-ghost" : "btn"}>{team ? "บันทึก" : "เพิ่มทีม"}</SubmitButton>
       <FormMessage state={state} />
     </form>
@@ -103,12 +99,7 @@ export function UserForm({
       </div>
       <div>
         <label className="label">Role</label>
-        <select className="input" name="roleId" defaultValue={user?.roleId ?? ""} required>
-          <option value="" disabled>เลือก role</option>
-          {roles.map((r) => (
-            <option key={r.id} value={r.id}>{r.name} (Lv {r.level})</option>
-          ))}
-        </select>
+        <Select name="roleId" aria-label="Role" placeholder="เลือก role" defaultValue={user?.roleId ?? ""} options={roles.map((r) => ({ value: r.id, label: `${r.name} (Lv ${r.level})` }))} />
       </div>
       <div className="flex items-end gap-3 md:col-span-2">
         <label className="flex items-center gap-2 pb-2 text-sm">

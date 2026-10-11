@@ -1,18 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as P from "@radix-ui/react-popover";
 
 const COOKIE = "pace_space";
 /** หน้าที่แสดงข้อมูลของพื้นที่เดียว — เปลี่ยนพื้นที่แล้วอยู่หน้าเดิม */
-const SPACE_PAGES = ["/standup", "/tasks", "/calendar", "/files", "/stats"];
+const SPACE_PAGES = ["/standup", "/standup/history", "/tasks", "/calendar", "/files", "/stats"];
 
 type Space = { id: string; name: string; parentId: string | null; personal: boolean };
 
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => void listeners.delete(listener);
+};
+const readCookie = () => {
+  const found = document.cookie.split("; ").find((c) => c.startsWith(`${COOKIE}=`));
+  return found ? decodeURIComponent(found.slice(COOKIE.length + 1)) : "";
+};
 const remember = (id: string) => {
   document.cookie = `${COOKIE}=${encodeURIComponent(id)}; path=/; max-age=31536000; samesite=lax`;
+  listeners.forEach((l) => l());
 };
 
 const label = (s: Space) => (s.personal ? "พื้นที่ส่วนตัว" : s.name);
@@ -41,14 +51,16 @@ export function SpaceSwitcher({ spaces, saved, className = "" }: { spaces: Space
   const pathname = usePathname();
   const param = useSearchParams().get("team");
   const [open, setOpen] = useState(false);
+  // อ่าน cookie เองทุกครั้ง: layout ไม่ถูกวาดใหม่ตอนเปลี่ยนเมนู ค่า saved ที่ส่งมาจึงอาจเก่ากว่าที่หน้าใช้จริง
+  const cookie = useSyncExternalStore(subscribe, readCookie, () => saved ?? "");
   const fromLink = spaces.find((s) => s.id === param)?.id;
-  const currentId = fromLink ?? spaces.find((s) => s.id === saved)?.id ?? spaces[0]?.id ?? "";
+  const currentId = fromLink ?? spaces.find((s) => s.id === cookie)?.id ?? spaces[0]?.id ?? "";
   const current = spaces.find((s) => s.id === currentId);
 
   // เปิดลิงก์ที่ระบุพื้นที่มา (เช่นจากแจ้งเตือน) = ถือว่าย้ายมาพื้นที่นั้นแล้ว
   useEffect(() => {
-    if (fromLink && fromLink !== saved) remember(fromLink);
-  }, [fromLink, saved]);
+    if (fromLink && fromLink !== cookie) remember(fromLink);
+  }, [fromLink, cookie]);
 
   if (!current) return null;
   const hasParent = (s: Space) => s.parentId !== null && spaces.some((p) => p.id === s.parentId);
