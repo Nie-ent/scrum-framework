@@ -55,6 +55,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         createdBy: { select: { id: true, name: true } },
         comments: withComments,
         attachments: withAttachments,
+        // โน้ตที่อ้างถึงงานนี้ด้วย #เลขงาน
+        noteLinks: { where: { from: { deletedAt: null } }, select: { from: { select: { id: true, title: true } } } },
       },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
@@ -116,10 +118,18 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
   const renderTask = (t: TaskRow) => {
     return (
-      <li key={t.id}>
+      <li key={t.id} id={t.number === null ? undefined : `task-${t.number}`} className="scroll-mt-24 target:rounded-xl target:bg-indigo-50/60">
         {canDelete(t) ? <SwipeDeleteTask id={t.id} title={t.title}>{row(t)}</SwipeDeleteTask> : row(t)}
         {/* อยู่นอกแถบปัดลบ เพื่อให้เลือกข้อความ/พิมพ์ได้โดยไม่ไปเริ่มการปัด */}
         <div className="space-y-1 pb-3">
+          {t.noteLinks.length > 0 && (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+              <Icon name="note" className="h-3.5 w-3.5 text-slate-400" />
+              {t.noteLinks.map((l) => (
+                <Link key={l.from.id} href={`/notes/${l.from.id}`} className="font-medium text-indigo-600 hover:text-indigo-800">{l.from.title}</Link>
+              ))}
+            </p>
+          )}
           <AttachmentList files={toFileItems(t.attachments, user.id)} canModerate={canManage} />
           {canAttach && (canUpdate(t) || t.createdBy?.id === user.id) && <AttachButton target={{ taskId: t.id }} />}
           <CommentThread canAttach={canAttach} target={{ taskId: t.id }} comments={t.comments} viewerId={user.id} canModerate={canManage} subject={t.title} />

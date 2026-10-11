@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { logout } from "@/app/actions/auth";
 import { requireUser } from "@/lib/auth";
-import { teamsLabel } from "@/lib/permissions";
+import { canAdmin, teamsLabel } from "@/lib/permissions";
 import { pushPublicKey } from "@/lib/push";
 import type { Metadata } from "next";
 import { isEmailConfigured } from "@/lib/email";
@@ -33,6 +33,15 @@ export default async function AccountPage() {
         </div>
         <span className="shrink-0 text-indigo-600" aria-hidden="true">→</span>
       </Link>
+      {canAdmin(user.role.level) && (
+        <Link href="/admin" className="card flex items-center justify-between gap-3 transition hover:border-indigo-200 lg:hidden">
+          <div>
+            <h2 className="font-semibold text-slate-900">จัดการระบบ</h2>
+            <p className="text-sm text-slate-500">ผู้ใช้ role และทีมทั้งระบบ (สำหรับผู้ดูแล)</p>
+          </div>
+          <span className="shrink-0 text-indigo-600" aria-hidden="true">→</span>
+        </Link>
+      )}
       <NotificationSettings publicKey={pushPublicKey()} />
       <EmailSettings email={user.email} verified={Boolean(user.emailVerifiedAt)} enabled={user.emailNotifications} canSend={isEmailConfigured()} />
       <PasswordForm />

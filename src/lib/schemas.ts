@@ -52,3 +52,16 @@ export const TaskFields = z.object({
   assigneeId: z.string().min(1, { error: "กรุณาเลือกผู้รับงาน" }),
   dueDate: z.string().refine((v) => v === "" || isDateKey(v), { error: "วันที่ไม่ถูกต้อง" }),
 });
+
+export const noteTitle = z
+  .string()
+  .trim()
+  .min(1, { error: "กรุณาตั้งชื่อ" })
+  .max(120, { error: "ชื่อยาวเกิน 120 ตัวอักษร" })
+  // อักขระที่ใช้ในไวยากรณ์ลิงก์ [[ชื่อ|ข้อความ]] ใส่ในชื่อไม่ได้
+  .refine((v) => !/[\[\]|]/.test(v), { error: "ชื่อห้ามมี [ ] หรือ |" });
+
+export const NoteFields = z.object({
+  title: noteTitle,
+  content: z.string().max(200_000, { error: "เนื้อหายาวเกินไป" }),
+});

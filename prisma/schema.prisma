@@ -38,6 +38,7 @@ model Team {
   taskSeq    Int          @default(0)
   /// ลิงก์ห้องประชุมประจำทีม (Google Meet / Zoom / Jitsi ฯลฯ) — ทีมย่อยที่ไม่ได้ตั้งใช้ของทีมแม่
   meetingUrl String?
+  notes      Note[]
   createdAt  DateTime     @default(now()) @db.Timestamptz(3)
 
   @@unique([parentId, name])
@@ -100,6 +101,8 @@ model User {
   sentInvites        Invite[]           @relation("InviteSender")
   acceptedInvites    Invite[]           @relation("InviteAccepter")
   authTokens         AuthToken[]
+  createdNotes       Note[]             @relation("NoteCreator")
+  updatedNotes       Note[]             @relation("NoteEditor")
   createdAt          DateTime           @default(now()) @db.Timestamptz(3)
 }
 
@@ -163,6 +166,8 @@ model Task {
   deletedAt   DateTime?    @db.Timestamptz(3)
   comments    Comment[]
   attachments Attachment[]
+  /// โน้ตที่อ้างถึงงานนี้ด้วย #เลขงาน
+  noteLinks   NoteLink[]
   createdAt   DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
 
@@ -296,4 +301,53 @@ model Avatar {
   data      Bytes
   mimeType  String
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+enum NoteKind {
+  FOLDER
+  NOTE
+}
+
+/// โน้ตและโฟลเดอร์ของทีม (ฐานความรู้แบบ Obsidian) — ทุกคนในทีมอ่านและแก้ได้
+/// โครงสร้างโฟลเดอร์มาจาก parentId · เนื้อหาเป็น Markdown · ลิงก์ระหว่างโน้ตเขียนเป็น [[ชื่อโน้ต]] และอ้างงานด้วย #เลขงาน
+model Note {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teamId      String
+  team        Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  parentId    String?    @db.Uuid
+  parent      Note?      @relation("NoteTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Note[]     @relation("NoteTree")
+  kind        NoteKind   @default(NOTE)
+  title       String
+  /// Markdown (โฟลเดอร์ไม่มีเนื้อหา)
+  content     String     @default("")
+  createdById String?
+  createdBy   User?      @relation("NoteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?      @relation("NoteEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  /// ลบแบบซ่อนไว้ — query ทั่วไปต้องกรอง deletedAt = null
+  deletedAt   DateTime?  @db.Timestamptz(3)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(3)
+  linksOut    NoteLink[] @relation("NoteLinkFrom")
+  linksIn     NoteLink[] @relation("NoteLinkTo")
+
+  @@index([teamId, parentId])
+  @@index([teamId, title])
+}
+
+/// ความสัมพันธ์ที่ดึงจากเนื้อหาโน้ตตอนบันทึก: โน้ต → โน้ต ([[...]]) หรือ โน้ต → งาน (#12) — ใช้ทำ backlink และแผนผัง
+model NoteLink {
+  id       BigInt  @id @default(autoincrement())
+  fromId   String  @db.Uuid
+  from     Note    @relation("NoteLinkFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toNoteId String? @db.Uuid
+  toNote   Note?   @relation("NoteLinkTo", fields: [toNoteId], references: [id], onDelete: Cascade)
+  toTaskId String?
+  toTask   Task?   @relation(fields: [toTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toNoteId])
+  @@unique([fromId, toTaskId])
+  @@index([toNoteId])
+  @@index([toTaskId])
 }

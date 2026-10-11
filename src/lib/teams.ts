@@ -51,3 +51,11 @@ export async function getTeamControl(viewer: CurrentUser, teamId: string) {
   const owner = canAdmin(viewer.role.level) || mine.some((m) => m.access === "OWNER");
   return { team, owner, lead: owner || mine.some(canLead), member: viewer.memberships.some((m) => m.teamId === team.id) };
 }
+
+/** ทีมที่ viewer เข้าใช้งานได้ = ทีมที่ตัวเองอยู่ + ทีมที่ดูแล (หน้า งาน / ไฟล์ / โน้ต ใช้ชุดเดียวกัน) */
+export async function getWorkspaceTeams(viewer: CurrentUser): Promise<{ teams: TeamRow[]; manageableIds: Set<string> }> {
+  const manageable = await getVisibleTeams(viewer);
+  const manageableIds = new Set(manageable.map((t) => t.id));
+  const teams = sortTeamTree([...manageable, ...viewer.memberships.map((m) => m.team).filter((t) => !manageableIds.has(t.id))]);
+  return { teams, manageableIds };
+}
