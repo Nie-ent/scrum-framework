@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { prisma } from "./db";
 import { extractLinks, noteKey } from "./note-links";
 
@@ -73,3 +74,9 @@ export async function relinkMentions(teamId: string, title: string) {
   });
   for (const note of mentions) await syncLinks(note);
 }
+
+/** id ของโน้ต/โฟลเดอร์ที่คนนี้ติดดาวไว้ในทีมนี้ */
+export const favoriteIds = cache(async (userId: string, teamId: string): Promise<string[]> => {
+  const rows = await prisma.noteFavorite.findMany({ where: { userId, note: { teamId, deletedAt: null } }, select: { noteId: true }, orderBy: { createdAt: "asc" } });
+  return rows.map((r) => r.noteId);
+});

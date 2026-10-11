@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
@@ -6,14 +5,12 @@ import { requireUser } from "@/lib/auth";
 import { listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
+import { ForceGraph } from "@/components/notes/force-graph";
 import { NotesShell } from "@/components/notes/notes-shell";
 
 export const metadata: Metadata = { title: "แผนผังความสัมพันธ์" };
 
-const SIZE = 720;
-const CENTER = SIZE / 2;
-
-/** แผนผังความสัมพันธ์ของโน้ต (และงานที่ถูกอ้างถึง) ของทีม — วางเป็นวงกลม โน้ตที่ถูกเชื่อมมากจุดใหญ่กว่า */
+/** แผนผังความสัมพันธ์ของโน้ต (และงานที่ถูกอ้างถึง) ของทีม — จัดวางด้วยแรงผลัก/ดึง โน้ตที่ถูกเชื่อมมากจุดใหญ่กว่า */
 export default async function NotesGraphPage({ searchParams }: PageProps<"/notes/graph">) {
   const user = await requireUser();
   const params = await searchParams;
@@ -39,21 +36,6 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
     const to = l.toNoteId ?? (l.toTask && !l.toTask.deletedAt ? l.toTask.id : null);
     return to && points.some((p) => p.id === to) ? [{ from: l.fromId, to }] : [];
   });
-  const degree = new Map<string, number>();
-  for (const e of edges) for (const id of [e.from, e.to]) degree.set(id, (degree.get(id) ?? 0) + 1);
-
-  // จุดที่มีความสัมพันธ์อยู่วงใน จุดโดดเดี่ยวอยู่วงนอก — เรียงตามจำนวนเส้นเพื่อให้จุดสำคัญกระจายตัว
-  const connected = points.filter((p) => degree.has(p.id)).sort((a, b) => degree.get(b.id)! - degree.get(a.id)!);
-  const isolated = points.filter((p) => !degree.has(p.id));
-  const place = (list: Point[], radius: number) =>
-    list.map((p, i) => {
-      const angle = (2 * Math.PI * i) / Math.max(list.length, 1) - Math.PI / 2;
-      return { ...p, x: CENTER + radius * Math.cos(angle), y: CENTER + radius * Math.sin(angle) };
-    });
-  const placed = [...place(connected, connected.length === 1 ? 0 : 190), ...place(isolated, 310)];
-  const at = new Map(placed.map((p) => [p.id, p]));
-  const short = (label: string) => (label.length > 22 ? `${label.slice(0, 21)}…` : label);
-
   return (
     <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)}>
       <div className="space-y-5">
@@ -65,36 +47,15 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
           </div>
         </div>
         {points.length === 0 ? (
-          <p className="card text-sm text-slate-500">ยังไม่มีโน้ต — สร้างโน้ตแล้วเชื่อมกันด้วย [[ชื่อโน้ต]] แผนผังจะแสดงที่นี่</p>
+          <p className="card text-sm text-muted-foreground">ยังไม่มีโน้ต — สร้างโน้ตแล้วพิมพ์ [[ ในเนื้อหาเพื่อเชื่อมไปโน้ตอื่น แผนผังจะแสดงที่นี่</p>
         ) : (
-          <div className="card overflow-x-auto p-2">
-            <svg viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={`แผนผังความสัมพันธ์ของโน้ตในทีม ${team.name}`} className="mx-auto h-auto w-full min-w-[520px] max-w-3xl">
-              <g stroke="#c7d2fe" strokeWidth={1.2}>
-                {edges.map((e, i) => {
-                  const a = at.get(e.from);
-                  const b = at.get(e.to);
-                  return a && b ? <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} /> : null;
-                })}
-              </g>
-              {placed.map((p) => {
-                const r = 6 + Math.min(10, (degree.get(p.id) ?? 0) * 2);
-                const right = p.x >= CENTER;
-                return (
-                  <Link key={p.id} href={p.href}>
-                    <title>{p.label}</title>
-                    <circle cx={p.x} cy={p.y} r={r} fill={p.kind === "task" ? "#10b981" : degree.has(p.id) ? "#4f46e5" : "#cbd5e1"} stroke="#fff" strokeWidth={2} />
-                    <text x={p.x + (right ? r + 5 : -r - 5)} y={p.y + 4} textAnchor={right ? "start" : "end"} fontSize={12} fill="#334155" className="hover:fill-indigo-700">
-                      {short(p.label)}
-                    </text>
-                  </Link>
-                );
-              })}
-            </svg>
-            <p className="flex flex-wrap justify-center gap-x-4 gap-y-1 pb-2 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />โน้ตที่มีความสัมพันธ์</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />งาน</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-slate-300" />โน้ตที่ยังไม่ถูกเชื่อม</span>
-              <span>คลิกที่จุดเพื่อเปิด</span>
+          <div className="card p-2">
+            <ForceGraph points={points} edges={edges} />
+            <p className="flex flex-wrap justify-center gap-x-4 gap-y-1 px-2 pb-1 pt-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" />โน้ตที่มีความสัมพันธ์</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-success" />งาน</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-subtle" />โน้ตที่ยังไม่ถูกเชื่อม</span>
+              <span>ลากจุดเพื่อจัดวาง · ลากพื้นหลังเพื่อเลื่อน · หมุนล้อเมาส์เพื่อซูม · คลิกที่จุดเพื่อเปิด</span>
             </p>
           </div>
         )}

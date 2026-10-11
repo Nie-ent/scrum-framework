@@ -5,15 +5,15 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { linkify, noteKey, noteSnippet } from "@/lib/note-links";
-import { descendantIds, listNotes, pathTo } from "@/lib/notes";
+import { favoriteIds, listNotes, pathTo } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { Icon } from "@/components/icons";
 import { Markdown } from "@/components/notes/markdown";
 import { NoteEditor } from "@/components/notes/note-editor";
 import { ReadingSurface } from "@/components/notes/reading-surface";
-import { DeleteNoteButton, MoveForm, RenameFolderForm } from "@/components/notes/note-forms";
+import { ItemMenuButton } from "@/components/notes/note-menu";
 import { FolderRows, NoteRows } from "@/components/notes/note-list";
-import { NotesShell, folderItems, folderOptions } from "@/components/notes/notes-shell";
+import { NotesShell, folderItems } from "@/components/notes/notes-shell";
 
 export const metadata: Metadata = { title: "โน้ต" };
 
@@ -32,7 +32,6 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   // ไม่ได้อยู่ในทีมของโน้ตนี้ = ไม่บอกว่ามีโน้ตนี้อยู่
   if (!team) notFound();
   const canManage = manageableIds.has(team.id);
-  const canDelete = canManage || note.createdById === user.id;
 
   const [nodes, backlinks, taskLinks, tasks] = await Promise.all([
     listNotes(team.id),
@@ -54,13 +53,13 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
 
   if (note.kind === "FOLDER") {
     const children = nodes.filter((n) => n.parentId === note.id);
-    const inside = descendantIds(nodes, note.id).length - 1;
     const notes = await prisma.note.findMany({
       where: { parentId: note.id, kind: "NOTE", deletedAt: null },
       select: { id: true, title: true, content: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
     });
-    const folders = folderItems(nodes, note.id);
+    const favorites = await favoriteIds(user.id, team.id);
+    const folders = folderItems(nodes, note.id).map((f) => ({ ...f, starred: favorites.includes(f.id) }));
     return (
       <NotesShell {...shell}>
         <div className="mx-auto max-w-3xl space-y-6">
@@ -70,21 +69,16 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
               <h1 className="page-title flex items-center gap-2"><Icon name="folder" className="h-7 w-7 text-warning" />{note.title}</h1>
               <p className="page-subtitle">{children.length} รายการ</p>
             </div>
+            <ItemMenuButton id={note.id} title={note.title} kind="FOLDER" />
           </div>
           {children.length === 0 ? (
             <p className="card text-sm text-muted-foreground">โฟลเดอร์นี้ยังว่าง — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตในโฟลเดอร์นี้ หรือลากโน้ตมาวาง</p>
           ) : (
             <>
               <FolderRows folders={folders} />
-              <NoteRows notes={notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content) }))} />
+              <NoteRows notes={notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content), starred: favorites.includes(n.id) }))} />
             </>
           )}
-          <section className="card space-y-4">
-            <h2 className="font-semibold text-slate-900">จัดการโฟลเดอร์</h2>
-            <RenameFolderForm id={note.id} title={note.title} />
-            <MoveForm id={note.id} parentId={note.parentId} folders={folderOptions(nodes, descendantIds(nodes, note.id))} />
-            {canDelete && <DeleteNoteButton id={note.id} label={inside > 0 ? `ลบโฟลเดอร์นี้พร้อม ${inside} รายการข้างใน?` : "ลบโฟลเดอร์นี้?"} />}
-          </section>
         </div>
       </NotesShell>
     );
@@ -132,7 +126,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
                 {note.createdBy && ` · สร้างโดย ${note.createdBy.name}`}
               </p>
             </div>
-            <Link href={`/notes/${note.id}?edit=1`} className="btn shrink-0">แก้ไข</Link>
+            <div className="flex shrink-0 items-center gap-2"><Link href={`/notes/${note.id}?edit=1`} className="btn">แก้ไข</Link><ItemMenuButton id={note.id} title={note.title} kind="NOTE" /></div>
           </header>
           {note.content.trim() ? <ReadingSurface><Markdown content={rendered} /></ReadingSurface> : <p className="text-sm text-slate-400">โน้ตนี้ยังว่าง — กด แก้ไข เพื่อเริ่มเขียน</p>}
         </article>
@@ -170,11 +164,6 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
           </section>
         </div>
 
-        <section className="card space-y-3">
-          <h2 className="text-sm font-semibold text-slate-900">ย้ายหรือลบ</h2>
-          <MoveForm id={note.id} parentId={note.parentId} folders={folderOptions(nodes)} />
-          {canDelete && <DeleteNoteButton id={note.id} label="ลบโน้ตนี้?" />}
-        </section>
       </div>
     </NotesShell>
   );

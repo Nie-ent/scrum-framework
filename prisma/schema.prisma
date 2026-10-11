@@ -109,6 +109,7 @@ model User {
   personalSpace      Team?              @relation("PersonalSpace")
   updatedNotes       Note[]             @relation("NoteEditor")
   createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  noteFavorites NoteFavorite[]
 }
 
 /// Daily scrum หนึ่งรายการต่อคน ต่อทีม ต่อวัน — กระดานของแต่ละทีมแยกกัน
@@ -336,9 +337,22 @@ model Note {
   updatedAt   DateTime   @updatedAt @db.Timestamptz(3)
   linksOut    NoteLink[] @relation("NoteLinkFrom")
   linksIn     NoteLink[] @relation("NoteLinkTo")
+  favorites   NoteFavorite[]
 
   @@index([teamId, parentId])
   @@index([teamId, title])
+}
+
+/// รายการโปรดของแต่ละคน (โน้ตหรือโฟลเดอร์) — เป็นของส่วนตัว คนอื่นในทีมไม่เห็น
+model NoteFavorite {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId    String   @db.Uuid
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([userId, noteId])
+  @@index([noteId])
 }
 
 /// ความสัมพันธ์ที่ดึงจากเนื้อหาโน้ตตอนบันทึก: โน้ต → โน้ต ([[...]]) หรือ โน้ต → งาน (#12) — ใช้ทำ backlink และแผนผัง

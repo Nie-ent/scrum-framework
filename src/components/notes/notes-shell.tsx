@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Icon } from "@/components/icons";
 import { NoteToast } from "@/components/notes/note-dnd";
 import { NoteFab } from "@/components/notes/note-fab";
-import { FolderMenu } from "@/components/notes/note-menu";
-import { NoteTree, RootDrop } from "@/components/notes/note-tree";
-import { buildTree, type NoteNode, type NoteTreeNode } from "@/lib/notes";
+import { NoteMenuHost } from "@/components/notes/note-menu";
+import { FavoriteList, NoteTree, SideCreateButton, SideLinks } from "@/components/notes/note-tree";
+import { requireUser } from "@/lib/auth";
+import { buildTree, favoriteIds, type NoteNode, type NoteTreeNode } from "@/lib/notes";
 import type { TeamRow } from "@/lib/teams";
 
 /** "งานออกแบบ / สเปค" — ใช้เป็นชื่อโฟลเดอร์ในตัวเลือก */
@@ -34,7 +34,7 @@ export function folderItems(nodes: NoteNode[], parentId: string | null): { id: s
  * มือถือ: ไม่มีแถบซ้าย — ไล่จากรายการโฟลเดอร์/โน้ตในหน้าเนื้อหาแทน
  * ปุ่มลอยมุมขวาล่าง: ค้นหา และ + สร้างใหม่
  */
-export function NotesShell({
+export async function NotesShell({
   team,
   nodes,
   activeId,
@@ -56,26 +56,36 @@ export function NotesShell({
   q?: string;
   children: React.ReactNode;
 }) {
+  const user = await requireUser();
+  const favorites = await favoriteIds(user.id, team.id);
   const tree = buildTree(nodes);
   const noteCount = nodes.filter((n) => n.kind === "NOTE").length;
+  const starred = nodes.filter((n) => favorites.includes(n.id));
   const activeFolder = nodes.find((n) => n.id === activeId && n.kind === "FOLDER")?.id ?? nodes.find((n) => n.id === activeId)?.parentId ?? null;
+  const heading = "px-2 pb-1 pt-1 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle";
   return (
     <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
       <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
         <div className="rounded-2xl border border-border bg-surface p-2.5 shadow-soft">
-          <p className="truncate px-2 pb-2 pt-1 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">{team.personalOfId ? "พื้นที่ส่วนตัว" : team.name}</p>
-          <RootDrop href={`/notes?team=${team.id}&view=all`} active={!activeId} count={noteCount} />
-          <Link href={`/notes/graph?team=${team.id}`} className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-foreground transition hover:bg-surface-sunken">
-            <Icon name="link" className="h-4 w-4 text-primary" />
-            แผนผังความสัมพันธ์
-          </Link>
+          <div className="flex items-center justify-between gap-2 pb-1">
+            <p className={`min-w-0 truncate ${heading}`}>{team.personalOfId ? "พื้นที่ส่วนตัว" : team.name}</p>
+            <SideCreateButton />
+          </div>
+          <SideLinks teamId={team.id} count={noteCount} />
+          {starred.length > 0 && (
+            <div className="mt-2 border-t border-border pt-2">
+              <p className={heading}>รายการโปรด</p>
+              <FavoriteList items={starred} activeId={activeId} />
+            </div>
+          )}
           {tree.length > 0 && (
             <div className="mt-2 border-t border-border pt-2">
-              <NoteTree nodes={tree} activeId={activeId} openIds={openIds} />
+              <p className={heading}>ทั้งหมด</p>
+              <NoteTree nodes={tree} activeId={activeId} openIds={openIds} favorites={favorites} />
             </div>
           )}
           <p className="mt-2 border-t border-border px-2 pb-1 pt-2.5 text-xs leading-5 text-muted-foreground">
-            {tree.length > 0 && <>ลากไปวางบนโฟลเดอร์เพื่อย้าย · คลิกขวาที่โฟลเดอร์เพื่อสร้างโน้ตในนั้น · </>}
+            {tree.length > 0 && <>ลากไปวางบนโฟลเดอร์เพื่อย้าย · คลิกขวาเพื่อย้าย ลบ หรือเพิ่มในรายการโปรด · </>}
             {team.personalOfId ? (
               <>เห็นเฉพาะคุณ</>
             ) : (
@@ -86,7 +96,7 @@ export function NotesShell({
       </aside>
       <div className="min-w-0">{children}</div>
       <NoteFab key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} q={q} buttons={fab} />
-      <FolderMenu />
+      <NoteMenuHost teamId={team.id} nodes={nodes} favorites={favorites} />
       <NoteToast />
     </div>
   );

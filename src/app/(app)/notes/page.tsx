@@ -4,11 +4,11 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { noteSnippet } from "@/lib/note-links";
-import { listNotes } from "@/lib/notes";
+import { favoriteIds, listNotes } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
-import { FolderRows, NoteRows, SystemRow } from "@/components/notes/note-list";
+import { FolderRows, NoteRows, SystemRow, type FolderItem } from "@/components/notes/note-list";
 import { NotesShell, folderItems } from "@/components/notes/notes-shell";
 import { EmptyState } from "@/components/ui-state";
 
@@ -25,7 +25,8 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   const team = (await pickSpace(teams, params.team))!;
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   // หน้าแรกแสดงเฉพาะโฟลเดอร์ — รายการโน้ตจะเห็นเมื่อเข้าโฟลเดอร์ หรือเลือก "โน้ตทั้งหมด" / "ยังไม่อยู่ในโฟลเดอร์"
-  const view = params.view === "all" || params.view === "loose" ? params.view : null;
+  const view = params.view === "all" || params.view === "loose" || params.view === "fav" ? params.view : null;
+  const favorites = await favoriteIds(user.id, team.id);
 
   const [nodes, notes] = await Promise.all([
     listNotes(team.id),
@@ -35,6 +36,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
         kind: "NOTE",
         deletedAt: null,
         ...(view === "loose" && !q ? { parentId: null } : {}),
+        ...(view === "fav" && !q ? { id: { in: favorites } } : {}),
         ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {}),
       },
       select: { id: true, parentId: true, title: true, content: true, updatedAt: true },
@@ -45,9 +47,11 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   const titleOf = new Map(nodes.map((n) => [n.id, n.title]));
   const noteCount = nodes.filter((n) => n.kind === "NOTE").length;
   const looseCount = nodes.filter((n) => n.kind === "NOTE" && !n.parentId).length;
-  const folders = folderItems(nodes, null);
+  const star = (list: ReturnType<typeof folderItems>): FolderItem[] => list.map((f) => ({ ...f, starred: favorites.includes(f.id), children: star(f.children) }));
+  const folders = star(folderItems(nodes, null));
   const home = `/notes?team=${team.id}`;
-  const items = notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content, q), folder: n.parentId ? titleOf.get(n.parentId) : undefined }));
+  const items = notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content, q), folder: n.parentId ? titleOf.get(n.parentId) : undefined, starred: favorites.includes(n.id) }));
+  const favoriteFolders = star(nodes.filter((n) => n.kind === "FOLDER" && favorites.includes(n.id)).map((f) => ({ id: f.id, title: f.title, count: nodes.filter((n) => n.parentId === f.id).length, children: [] })));
 
   return (
     <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)} q={q}>
@@ -81,16 +85,18 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
           view ? (
             <section className="space-y-2.5">
               <div className="flex items-center justify-between gap-3 px-1">
-                <h2 className="text-sm font-semibold text-muted-foreground">{view === "all" ? "โน้ตทั้งหมด" : "ยังไม่อยู่ในโฟลเดอร์"} ({items.length})</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground">{view === "all" ? "โน้ตทั้งหมด" : view === "fav" ? "รายการโปรด" : "ยังไม่อยู่ในโฟลเดอร์"} ({items.length + (view === "fav" ? favoriteFolders.length : 0)})</h2>
                 <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">‹ โฟลเดอร์</Link>
               </div>
-              {items.length === 0 ? <p className="card text-sm text-muted-foreground">ยังไม่มีโน้ต — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตแรก</p> : <NoteRows notes={items} />}
+              {view === "fav" && <FolderRows folders={favoriteFolders} />}
+              {items.length === 0 ? (view === "fav" && favoriteFolders.length > 0 ? null : <p className="card text-sm text-muted-foreground">{view === "fav" ? "ยังไม่มีรายการโปรด — คลิกขวาหรือกดค้างที่โน้ต แล้วเลือก เพิ่มในรายการโปรด" : "ยังไม่มีโน้ต — กดปุ่ม + มุมขวาล่างเพื่อสร้างโน้ตแรก"}</p>) : <NoteRows notes={items} />}
             </section>
           ) : (
             <section className="space-y-2.5">
               <h2 className="px-1 text-sm font-semibold text-muted-foreground">โฟลเดอร์</h2>
               <FolderRows folders={folders}>
                 <SystemRow href={`${home}&view=all`} label="โน้ตทั้งหมด" count={noteCount} />
+                {favorites.length > 0 && <SystemRow href={`${home}&view=fav`} label="รายการโปรด" count={favorites.length} />}
                 {looseCount > 0 && <SystemRow href={`${home}&view=loose`} label="ยังไม่อยู่ในโฟลเดอร์" count={looseCount} />}
               </FolderRows>
             </section>

@@ -8,7 +8,7 @@ const TOAST = "pace-note-toast";
 /** id ของรายการที่กำลังถูกลาก (อ่านจาก dataTransfer ระหว่างลากไม่ได้ จึงจำไว้ตรงนี้) */
 let dragging: string | null = null;
 
-const toast = (text: string, error = false) => window.dispatchEvent(new CustomEvent(TOAST, { detail: { text, error } }));
+export const noteToast = (text: string, error = false) => window.dispatchEvent(new CustomEvent(TOAST, { detail: { text, error } }));
 
 /** ทำให้แถวโน้ต/โฟลเดอร์ลากได้ */
 export function dragProps(id: string, title: string) {
@@ -54,8 +54,8 @@ export function useDrop(parentId: string | null) {
           data.set("id", id);
           data.set("parentId", parentId ?? "");
           const result = await moveNote(undefined, data);
-          if (result?.error) toast(result.error, true);
-          else toast("ย้ายแล้ว");
+          if (result?.error) noteToast(result.error, true);
+          else noteToast("ย้ายแล้ว");
         });
       },
     },

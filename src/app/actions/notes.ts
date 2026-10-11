@@ -143,5 +143,20 @@ export async function deleteNote(_: FormState, formData: FormData): Promise<Form
     prisma.noteLink.deleteMany({ where: { OR: [{ fromId: { in: ids } }, { toNoteId: { in: ids } }] } }),
   ]);
   done();
+  // เรียกจากเมนูในรายการ (stay) = อยู่หน้าเดิม · เรียกจากหน้าโน้ตเอง = กลับหน้าแรกของโน้ต
+  if (formData.get("stay")) return { ok: "ลบแล้ว" };
   redirect(`/notes?team=${note.teamId}`);
+}
+
+/** เพิ่ม/เอาออกจากรายการโปรดของตัวเอง (โน้ตหรือโฟลเดอร์) */
+export async function toggleFavorite(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const found = await loadNote(user, String(formData.get("id") ?? ""));
+  if (!found) return { error: "ไม่พบรายการนี้" };
+  const key = { userId_noteId: { userId: user.id, noteId: found.note.id } };
+  const existing = await prisma.noteFavorite.findUnique({ where: key });
+  if (existing) await prisma.noteFavorite.delete({ where: key });
+  else await prisma.noteFavorite.create({ data: { userId: user.id, noteId: found.note.id } });
+  done();
+  return { ok: existing ? "เอาออกจากรายการโปรดแล้ว" : "เพิ่มในรายการโปรดแล้ว" };
 }

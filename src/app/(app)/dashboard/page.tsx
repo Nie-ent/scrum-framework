@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOverviewAccess } from "@/lib/auth";
 import { getMeetingUrl, getVisibleTeams } from "@/lib/teams";
-import { pickSpace } from "@/lib/space";
+import { currentSpaceId, pickSpace } from "@/lib/space";
 import { toTasks } from "@/lib/tasks";
 import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
 import { dayTone } from "@/lib/holidays";
@@ -32,6 +32,31 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
   // ดูได้ทีละทีมเสมอ — ไม่ได้เลือก (หรือเลือกทีมที่ไม่มีสิทธิ์) = ทีมแรกที่ดูได้
   const requested = typeof params.team === "string" ? params.team : undefined;
+  // พื้นที่ที่เลือกอยู่ไม่มีภาพรวมทีม (เช่นพื้นที่ส่วนตัว): ไม่เดาทีมให้เอง — มีทีมเดียวก็ไปทีมนั้น มีหลายทีมให้เลือกก่อน
+  const saved = await currentSpaceId();
+  if (!teams.some((t) => t.id === requested) && !teams.some((t) => t.id === saved)) {
+    if (teams.length === 1) redirect(`/dashboard?team=${teams[0].id}`);
+    return (
+      <div className="mx-auto max-w-xl space-y-5">
+        <div>
+          <p className="eyebrow">สุขภาพทีม</p>
+          <h1 className="page-title">ภาพรวมทีม</h1>
+          <p className="page-subtitle">พื้นที่ที่เลือกอยู่ไม่มีภาพรวมทีม — เลือกทีมที่จะดู</p>
+        </div>
+        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-soft">
+          {teams.map((t) => (
+            <li key={t.id}>
+              <Link href={`/dashboard?team=${t.id}`} className={`flex min-h-12 items-center gap-3 pr-4 transition hover:bg-surface-sunken ${t.parentId && teams.some((p) => p.id === t.parentId) ? "pl-10" : "pl-4"}`}>
+                <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-xs font-bold text-primary">{t.name.trim().charAt(0).toUpperCase()}</span>
+                <span className="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-foreground">{t.name}</span>
+                <span className="text-subtle" aria-hidden="true">›</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
   const team = (await pickSpace(teams, requested))!;
   const teamId = team.id;
   // กระดานแยกตามทีม: เห็นเฉพาะ scrum ที่เขียนให้ทีมที่เลือก (ไม่รวมทีมแม่/ทีมย่อย)

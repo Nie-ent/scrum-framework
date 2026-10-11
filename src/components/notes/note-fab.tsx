@@ -18,7 +18,7 @@ export function NoteFab({ teamId, folders, parentId, q = "", buttons = true }: {
 
   useEffect(() => {
     const open = (e: Event) => {
-      setInto((e as CustomEvent<{ id: string; title: string }>).detail);
+      setInto((e as CustomEvent<{ id: string; title: string } | null>).detail);
       setSheet("add");
     };
     window.addEventListener(NEW_IN_FOLDER, open);
