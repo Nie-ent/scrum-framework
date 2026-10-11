@@ -7,7 +7,9 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canAdmin, canViewOverview } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
+import { NotificationsMenu } from "@/components/notifications-menu";
 import { SectionTabs } from "@/components/section-tabs";
+import { formatDateTime } from "@/lib/dates";
 import { SpaceSwitcher } from "@/components/space-switcher";
 import { Tooltip } from "@/components/tooltip";
 import { currentSpaceId } from "@/lib/space";
@@ -16,7 +18,11 @@ import { getWorkspaceTeams } from "@/lib/teams";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const level = user.role.level;
-  const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
+  const [unread, latest] = await Promise.all([
+    prisma.notification.count({ where: { userId: user.id, readAt: null } }),
+    prisma.notification.findMany({ where: { userId: user.id }, orderBy: { id: "desc" }, take: 6 }),
+  ]);
+  const previews = latest.map((n) => ({ id: String(n.id), title: n.title, body: n.body, time: formatDateTime(n.createdAt), unread: !n.readAt }));
   const overview = canViewOverview(user);
   const [{ teams }, saved] = await Promise.all([getWorkspaceTeams(user), currentSpaceId()]);
   const spaces = teams.map((t) => ({ id: t.id, name: t.name, parentId: t.parentId, personal: Boolean(t.personalOfId) }));
@@ -24,7 +30,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // เมนูจัดเป็นหมวด: สิ่งที่ทำทุกวัน · งาน (รายการ/ปฏิทิน/ไฟล์ = มุมมองของงานชุดเดียวกัน) · โน้ต · ทีม (ทุกอย่างเกี่ยวกับคนอื่น)
   type Item = { href: string; label: string; icon: NavIcon; show?: boolean; badge?: number };
   const groups: { title?: string; items: Item[] }[] = [
-    { items: [{ href: "/standup", label: "เช็กอิน", icon: "checkin" }] },
+    { items: [{ href: "/standup", label: "วันนี้", icon: "checkin" }] },
     {
       title: "งาน",
       items: [
@@ -51,7 +57,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   ];
   // มือถือ: 5 ปลายทาง — หมวด งาน และ ทีม มีแท็บย่อยที่หัวหน้า (SectionTabs)
   const bottom = [
-    { href: "/standup", label: "เช็กอิน", icon: "checkin" as const },
+    { href: "/standup", label: "วันนี้", icon: "checkin" as const },
     { href: "/tasks", label: "งาน", icon: "tasks" as const, match: ["/calendar", "/files"] },
     { href: "/notes", label: "โน้ต", icon: "notes" as const },
     { href: overview ? "/dashboard" : "/teams", label: "ทีม", icon: "teams" as const, match: ["/dashboard", "/stats", "/teams"] },
@@ -76,12 +82,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               return (
                 <div key={group.title ?? i} className="flex flex-col gap-0.5">
                   {group.title && <p className="px-3 pb-1 text-2xs font-semibold uppercase tracking-[0.1em] text-subtle">{group.title}</p>}
-                  {items.map((item) => (
+                  {items.map((item) =>
+                    item.href === "/notifications" ? (
+                      <NotificationsMenu key={item.href} items={previews} unread={unread} />
+                    ) : (
                     <NavLink key={item.href} href={item.href} icon={item.icon}>
                       {item.label}
                       {Boolean(item.badge) && <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[11px] font-semibold leading-none text-primary-foreground">{item.badge! > 99 ? "99+" : item.badge}</span>}
                     </NavLink>
-                  ))}
+                    ),
+                  )}
                 </div>
               );
             })}

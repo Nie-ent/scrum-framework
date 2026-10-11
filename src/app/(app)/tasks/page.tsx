@@ -4,41 +4,42 @@ import { setTaskProgress } from "@/app/actions/tasks";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { dateToKey, formatDateKey, isDateKey, todayKey } from "@/lib/dates";
-import { getVisibleTeams, sortTeamTree } from "@/lib/teams";
+import { getWorkspaceTeams } from "@/lib/teams";
 import { pickSpace } from "@/lib/space";
-import { ProgressBar } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
 import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-delete";
 import { TaskForm } from "./task-form";
+import { ProgressSlider } from "./progress-slider";
+import { DueForm } from "../calendar/due-form";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
-import { CommentThread } from "@/components/comments";
+import { CommentThread, LinkedText } from "@/components/comments";
+import { ProgressRing } from "@/components/progress-ring";
+import { Tooltip } from "@/components/tooltip";
 import { withComments } from "@/lib/comments";
 import { toFileItems, withAttachments } from "@/lib/attachments";
 import { AttachButton, AttachmentList } from "@/components/attachments";
-import { LinkedText } from "@/components/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
 
 export const metadata: Metadata = { title: "งาน" };
 
+/**
+ * รายการงานแบบกะทัดรัด: แต่ละแถวมีแค่สิ่งที่ใช้กวาดตามอง — รายละเอียด ความคืบหน้า ไฟล์ และความคิดเห็น
+ * อยู่ในแผงรายละเอียด (?task=เลขงาน) ที่เปิดด้านข้างบนจอใหญ่ และเต็มจอบนมือถือ
+ */
 export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const user = await requireUser();
   const params = await searchParams;
   const today = todayKey();
 
-  // ทีมที่เข้าหน้านี้ได้ = ทีมที่ตัวเองอยู่ + ทีมที่ดูแล (หัวหน้าทีม/ทีมแม่, Manager ขึ้นไป)
-  const manageable = await getVisibleTeams(user);
-  const manageableIds = new Set(manageable.map((t) => t.id));
-  const teams = sortTeamTree([
-    ...manageable,
-    ...user.memberships.map((m) => m.team).filter((t) => !manageableIds.has(t.id)),
-  ]);
+  const { teams, manageableIds } = await getWorkspaceTeams(user);
   if (teams.length === 0) {
-    return <EmptyState title="คุณยังไม่ได้อยู่ในทีมไหน" description="งานจะถูกมอบหมายภายในทีม — ติดต่อผู้ดูแลระบบให้เพิ่มคุณเข้าทีมก่อน" />;
+    return <EmptyState title="ยังไม่มีพื้นที่ทำงาน" description="ลองโหลดหน้าใหม่อีกครั้ง" />;
   }
   const team = (await pickSpace(teams, params.team))!;
   const canManage = manageableIds.has(team.id);
   const canAttach = isFileStorageConfigured();
+  const shared = !team.personalOfId;
   // มาจากการกดวันในหน้า ปฏิทิน — เติมกำหนดส่งให้ในฟอร์มเพิ่มงาน
   const defaultDue = isDateKey(params.due) && params.due >= today ? params.due : undefined;
 
@@ -83,122 +84,186 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   type TaskRow = (typeof tasks)[number];
   const canDelete = (t: TaskRow) => canManage || (t.assignee.id === user.id && t.createdBy?.id === user.id);
   const canUpdate = (t: TaskRow) => canManage || t.assignee.id === user.id;
+  const base = `/tasks?team=${team.id}`;
+  const detailHref = (t: TaskRow) => (t.number === null ? base : `${base}&task=${t.number}`);
+  const selected = typeof params.task === "string" ? tasks.find((t) => String(t.number) === params.task) : undefined;
 
   const row = (t: TaskRow) => {
     const dueKey = t.dueDate ? dateToKey(t.dueDate) : null;
-    const late = dueKey !== null && dueKey < today && t.progress < 100;
+    const done = t.progress >= 100;
+    const late = dueKey !== null && dueKey < today && !done;
+    const files = toFileItems(t.attachments, user.id).length;
     return (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-        <div className="min-w-0 flex-1 basis-56">
-          <p className={`font-medium ${t.progress >= 100 ? "text-slate-400 line-through" : "text-slate-800"}`}>
-            {t.number !== null && <span className="mr-1.5 font-normal tabular-nums text-slate-400">#{t.number}</span>}
-            {t.title}
-          </p>
-          {t.description && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-500"><LinkedText text={t.description} /></p>}
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-            {dueKey && <span className={`badge ${late ? "badge-danger" : "badge-neutral"}`}>{late ? "เลยกำหนด · " : "ส่ง "}{formatDateKey(dueKey)}</span>}
-            {t.createdBy && t.createdBy.id !== t.assignee.id && <span>มอบหมายโดย {t.createdBy.name}</span>}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <ProgressBar percent={t.progress} className="w-20" />
-          {canUpdate(t) ? (
-            <form action={setTaskProgress} className="flex flex-wrap items-center justify-end gap-1">
-              <input type="hidden" name="id" value={t.id} />
-              <input name="reason" maxLength={500} placeholder="เหตุผล / หมายเหตุ (ไม่บังคับ)" aria-label={`เหตุผลของการอัปเดต ${t.title}`} className="input w-52 px-2.5 py-1.5 text-sm" />
-              <input name="progress" type="number" inputMode="numeric" min={0} max={100} step={5} defaultValue={t.progress} aria-label={`ความคืบหน้าของ ${t.title} (%)`} className="input w-16 px-2 py-1.5 text-right tabular-nums" />
-              <span className="text-xs text-slate-500">%</span>
-              <button className="btn-ghost min-h-9 px-2.5 py-1 text-xs">บันทึก</button>
-            </form>
-          ) : (
-            <span className="text-xs font-semibold tabular-nums text-slate-600">{t.progress}%</span>
+      <div className={`flex items-center gap-2.5 py-2 ${selected?.id === t.id ? "rounded-xl bg-primary-soft/60" : ""}`}>
+        {canUpdate(t) && !done ? (
+          <form action={setTaskProgress} className="shrink-0">
+            <input type="hidden" name="id" value={t.id} />
+            <input type="hidden" name="progress" value={100} />
+            <Tooltip label="ทำเสร็จแล้ว (100%)">
+              <button aria-label={`ทำงาน ${t.title} เสร็จแล้ว`} className="flex size-9 items-center justify-center rounded-full transition hover:bg-success-soft">
+                <ProgressRing value={t.progress} />
+              </button>
+            </Tooltip>
+          </form>
+        ) : (
+          <span className="flex size-9 shrink-0 items-center justify-center"><ProgressRing value={t.progress} /></span>
+        )}
+        <Link href={detailHref(t)} scroll={false} className="flex min-w-0 flex-1 items-center gap-x-3 gap-y-0.5 max-sm:flex-wrap">
+          <span className="min-w-0 flex-1 basis-full sm:basis-0">
+            <span className={`block truncate text-sm ${done ? "text-subtle line-through" : "font-medium text-foreground"}`}>
+              {t.number !== null && <span className="mr-1.5 font-normal tabular-nums text-subtle">#{t.number}</span>}
+              {t.title}
+            </span>
+          </span>
+          {dueKey && !done && (
+            <span className={`badge shrink-0 ${late ? "badge-danger" : dueKey === today ? "badge-warning" : "badge-neutral"}`}>
+              {late ? "เลยกำหนด " : dueKey === today ? "วันนี้" : ""}{dueKey === today ? "" : formatDateKey(dueKey).replace(/ \d{4}$/, "")}
+            </span>
           )}
-          {canDelete(t) && <DeleteTaskButton id={t.id} title={t.title} />}
-        </div>
-</div>
+          {done && t.doneAt && <span className="shrink-0 text-xs text-subtle">{formatDateKey(dateToKey(t.doneAt)).replace(/ \d{4}$/, "")}</span>}
+          {(t.comments.length > 0 || files > 0 || t.noteLinks.length > 0) && (
+            <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+              {t.comments.length > 0 && <span className="inline-flex items-center gap-0.5"><Icon name="comment" className="h-3.5 w-3.5" />{t.comments.length}</span>}
+              {files > 0 && <span className="inline-flex items-center gap-0.5"><Icon name="paperclip" className="h-3.5 w-3.5" />{files}</span>}
+              {t.noteLinks.length > 0 && <span className="inline-flex items-center gap-0.5"><Icon name="note" className="h-3.5 w-3.5" />{t.noteLinks.length}</span>}
+            </span>
+          )}
+          <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{t.progress}%</span>
+        </Link>
+      </div>
     );
   };
 
-  const renderTask = (t: TaskRow) => {
-    return (
-      <li key={t.id} id={t.number === null ? undefined : `task-${t.number}`} className="scroll-mt-24 target:rounded-xl target:bg-indigo-50/60">
-        {canDelete(t) ? <SwipeDeleteTask id={t.id} title={t.title}>{row(t)}</SwipeDeleteTask> : row(t)}
-        {/* อยู่นอกแถบปัดลบ เพื่อให้เลือกข้อความ/พิมพ์ได้โดยไม่ไปเริ่มการปัด */}
-        <div className="space-y-1 pb-3">
-          {t.noteLinks.length > 0 && (
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-              <Icon name="note" className="h-3.5 w-3.5 text-slate-400" />
-              {t.noteLinks.map((l) => (
-                <Link key={l.from.id} href={`/notes/${l.from.id}`} className="font-medium text-indigo-600 hover:text-indigo-800">{l.from.title}</Link>
-              ))}
-            </p>
-          )}
-          <AttachmentList files={toFileItems(t.attachments, user.id)} canModerate={canManage} />
-          {canAttach && (canUpdate(t) || t.createdBy?.id === user.id) && <AttachButton target={{ taskId: t.id }} />}
-          <CommentThread canAttach={canAttach} target={{ taskId: t.id }} comments={t.comments} viewerId={user.id} canModerate={canManage} subject={t.title} />
-        </div>
-      </li>
-    );
-  };
+  const renderTask = (t: TaskRow) => (
+    <li key={t.id} id={t.number === null ? undefined : `task-${t.number}`} className="scroll-mt-24">
+      {canDelete(t) ? <SwipeDeleteTask id={t.id} title={t.title}>{row(t)}</SwipeDeleteTask> : row(t)}
+    </li>
+  );
 
   return (
     <UndoDeleteProvider>
-    <div className="space-y-6">
-      <div className="page-header">
-        <div>
-          <p className="eyebrow">รายการงาน</p>
-          <h1 className="page-title">งาน</h1>
-          <p className="page-subtitle">
-            {team.name} · ค้างอยู่ {open.length} งาน{!canManage && mine.length !== open.length && ` (ของฉัน ${mine.length})`}
-            {overdue > 0 && <span className="text-rose-600"> · เลยกำหนด {overdue}</span>}
-          </p>
+      <div className="space-y-6">
+        <div className="page-header">
+          <div>
+            <p className="eyebrow">รายการงาน</p>
+            <h1 className="page-title">งาน</h1>
+            <p className="page-subtitle">
+              {team.name} · ค้างอยู่ {open.length} งาน{shared && mine.length !== open.length && ` (ของฉัน ${mine.length})`}
+              {overdue > 0 && <span className="text-danger"> · เลยกำหนด {overdue}</span>}
+            </p>
+          </div>
         </div>
+
+        <section className="card scroll-mt-24" id="new">
+          <TaskForm key={`${team.id}:${defaultDue ?? ""}`} canAttach={canAttach} defaultDue={defaultDue} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
+        </section>
+
+        {open.length === 0 ? (
+          <EmptyState title="ไม่มีงานค้าง" description={shared ? "เพิ่มงานจากช่องด้านบน งานของคุณจะไปขึ้นในหน้าเช็กอินด้วย" : "พิมพ์ชื่องานในช่องด้านบนแล้วกด Enter เพื่อเริ่มรายการของคุณ"} />
+        ) : (
+          groups.map((g) => (
+            <section key={g.id} className="card">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2.5 text-sm font-semibold text-foreground">{shared && <Avatar user={g.person} size={24} />}{g.name}</h2>
+                <span className="badge badge-neutral">{g.tasks.length} งาน</span>
+              </div>
+              <ul className="divide-y divide-border">{g.tasks.map(renderTask)}</ul>
+            </section>
+          ))
+        )}
+
+        {finished.length > 0 && (
+          <details className="card" open={selected ? selected.progress >= 100 : undefined}>
+            <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">เสร็จแล้ว ({finished.length})</summary>
+            <ul className="mt-2 divide-y divide-border">{finished.slice(0, 30).map(renderTask)}</ul>
+          </details>
+        )}
       </div>
 
-
-      <section className="card scroll-mt-24" id="new">
-        <div className="mb-4">
-          <p className="eyebrow">{canManage ? "มอบหมาย" : "งานใหม่"}</p>
-          <h2 className="font-semibold text-slate-900">{canManage ? "มอบหมายงานให้สมาชิก" : "เพิ่มงานของฉัน"}</h2>
-        </div>
-        <TaskForm key={`${team.id}:${defaultDue ?? ""}`} canAttach={canAttach} defaultDue={defaultDue} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
-      </section>
-
-      {open.length === 0 ? (
-        <EmptyState title="ไม่มีงานค้าง" description={canManage ? "มอบหมายงานให้สมาชิกจากฟอร์มด้านบน งานจะไปขึ้นในเช็กอินของคนนั้น" : "งานของคุณและของเพื่อนร่วมทีมจะแสดงที่นี่ งานของคุณจะขึ้นในหน้าเช็กอินด้วย"} />
-      ) : (
-        groups.map((g) => (
-          <section key={g.id} className="card">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2.5 font-semibold text-slate-900"><Avatar user={g.person} size={28} />{g.name}</h2>
-              <span className="badge badge-neutral">{g.tasks.length} งาน</span>
+      {selected && (
+        <>
+          {/* ฉากหลัง: กดเพื่อปิดแผง */}
+          <Link href={base} scroll={false} aria-label="ปิดรายละเอียดงาน" className="fixed inset-0 z-40 hidden bg-foreground/20 lg:block" />
+          <aside aria-label={`รายละเอียดงาน ${selected.title}`} className="fixed inset-0 z-50 overflow-y-auto bg-surface shadow-overlay lg:inset-y-0 lg:left-auto lg:w-[30rem] lg:border-l lg:border-border">
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur sm:px-5">
+              <Link href={base} scroll={false} className="btn-ghost min-h-9 gap-1 px-2.5 py-1 text-sm">← <span className="lg:hidden">กลับ</span><span className="max-lg:hidden">ปิด</span></Link>
+              <span className="text-sm tabular-nums text-subtle">{selected.number !== null && `#${selected.number}`}</span>
+              {canDelete(selected) ? <DeleteTaskButton id={selected.id} title={selected.title} /> : <span className="w-8" />}
             </div>
-            <ul className="divide-y divide-slate-100">{g.tasks.map(renderTask)}</ul>
-          </section>
-        ))
-      )}
+            <div className="space-y-6 px-4 py-5 pb-28 sm:px-5 lg:pb-8">
+              <div>
+                <h2 className={`text-xl font-semibold leading-snug ${selected.progress >= 100 ? "text-muted-foreground line-through" : "text-foreground"}`}>{selected.title}</h2>
+                {selected.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground"><LinkedText text={selected.description} /></p>}
+              </div>
 
-      {finished.length > 0 && (
-        <details className="card">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-700">เสร็จแล้ว ({finished.length})</summary>
-          <ul className="mt-2 divide-y divide-slate-100">
-            {finished.slice(0, 30).map((t) => (
-              <li key={t.id} className="py-2 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-slate-500 line-through">{t.number !== null && <span className="mr-1.5 tabular-nums text-slate-400 no-underline">#{t.number}</span>}{t.title}</span>
-                  <span className="text-xs text-slate-400">
-                    {`${t.assignee.name} · `}
-                    {t.doneAt ? formatDateKey(dateToKey(t.doneAt)) : ""}
-                  </span>
-                </div>
-                <AttachmentList files={toFileItems(t.attachments, user.id)} canModerate={canManage} />
-                {t.comments.length > 0 && <CommentThread canAttach={canAttach} target={{ taskId: t.id }} comments={t.comments} viewerId={user.id} canModerate={canManage} subject={t.title} />}
-              </li>
-            ))}
-          </ul>
-        </details>
+              <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-sm">
+                {shared && (
+                  <>
+                    <dt className="text-muted-foreground">ผู้รับงาน</dt>
+                    <dd className="flex items-center gap-2"><Avatar user={selected.assignee} size={24} />{selected.assignee.name}</dd>
+                  </>
+                )}
+                {selected.createdBy && selected.createdBy.id !== selected.assignee.id && (
+                  <>
+                    <dt className="text-muted-foreground">มอบหมายโดย</dt>
+                    <dd>{selected.createdBy.name}</dd>
+                  </>
+                )}
+                <dt className="text-muted-foreground">กำหนดส่ง</dt>
+                <dd>
+                  {canUpdate(selected) ? (
+                    <div className="[&>form]:justify-start"><DueForm id={selected.id} title={selected.title} dueDate={selected.dueDate ? dateToKey(selected.dueDate) : null} /></div>
+                  ) : selected.dueDate ? (
+                    formatDateKey(dateToKey(selected.dueDate))
+                  ) : (
+                    <span className="text-subtle">ยังไม่กำหนด</span>
+                  )}
+                </dd>
+              </dl>
+
+              <section>
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><ProgressRing value={selected.progress} size={22} />ความคืบหน้า {selected.progress}%</h3>
+                {canUpdate(selected) ? (
+                  <form action={setTaskProgress} className="space-y-2">
+                    <input type="hidden" name="id" value={selected.id} />
+                    <ProgressSlider key={`${selected.id}:${selected.progress}`} defaultValue={selected.progress} label={`ความคืบหน้าของ ${selected.title} (%)`} />
+                    <div className="flex items-center gap-2">
+                      <input name="reason" maxLength={500} placeholder="เหตุผล / หมายเหตุ (ไม่บังคับ)" aria-label="เหตุผลของการอัปเดต" className="input flex-1 py-2 text-sm" />
+                      <button className="btn shrink-0">บันทึก</button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">การเปลี่ยนแปลงและเหตุผลจะถูกบันทึกไว้ในความคิดเห็นด้านล่าง</p>
+                  </form>
+                ) : (
+                  <p className="text-sm text-muted-foreground">อัปเดตได้เฉพาะผู้รับงานหรือหัวหน้าทีม</p>
+                )}
+              </section>
+
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">ไฟล์แนบ</h3>
+                <AttachmentList files={toFileItems(selected.attachments, user.id)} canModerate={canManage} />
+                {toFileItems(selected.attachments, user.id).length === 0 && <p className="text-sm text-subtle">ยังไม่มีไฟล์</p>}
+                {canAttach && (canUpdate(selected) || selected.createdBy?.id === user.id) && <AttachButton target={{ taskId: selected.id }} />}
+              </section>
+
+              {selected.noteLinks.length > 0 && (
+                <section>
+                  <h3 className="mb-2 text-sm font-semibold">โน้ตที่อ้างถึงงานนี้</h3>
+                  <ul className="space-y-1">
+                    {selected.noteLinks.map((l) => (
+                      <li key={l.from.id}><Link href={`/notes/${l.from.id}`} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-strong"><Icon name="note" className="h-4 w-4 text-subtle" />{l.from.title}</Link></li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              <section>
+                <h3 className="mb-1 text-sm font-semibold">ความคิดเห็นและประวัติ</h3>
+                <CommentThread canAttach={canAttach} target={{ taskId: selected.id }} comments={selected.comments} viewerId={user.id} canModerate={canManage} subject={selected.title} open />
+              </section>
+            </div>
+          </aside>
+        </>
       )}
-    </div>
     </UndoDeleteProvider>
   );
 }

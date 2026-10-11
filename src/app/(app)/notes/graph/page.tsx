@@ -33,7 +33,7 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
   type Point = { id: string; label: string; href: string; kind: "note" | "task" };
   const points: Point[] = [
     ...notes.map((n): Point => ({ id: n.id, label: n.title, href: `/notes/${n.id}`, kind: "note" })),
-    ...[...tasks.values()].map((t): Point => ({ id: t.id, label: `#${t.number} ${t.title}`, href: `/tasks?team=${team.id}#task-${t.number}`, kind: "task" })),
+    ...[...tasks.values()].map((t): Point => ({ id: t.id, label: `#${t.number} ${t.title}`, href: `/tasks?team=${team.id}&task=${t.number}`, kind: "task" })),
   ];
   const edges = links.flatMap((l) => {
     const to = l.toNoteId ?? (l.toTask && !l.toTask.deletedAt ? l.toTask.id : null);

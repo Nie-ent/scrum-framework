@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { TableKit } from "@tiptap/extension-table";
 import { LinkChips } from "./link-chips";
+import { EditorMenus, type MenuKeyHandler } from "./editor-menus";
 import { Tooltip } from "@/components/tooltip";
 
 /**
@@ -31,6 +32,8 @@ export function RichEditor({
 }) {
   const [markdown, setMarkdown] = useState(defaultValue);
   const [linking, setLinking] = useState(false);
+  // เมนู / , [[ , # รับปุ่มลูกศร/Enter/Esc ก่อนตัวแก้ไข (ดู editor-menus.tsx)
+  const menuKeys = useRef<MenuKeyHandler | null>(null);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ underline: false, link: { openOnClick: false, autolink: true } }),
@@ -46,7 +49,10 @@ export function RichEditor({
     immediatelyRender: false,
     // ให้ปุ่มบนแถบเครื่องมือแสดงสถานะ (เช่น ตัวหนาเปิดอยู่) ตามตำแหน่งเคอร์เซอร์
     shouldRerenderOnTransaction: true,
-    editorProps: { attributes: { class: "markdown min-h-80 px-4 py-3 outline-none", "aria-label": "เนื้อหาโน้ต", role: "textbox", "aria-multiline": "true" } },
+    editorProps: {
+      attributes: { class: "markdown min-h-80 px-4 py-3 outline-none", "aria-label": "เนื้อหาโน้ต", role: "textbox", "aria-multiline": "true" },
+      handleKeyDown: (_, event) => menuKeys.current?.(event) ?? false,
+    },
     onUpdate: ({ editor }) => {
       setMarkdown(cleanMarkdown(editor.getMarkdown()));
       onDirty?.();
@@ -62,6 +68,8 @@ export function RichEditor({
         <div className="h-11 border-b border-slate-200 bg-slate-50" />
       )}
       {editor ? <EditorContent editor={editor} /> : <div className="markdown min-h-80 whitespace-pre-wrap px-4 py-3 text-slate-400">กำลังเปิดตัวแก้ไข…</div>}
+      {editor && <EditorMenus editor={editor} noteTitles={noteTitles} tasks={tasks} keyHandler={menuKeys} />}
+      <p className="border-t border-slate-100 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-500">พิมพ์ <kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">/</kbd> เพื่อแทรกหัวข้อ รายการ หรือตาราง · <kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">[[</kbd> เชื่อมไปโน้ต · <kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">#</kbd> เชื่อมไปงาน</p>
     </div>
   );
 }

@@ -40,54 +40,67 @@ export function TaskForm({
     return errors.length > 0 ? { error: `สร้างงานแล้ว แต่แนบไฟล์ไม่สำเร็จ — ${errors.join(" · ")}` } : result;
   };
   const { state, pending, formProps, field, error } = useZodForm(TaskFields, submit, { resetOnSuccess: true });
+  const [moreOpen, setMoreOpen] = useState(Boolean(defaultDue));
+  // ช่องในส่วนที่พับไว้มีข้อผิดพลาด = กางออกให้เห็น
+  const hiddenError = Boolean(error("assigneeId") || error("dueDate") || error("description"));
+  // เพิ่มงานได้ด้วยชื่ออย่างเดียวแล้วกด Enter — รายละเอียดอื่นเปิดเพิ่มได้
   return (
-    <form {...formProps} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
+    <form {...formProps} className="space-y-3">
       <input type="hidden" name="teamId" value={teamId} />
-      <div className="sm:col-span-3">
-        <label className="label" htmlFor="task-title">ชื่องาน</label>
-        <input id="task-title" className="input" maxLength={200} placeholder="เช่น จัดทำรายงานประจำเดือน" required {...field("title")} />
+      <div>
+        <div className="flex items-start gap-2">
+          <label className="sr-only" htmlFor="task-title">ชื่องาน</label>
+          <input id="task-title" className="input flex-1" maxLength={200} placeholder={members ? "เพิ่มงาน… เช่น จัดทำรายงานประจำเดือน" : "เพิ่มงานของฉัน… เช่น จัดทำรายงานประจำเดือน"} required {...field("title")} />
+          <SubmitButton className="btn shrink-0" pending={pending} pendingText="กำลังเพิ่ม...">เพิ่มงาน</SubmitButton>
+        </div>
         <FieldError name="title" message={error("title")} />
       </div>
-      <div>
-        <label className="label" htmlFor="task-description">รายละเอียด <span className="font-normal text-slate-400">(ไม่บังคับ)</span></label>
-        <input id="task-description" className="input" maxLength={2000} placeholder="วางลิงก์ได้" {...field("description")} />
-        <FieldError name="description" message={error("description")} />
-      </div>
-      {members ? (
-        <div>
-          <label className="label" htmlFor="task-assignee">มอบหมายให้</label>
-          <select id="task-assignee" className="input" defaultValue="" required {...field("assigneeId")}>
-            <option value="" disabled>เลือกสมาชิก</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}{m.id === selfId ? " (ฉัน)" : ""}</option>
-            ))}
-          </select>
-          <FieldError name="assigneeId" message={error("assigneeId")} />
+      <details className="group/more" open={moreOpen || hiddenError} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-lg text-xs font-medium text-muted-foreground marker:hidden hover:text-primary">
+          <span aria-hidden="true" className="transition group-open/more:rotate-90">▸</span>
+          กำหนดส่ง{members ? " ผู้รับงาน" : ""} รายละเอียด{canAttach ? " และไฟล์แนบ" : ""}
+        </summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
+          <div>
+            <label className="label" htmlFor="task-description">รายละเอียด</label>
+            <input id="task-description" className="input" maxLength={2000} placeholder="วางลิงก์ได้" {...field("description")} />
+            <FieldError name="description" message={error("description")} />
+          </div>
+          {members ? (
+            <div>
+              <label className="label" htmlFor="task-assignee">มอบหมายให้</label>
+              <select id="task-assignee" className="input" defaultValue={members.some((m) => m.id === selfId) ? selfId : (members[0]?.id ?? "")} required {...field("assigneeId")}>
+                <option value="" disabled>เลือกสมาชิก</option>
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}{m.id === selfId ? " (ฉัน)" : ""}</option>
+                ))}
+              </select>
+              <FieldError name="assigneeId" message={error("assigneeId")} />
+            </div>
+          ) : (
+            <input type="hidden" value={selfId} {...field("assigneeId")} />
+          )}
+          <div>
+            <label className="label" htmlFor="task-due">กำหนดส่ง</label>
+            <input id="task-due" type="date" min={today} defaultValue={defaultDue} className="input" {...field("dueDate")} />
+            <FieldError name="dueDate" message={error("dueDate")} />
+          </div>
+          {canAttach && (
+            <div className="sm:col-span-3">
+              <FilePicker
+                files={files}
+                text="แนบไฟล์"
+                onChange={(next, problem) => {
+                  setFiles(next);
+                  setFileError(problem);
+                }}
+              />
+            </div>
+          )}
         </div>
-      ) : (
-        <input type="hidden" value={selfId} {...field("assigneeId")} />
-      )}
-      <div>
-        <label className="label" htmlFor="task-due">กำหนดส่ง <span className="font-normal text-slate-400">(ไม่บังคับ)</span></label>
-        <input id="task-due" type="date" min={today} defaultValue={defaultDue} className="input" {...field("dueDate")} />
-        <FieldError name="dueDate" message={error("dueDate")} />
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 sm:col-span-3">
-        <div className="min-w-0 flex-1 space-y-2">
-          {progress ? <UploadProgressBar progress={progress} /> : <PickedFiles files={files} onRemove={(i) => setFiles(files.filter((_, n) => n !== i))} />}
-          <FormMessage state={fileError ? { error: fileError } : state} />
-        </div>
-        {canAttach && (
-          <FilePicker
-            files={files}
-            onChange={(next, problem) => {
-              setFiles(next);
-              setFileError(problem);
-            }}
-          />
-        )}
-        <SubmitButton className="btn" pending={pending}>{members ? "มอบหมายงาน" : "เพิ่มงานของฉัน"}</SubmitButton>
-      </div>
+      </details>
+      {progress ? <UploadProgressBar progress={progress} /> : <PickedFiles files={files} onRemove={(i) => setFiles(files.filter((_, n) => n !== i))} />}
+      <FormMessage state={fileError ? { error: fileError } : state} />
     </form>
   );
 }

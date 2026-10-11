@@ -179,3 +179,7 @@
   scrollbar-width: none;
   &::-webkit-scrollbar { display: none; }
 }
+
+/* แถบเครื่องมือลอยของตัวแก้ไข: เฉพาะอุปกรณ์ที่ใช้เมาส์ (จอสัมผัสมีเมนูเลือกข้อความของระบบ) */
+.fine-only { display: flex; }
+@media (pointer: coarse) { .fine-only { display: none; } }

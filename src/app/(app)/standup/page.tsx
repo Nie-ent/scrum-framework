@@ -8,15 +8,19 @@ import { StandupSections } from "@/components/standup-card";
 import { EmptyState } from "@/components/ui-state";
 import { StandupForm } from "./standup-form";
 import { NavGlyph } from "@/components/nav-icons";
+import { GettingStarted } from "@/components/getting-started";
+import { ProgressRing } from "@/components/progress-ring";
+import { Tooltip } from "@/components/tooltip";
+import { setTaskProgress } from "@/app/actions/tasks";
 import { Avatar } from "@/components/avatar";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
 import { getManageableTeamIds, getMeetingUrl } from "@/lib/teams";
-import { pickSpace } from "@/lib/space";
+import { currentSpaceId, pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
 
-export const metadata: Metadata = { title: "เช็กอินประจำวัน" };
+export const metadata: Metadata = { title: "วันนี้" };
 
 export default async function StandupPage({ searchParams }: PageProps<"/standup">) {
   const user = await requireUser();
@@ -36,10 +40,16 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
   }
 
   // คนที่อยู่หลายทีมเขียน scrum แยกกันต่อทีม
-  const team = (await pickSpace(teams, params.team))!;
+  let team = (await pickSpace(teams, params.team))!;
+  // พื้นที่ที่เลือกไว้เป็นทีมย่อยที่ตัวเองไม่ได้เช็กอิน (เช่น หัวหน้าทีมแม่) → ใช้ทีมแม่ที่ตัวเองเช็กอินอยู่
+  const wanted = typeof params.team === "string" ? params.team : await currentSpaceId();
+  if (wanted && wanted !== team.id) {
+    const chosen = await prisma.team.findUnique({ where: { id: wanted }, select: { parentId: true } });
+    team = teams.find((t) => t.id === chosen?.parentId) ?? team;
+  }
   // พื้นที่ส่วนตัว: ใช้ฟอร์มเดียวกันเป็นบันทึกประจำวันของตัวเอง (ไม่มีส่วนของเพื่อนร่วมทีม)
   const personal = Boolean(team.personalOfId);
-  const [history, submittedToday, myTasks, teammates, manageableIds, meetingUrl] = await Promise.all([
+  const [history, submittedToday, myTasks, teammates, manageableIds, meetingUrl, dueNow] = await Promise.all([
     prisma.standup.findMany({
       where: { userId: user.id, teamId: team.id },
       include: { comments: withComments },
@@ -64,6 +74,13 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     }),
     getManageableTeamIds(user),
     getMeetingUrl(team.id),
+    // "วันนี้" ของฉัน: งานที่ถึงกำหนดหรือเลยกำหนดแล้ว จากทุกพื้นที่ที่ฉันอยู่
+    prisma.task.findMany({
+      where: { assigneeId: user.id, deletedAt: null, progress: { lt: 100 }, dueDate: { lte: keyToDate(today) } },
+      select: { id: true, title: true, progress: true, dueDate: true, number: true, teamId: true, team: { select: { name: true, personalOfId: true } } },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
+      take: 20,
+    }),
   ]);
   const canModerate = manageableIds.has(team.id);
   const canAttach = isFileStorageConfigured();
@@ -85,8 +102,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
       <section>
         <div className="page-header mb-6">
           <div>
-            <p className="eyebrow">{personal ? "ของฉัน" : "ทุกวันทำงาน"}</p>
-            <h1 className="page-title">{personal ? "บันทึกประจำวัน" : "เช็กอินประจำวัน"}</h1>
+            <p className="eyebrow">{team.name}</p>
+            <h1 className="page-title">วันนี้</h1>
             <p className="page-subtitle">{formatDateKey(today)} · {current ? "ส่งแล้ว และแก้ไขได้ตลอดวัน" : "ยังไม่ได้ส่งของวันนี้"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -114,6 +131,41 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
             ))}
           </nav>
         )}
+
+
+        <GettingStarted spaceId={team.id} personal={personal} />
+
+        {/* งานที่ถึงกำหนดวันนี้หรือเลยกำหนดแล้ว — สิ่งแรกที่ควรเห็นตอนเปิดแอป */}
+        {dueNow.length > 0 && (
+          <section className="card mb-4 border-warning/30 bg-warning-soft/40">
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-foreground">งานที่ต้องทำวันนี้</h2>
+              <span className="badge badge-warning">{dueNow.length} งาน</span>
+            </div>
+            <ul className="divide-y divide-border/70">
+              {dueNow.map((t) => {
+                const key = dateToKey(t.dueDate!);
+                return (
+                  <li key={t.id} className="flex items-center gap-2.5 py-1.5">
+                    <form action={setTaskProgress} className="shrink-0">
+                      <input type="hidden" name="id" value={t.id} />
+                      <input type="hidden" name="progress" value={100} />
+                      <Tooltip label="ทำเสร็จแล้ว (100%)">
+                        <button aria-label={`ทำงาน ${t.title} เสร็จแล้ว`} className="flex size-9 items-center justify-center rounded-full transition hover:bg-success-soft"><ProgressRing value={t.progress} /></button>
+                      </Tooltip>
+                    </form>
+                    <Link href={`/tasks?team=${t.teamId}${t.number === null ? "" : `&task=${t.number}`}`} className="flex min-w-0 flex-1 items-center gap-3 text-sm">
+                      <span className="min-w-0 flex-1 truncate font-medium text-foreground">{t.title}<span className="ml-2 text-xs font-normal text-subtle">{t.team.personalOfId ? "ส่วนตัว" : t.team.name}</span></span>
+                      <span className={`badge shrink-0 ${key < today ? "badge-danger" : "badge-warning"}`}>{key < today ? `เลยกำหนด ${formatDateKey(key).replace(/ \d{4}$/, "")}` : "วันนี้"}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        <h2 id="checkin" className="mb-2 scroll-mt-24 text-sm font-semibold text-foreground">{personal ? "บันทึกประจำวัน" : "เช็กอินประจำวัน"}</h2>
 
         <StandupForm
           key={team.id}

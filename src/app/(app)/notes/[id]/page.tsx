@@ -116,7 +116,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   const taskNumbers = new Set(tasks.map((t) => t.number));
   const rendered = linkify(note.content, {
     noteId: (title) => idByKey.get(noteKey(title)),
-    taskUrl: (number) => (taskNumbers.has(number) ? `/tasks?team=${team.id}#task-${number}` : undefined),
+    taskUrl: (number) => (taskNumbers.has(number) ? `/tasks?team=${team.id}&task=${number}` : undefined),
     newNoteUrl: (title) => `/notes/new?team=${team.id}&title=${encodeURIComponent(title)}${note.parentId ? `&parent=${note.parentId}` : ""}`,
   });
   const linkedTasks = taskLinks.flatMap((l) => (l.toTask && !l.toTask.deletedAt ? [l.toTask] : []));
@@ -160,7 +160,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
               <ul className="space-y-1">
                 {linkedTasks.map((t) => (
                   <li key={t.number}>
-                    <Link href={`/tasks?team=${team.id}#task-${t.number}`} className="flex items-center gap-2 py-1 text-sm text-slate-700 hover:text-indigo-700">
+                    <Link href={`/tasks?team=${team.id}&task=${t.number}`} className="flex items-center gap-2 py-1 text-sm text-slate-700 hover:text-indigo-700">
                       <span className="tabular-nums text-slate-400">#{t.number}</span>
                       <span className={`min-w-0 flex-1 truncate ${t.progress >= 100 ? "text-slate-400 line-through" : ""}`}>{t.title}</span>
                       <span className="shrink-0 text-xs tabular-nums text-slate-500">{t.progress}%</span>

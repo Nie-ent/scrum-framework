@@ -65,7 +65,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const tone = (t: Row, key: string) =>
     t.progress >= 100 ? "bg-emerald-50 text-emerald-700 line-through decoration-emerald-400" : key < today ? "bg-rose-50 text-rose-700" : t.assigneeId === user.id ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-700";
   const href = (m: string, teamId = team.id) => `/calendar?team=${teamId}&month=${m}`;
-  const taskHref = (t: Row) => `/tasks?team=${team.id}${t.number === null ? "" : `#task-${t.number}`}`;
+  const taskHref = (t: Row) => `/tasks?team=${team.id}${t.number === null ? "" : `&task=${t.number}`}`;
 
   const TaskLine = ({ t }: { t: Row }) => (
     <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2.5">
