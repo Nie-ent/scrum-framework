@@ -19,7 +19,7 @@ model Role {
   level       Int
   description String?
   users       User[]
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
 }
 
 /// ทีมซ้อนได้ 2 ชั้น: ทีมใหญ่ (parentId = null) = workspace ของลูกค้าแต่ละราย → ทีมย่อย
@@ -38,7 +38,7 @@ model Team {
   taskSeq    Int          @default(0)
   /// ลิงก์ห้องประชุมประจำทีม (Google Meet / Zoom / Jitsi ฯลฯ) — ทีมย่อยที่ไม่ได้ตั้งใช้ของทีมแม่
   meetingUrl String?
-  createdAt  DateTime     @default(now())
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
 
   @@unique([parentId, name])
   @@index([parentId])
@@ -65,7 +65,7 @@ model TeamMember {
   participates Boolean    @default(true)
   /// เลิกใช้แล้ว — ใช้ access แทน (คงคอลัมน์ไว้ให้ถอยกลับได้ จะลบใน migration ถัดไป)
   isLead       Boolean    @default(false)
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
 
   @@id([userId, teamId])
   @@index([teamId])
@@ -78,9 +78,9 @@ model User {
   passwordHash       String
   active             Boolean            @default(true)
   /// null = ยังไม่ได้ยืนยันว่าเป็นเจ้าของอีเมลนี้ (สมัครเองและยังไม่กดลิงก์ยืนยัน) — รับคำเชิญในแอปไม่ได้จนกว่าจะยืนยัน
-  emailVerifiedAt    DateTime?
+  emailVerifiedAt    DateTime?          @db.Timestamptz(3)
   /// session ที่ออกก่อนเวลานี้ใช้ไม่ได้ — เปลี่ยน/รีเซ็ตรหัสผ่านแล้วเครื่องอื่นหลุดออก
-  passwordChangedAt  DateTime?
+  passwordChangedAt  DateTime?          @db.Timestamptz(3)
   /// รับอีเมลแจ้งเตือน (งานใหม่ ความคิดเห็น) — ส่งเฉพาะเมื่อยืนยันอีเมลแล้ว
   emailNotifications Boolean            @default(true)
   notifications      Notification[]
@@ -90,7 +90,7 @@ model User {
   standups           Standup[]
   pushSubs           PushSubscription[]
   /// มีค่าเมื่อมีรูปโปรไฟล์ — ใช้เป็นเวอร์ชันใน URL รูป (?v=) เพื่อให้ cache ได้นานแต่เปลี่ยนรูปแล้วเห็นทันที
-  avatarUpdatedAt    DateTime?
+  avatarUpdatedAt    DateTime?          @db.Timestamptz(3)
   avatar             Avatar?
   tasks              Task[]             @relation("TaskAssignee")
   createdTasks       Task[]             @relation("TaskCreator")
@@ -100,7 +100,7 @@ model User {
   sentInvites        Invite[]           @relation("InviteSender")
   acceptedInvites    Invite[]           @relation("InviteAccepter")
   authTokens         AuthToken[]
-  createdAt          DateTime           @default(now())
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
 }
 
 /// Daily scrum หนึ่งรายการต่อคน ต่อทีม ต่อวัน — กระดานของแต่ละทีมแยกกัน
@@ -120,8 +120,8 @@ model Standup {
   notWorking     String?
   workingWell    String?
   comments       Comment[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
 
   @@unique([userId, teamId, date])
   @@index([teamId, date])
@@ -136,7 +136,7 @@ model PushSubscription {
   endpoint  String   @unique
   p256dh    String
   auth      String
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([userId])
 }
@@ -158,13 +158,13 @@ model Task {
   /// 0–100, 100 = เสร็จ
   progress    Int          @default(0)
   dueDate     DateTime?    @db.Date
-  doneAt      DateTime?
+  doneAt      DateTime?    @db.Timestamptz(3)
   /// ลบแบบซ่อนไว้ก่อน เพื่อให้กด "เลิกทำ" ได้ — query ทั่วไปต้องกรอง deletedAt = null
-  deletedAt   DateTime?
+  deletedAt   DateTime?    @db.Timestamptz(3)
   comments    Comment[]
   attachments Attachment[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
 
   @@unique([teamId, number])
   @@index([teamId, assigneeId])
@@ -186,7 +186,7 @@ model Comment {
   progressFrom Int?
   progressTo   Int?
   attachments  Attachment[]
-  createdAt    DateTime     @default(now())
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
 
   @@index([taskId, createdAt])
   @@index([standupId, createdAt])
@@ -206,12 +206,12 @@ model Invite {
   invitedBy    User?      @relation("InviteSender", fields: [invitedById], references: [id], onDelete: SetNull)
   /// SHA-256 ของ token ในลิงก์ — ไม่เก็บ token จริง
   tokenHash    String     @unique
-  expiresAt    DateTime
-  acceptedAt   DateTime?
+  expiresAt    DateTime   @db.Timestamptz(3)
+  acceptedAt   DateTime?  @db.Timestamptz(3)
   acceptedById String?
   acceptedBy   User?      @relation("InviteAccepter", fields: [acceptedById], references: [id], onDelete: SetNull)
-  revokedAt    DateTime?
-  createdAt    DateTime   @default(now())
+  revokedAt    DateTime?  @db.Timestamptz(3)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
 
   @@index([teamId])
   @@index([email])
@@ -227,8 +227,8 @@ model Notification {
   body      String
   /// path ภายในแอปที่จะเปิดเมื่อกด (ขึ้นต้นด้วย /)
   url       String
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  readAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -238,7 +238,7 @@ model Notification {
 model RateLimit {
   key     String   @id
   count   Int
-  resetAt DateTime
+  resetAt DateTime @db.Timestamptz(3)
 }
 
 enum AuthTokenType {
@@ -253,9 +253,9 @@ model AuthToken {
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      AuthTokenType
   tokenHash String        @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime      @default(now())
+  expiresAt DateTime      @db.Timestamptz(3)
+  usedAt    DateTime?     @db.Timestamptz(3)
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
 
   @@index([userId, type])
 }
@@ -276,12 +276,12 @@ model Attachment {
   size          Int
   path          String    @unique
   /// null = ขอ URL อัปโหลดแล้วแต่ยังอัปโหลดไม่เสร็จ (ยังไม่แสดง)
-  uploadedAt    DateTime?
-  expiresAt     DateTime
-  importantAt   DateTime?
+  uploadedAt    DateTime? @db.Timestamptz(3)
+  expiresAt     DateTime  @db.Timestamptz(3)
+  importantAt   DateTime? @db.Timestamptz(3)
   importantById String?
   importantBy   User?     @relation("AttachmentMarker", fields: [importantById], references: [id], onDelete: SetNull)
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([taskId])
   @@index([commentId])
@@ -295,5 +295,5 @@ model Avatar {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   data      Bytes
   mimeType  String
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }
