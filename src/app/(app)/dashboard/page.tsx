@@ -9,7 +9,6 @@ import { toTasks } from "@/lib/tasks";
 import { dateToKey, formatDateKey, isDateKey, keyToDate, shiftKey, todayKey } from "@/lib/dates";
 import { dayTone } from "@/lib/holidays";
 import { DashboardCalendar } from "@/components/dashboard-calendar";
-import { TeamHealthChart } from "@/components/team-health-chart";
 import { EmptyState } from "@/components/ui-state";
 import { ProgressSummary, StandupSections } from "@/components/standup-card";
 import { Avatar } from "@/components/avatar";
@@ -105,19 +104,21 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
       </div>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Stat label="ส่งแล้ว" value={`${submitted.length}/${rows.length}`} tone="indigo" />
+        <Stat
+          label={dateKey === today ? "เช็กอินวันนี้" : "เช็กอินของวันที่ดู"}
+          value={<>{submitted.length}/{rows.length}<span className="ml-2 text-base font-medium text-muted-foreground">{rows.length === 0 ? 0 : Math.round((submitted.length / rows.length) * 100)}%</span></>}
+          tone="indigo"
+          percent={rows.length === 0 ? 0 : (submitted.length / rows.length) * 100}
+        />
         <Stat label="ติดปัญหา" value={blockers.length} tone="red" />
         <Stat label="ควรปรับปรุง" value={notWorking.length} tone="amber" />
         <Stat label="ไปได้ดี" value={workingWell.length} tone="emerald" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        {/* เช็กอินของวันที่ดู + การส่ง 7 วันล่าสุด รวมในการ์ดเดียว */}
-        <section className="card flex flex-col gap-4 p-4 xl:flex-row xl:items-start xl:gap-6">
-          <div className="shrink-0 xl:w-60 xl:border-r xl:border-border xl:pr-6">
-            <TeamHealthChart submitted={submitted.length} total={rows.length} label={dateKey === today ? "การเช็กอินวันนี้" : `การเช็กอิน ${formatDateKey(dateKey).replace(/ \d{4}$/, "")}`} />
-          </div>
-          <div className="min-w-0 flex-1 overflow-x-auto">
+        {/* การส่ง 7 วันล่าสุด — สัดส่วนเช็กอินของวันที่ดูอยู่ในการ์ด "ส่งแล้ว" ด้านบน */}
+        <section className="card p-4">
+          <div className="min-w-0 overflow-x-auto">
             <h2 className="mb-2 text-sm font-semibold text-foreground">การส่ง {TREND_DAYS} วันล่าสุด</h2>
             <table className="w-full text-sm">
               <thead>
@@ -220,12 +221,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone: "indigo" | "red" | "amber" | "emerald" }) {
+function Stat({ label, value, tone, percent }: { label: string; value: React.ReactNode; tone: "indigo" | "red" | "amber" | "emerald"; /** แถบสัดส่วนใต้ตัวเลข (0–100) */ percent?: number }) {
   const color = { indigo: "text-indigo-600", red: "text-rose-600", amber: "text-amber-600", emerald: "text-emerald-600" }[tone];
   return (
     <div className="card py-4">
       <div className="text-sm font-medium text-slate-500">{label}</div>
       <div className={`mt-1 text-3xl font-semibold tracking-tight ${color}`}>{value}</div>
+      {percent !== undefined && (
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-sunken" aria-hidden="true">
+          <div className={`h-full rounded-full ${percent >= 100 ? "bg-success" : "bg-primary"}`} style={{ width: `${Math.min(100, percent)}%` }} />
+        </div>
+      )}
     </div>
   );
 }
