@@ -2,25 +2,20 @@
 
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { createSession, deleteSession } from "@/lib/session";
 import { appUrl, isEmailConfigured, sendEmail } from "@/lib/email";
 import { isSignupOpen, openInvite } from "@/lib/invites";
 import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
+import { ChangePasswordFields, LoginFields, NewPasswordFields, SignupFields, email } from "@/lib/schemas";
 import { hashToken, inHours, newToken } from "@/lib/tokens";
 
 /** id = รายการที่เพิ่งสร้าง (ใช้ต่อ เช่น แนบไฟล์ให้งาน/ความคิดเห็นนั้น) */
 export type FormState = { error?: string; ok?: string; id?: string } | undefined;
 
-const LoginSchema = z.object({
-  email: z.email().trim().toLowerCase(),
-  password: z.string().min(1),
-});
-
 export async function login(_: FormState, formData: FormData): Promise<FormState> {
-  const parsed = LoginSchema.safeParse({
+  const parsed = LoginFields.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
@@ -43,14 +38,8 @@ function safeNext(value: unknown) {
   return typeof value === "string" && /^\/invite\/[A-Za-z0-9_-]+$/.test(value) ? value : "/";
 }
 
-const SignupSchema = z.object({
-  name: z.string().trim().min(1, { error: "กรุณาระบุชื่อ" }).max(100),
-  email: z.email({ error: "อีเมลไม่ถูกต้อง" }).trim().toLowerCase(),
-  password: z.string().min(8, { error: "รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร" }).max(200),
-});
-
 export async function signup(_: FormState, formData: FormData): Promise<FormState> {
-  const parsed = SignupSchema.safeParse({ name: formData.get("name"), email: formData.get("email"), password: formData.get("password") });
+  const parsed = SignupFields.safeParse({ name: formData.get("name"), email: formData.get("email"), password: formData.get("password") });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const next = safeNext(formData.get("next"));
   if (!(await rateLimit(`signup:ip:${await clientIp()}`, 5, 3600))) return { error: TOO_MANY };
@@ -124,7 +113,7 @@ export async function verifyEmail(token: string): Promise<boolean> {
 
 /** ขอลิงก์ตั้งรหัสผ่านใหม่ — ตอบเหมือนกันเสมอ ไม่บอกว่าอีเมลนี้มีบัญชีหรือไม่ */
 export async function requestPasswordReset(_: FormState, formData: FormData): Promise<FormState> {
-  const parsed = z.email().trim().toLowerCase().safeParse(formData.get("email"));
+  const parsed = email.safeParse(formData.get("email"));
   if (!parsed.success) return { error: "อีเมลไม่ถูกต้อง" };
   if (!isEmailConfigured()) return { error: "ระบบยังไม่ได้ตั้งค่าการส่งอีเมล — ติดต่อผู้ดูแลระบบให้รีเซ็ตรหัสผ่านให้" };
   if (!(await rateLimit(`forgot:ip:${await clientIp()}`, 8, 3600))) return { error: TOO_MANY };
@@ -149,18 +138,10 @@ export async function requestPasswordReset(_: FormState, formData: FormData): Pr
   return { ok: "ถ้าอีเมลนี้มีบัญชีอยู่ เราได้ส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้แล้ว (ลิงก์ใช้ได้ 1 ชั่วโมง)" };
 }
 
-const ResetSchema = z
-  .object({
-    token: z.string().min(1),
-    next: z.string().min(8, { error: "รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร" }).max(200),
-    confirm: z.string(),
-  })
-  .refine((d) => d.next === d.confirm, { error: "ยืนยันรหัสผ่านไม่ตรงกัน" });
-
 export async function resetPassword(_: FormState, formData: FormData): Promise<FormState> {
-  const parsed = ResetSchema.safeParse({ token: formData.get("token"), next: formData.get("next"), confirm: formData.get("confirm") });
+  const parsed = NewPasswordFields.safeParse({ next: formData.get("next"), confirm: formData.get("confirm") });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const userId = await consumeToken(parsed.data.token, "PASSWORD_RESET");
+  const userId = await consumeToken(String(formData.get("token") ?? ""), "PASSWORD_RESET");
   if (!userId) return { error: "ลิงก์นี้ใช้ไม่ได้แล้ว (หมดอายุหรือถูกใช้ไปแล้ว) — ขอลิงก์ใหม่อีกครั้ง" };
   // เปิดลิงก์จากอีเมลได้ = เป็นเจ้าของอีเมลนี้จริง
   const user = await prisma.user.update({
@@ -177,17 +158,9 @@ export async function logout() {
   redirect("/login");
 }
 
-const PasswordSchema = z
-  .object({
-    current: z.string().min(1),
-    next: z.string().min(8, { error: "รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร" }),
-    confirm: z.string(),
-  })
-  .refine((d) => d.next === d.confirm, { error: "ยืนยันรหัสผ่านไม่ตรงกัน" });
-
 export async function changePassword(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const parsed = PasswordSchema.safeParse({
+  const parsed = ChangePasswordFields.safeParse({
     current: formData.get("current"),
     next: formData.get("next"),
     confirm: formData.get("confirm"),

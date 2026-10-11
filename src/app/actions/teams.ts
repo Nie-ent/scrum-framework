@@ -11,15 +11,9 @@ import { purgeAttachments } from "@/lib/attachment-store";
 import { INVITE_DAYS, joinFromInvite, openInvite } from "@/lib/invites";
 import { notify } from "@/lib/notify";
 import { getTeamControl } from "@/lib/teams";
+import { InviteFields, TeamFields, roleTitle as title, teamName } from "@/lib/schemas";
 import { hashToken, inDays, newToken } from "@/lib/tokens";
 import type { FormState } from "./auth";
-
-const teamName = z.string().trim().min(1, { error: "กรุณาระบุชื่อทีม" }).max(60, { error: "ชื่อทีมยาวเกิน 60 ตัวอักษร" });
-const title = z
-  .string()
-  .trim()
-  .max(40, { error: "ชื่อบทบาทยาวเกิน 40 ตัวอักษร" })
-  .transform((v) => v || null);
 
 function done(teamId?: string) {
   revalidatePath("/teams");
@@ -30,7 +24,7 @@ function done(teamId?: string) {
 /** สร้างทีมใหม่ (ทีมระดับบน) — คนสร้างเป็นเจ้าของทีม */
 export async function createTeam(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const parsed = z.object({ name: teamName, title }).safeParse({ name: formData.get("name") ?? "", title: formData.get("title") ?? "" });
+  const parsed = TeamFields.safeParse({ name: formData.get("name") ?? "", title: formData.get("title") ?? "" });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const team = await prisma.team.create({
     data: {
@@ -61,12 +55,7 @@ export async function createSubTeam(_: FormState, formData: FormData): Promise<F
   return { ok: "สร้างทีมย่อยแล้ว" };
 }
 
-const InviteSchema = z.object({
-  teamId: z.string().min(1),
-  email: z.email({ error: "อีเมลไม่ถูกต้อง" }).trim().toLowerCase(),
-  access: z.enum(["LEAD", "MEMBER"]),
-  title,
-});
+const InviteSchema = InviteFields.extend({ teamId: z.string().min(1) });
 
 /**
  * เชิญเข้าทีมด้วยอีเมล — หัวหน้าทีมเชิญสมาชิกทั่วไปได้ เจ้าของทีมเชิญเป็นหัวหน้าได้ด้วย

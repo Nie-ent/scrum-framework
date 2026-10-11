@@ -3,23 +3,27 @@
 import { useActionState, useState } from "react";
 import { resendVerification } from "@/app/actions/auth";
 import { createSubTeam, createTeam, deleteTeam, inviteMember, removeMember, setMeetingUrl, updateMember } from "@/app/actions/teams";
+import { InviteFields, TeamFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
+import { FieldError, useZodForm } from "@/components/zod-form";
 
 const TITLE_HINT = "เช่น Dev, PM, PO, Scrum Master";
 
 export function CreateTeamForm() {
-  const [state, action] = useActionState(createTeam, undefined);
+  const { state, pending, formProps, field, error } = useZodForm(TeamFields, createTeam);
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end">
+    <form {...formProps} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-start">
       <div>
         <label className="label" htmlFor="team-name">ชื่อทีม</label>
-        <input id="team-name" name="name" className="input" maxLength={60} required />
+        <input id="team-name" className="input" maxLength={60} required {...field("name")} />
+        <FieldError name="name" message={error("name")} />
       </div>
       <div>
         <label className="label" htmlFor="team-title">บทบาทของคุณ <span className="font-normal text-slate-400">(ไม่บังคับ)</span></label>
-        <input id="team-title" name="title" className="input" maxLength={40} placeholder={TITLE_HINT} />
+        <input id="team-title" className="input" maxLength={40} placeholder={TITLE_HINT} {...field("title")} />
+        <FieldError name="title" message={error("title")} />
       </div>
-      <SubmitButton className="btn" pendingText="กำลังสร้าง...">สร้างทีม</SubmitButton>
+      <SubmitButton className="btn sm:mt-[1.875rem]" pendingText="กำลังสร้าง..." pending={pending}>สร้างทีม</SubmitButton>
       <div className="sm:col-span-3"><FormMessage state={state} /></div>
     </form>
   );
@@ -53,31 +57,33 @@ export function InviteForm({
   /** ชื่อบทบาทที่ใช้อยู่ในทีมนี้ */
   titles: string[];
 }) {
-  const [state, action] = useActionState(inviteMember, undefined);
+  const { state, pending, formProps, field, error } = useZodForm(InviteFields, inviteMember, { resetOnSuccess: true });
   const [copied, setCopied] = useState(false);
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_9rem_auto] sm:items-end" onSubmit={() => setCopied(false)}>
+    <form {...formProps} onSubmit={(e) => { setCopied(false); formProps.onSubmit(e); }} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_9rem_auto] sm:items-start">
       <input type="hidden" name="teamId" value={teamId} />
       <div>
         <label className="label" htmlFor="invite-email">อีเมลของคนที่จะเชิญ</label>
-        <input id="invite-email" name="email" type="email" className="input" list="invite-contacts" autoComplete="off" required />
+        <input id="invite-email" type="email" className="input" list="invite-contacts" autoComplete="off" required {...field("email")} />
+        <FieldError name="email" message={error("email")} />
         <datalist id="invite-contacts">
           {contacts.map((c) => <option key={c.email} value={c.email}>{c.name}</option>)}
         </datalist>
       </div>
       <div>
         <label className="label" htmlFor="invite-title">บทบาท <span className="font-normal text-slate-400">(ไม่บังคับ)</span></label>
-        <input id="invite-title" name="title" className="input" maxLength={40} list="team-titles" placeholder={TITLE_HINT} />
+        <input id="invite-title" className="input" maxLength={40} list="team-titles" placeholder={TITLE_HINT} {...field("title")} />
+        <FieldError name="title" message={error("title")} />
         <datalist id="team-titles">{titles.map((t) => <option key={t} value={t} />)}</datalist>
       </div>
       <div>
         <label className="label" htmlFor="invite-access">สิทธิ์</label>
-        <select id="invite-access" name="access" className="input" defaultValue="MEMBER">
+        <select id="invite-access" className="input" defaultValue="MEMBER" {...field("access")}>
           <option value="MEMBER">สมาชิก</option>
           {canInviteLead && <option value="LEAD">หัวหน้าทีม</option>}
         </select>
       </div>
-      <SubmitButton className="btn" pendingText="กำลังเชิญ...">เชิญ</SubmitButton>
+      <SubmitButton className="btn sm:mt-[1.875rem]" pendingText="กำลังเชิญ..." pending={pending}>เชิญ</SubmitButton>
       <div className="space-y-2 sm:col-span-4">
         <FormMessage state={state} />
         {state?.id && (

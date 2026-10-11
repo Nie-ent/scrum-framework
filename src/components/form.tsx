@@ -8,13 +8,17 @@ export function SubmitButton({
   className = "btn",
   pendingText = "กำลังบันทึก...",
   disabled = false,
+  pending: pendingOverride,
 }: {
   children: React.ReactNode;
   className?: string;
   pendingText?: string;
   disabled?: boolean;
+  /** ระบุเองเมื่อฟอร์มเรียก action ผ่าน useZodForm (useFormStatus ไม่รู้สถานะในกรณีนั้น) */
+  pending?: boolean;
 }) {
-  const { pending } = useFormStatus();
+  const status = useFormStatus();
+  const pending = pendingOverride ?? status.pending;
   return (
     <button type="submit" className={className} disabled={pending || disabled}>
       {pending ? pendingText : children}

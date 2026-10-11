@@ -4,6 +4,8 @@
 
 ระบบ Daily Scrum ด้วย Next.js 16 + PostgreSQL (Prisma) — มี login, role ที่กำหนด level ได้เอง และหน้าภาพรวมสำหรับหัวหน้า
 
+**Stack:** Next.js 16 (App Router, Server Actions) · React 19 · Prisma + PostgreSQL · Tailwind 4 · **zod** (กฎของฟอร์ม ใช้ชุดเดียวกันทั้งเบราว์เซอร์และ server — `src/lib/schemas.ts`) · **react-hook-form** (ตรวจรายช่องในเบราว์เซอร์ก่อนส่งเข้า server action — `src/components/zod-form.tsx`) · **axios** (อัปโหลดไฟล์พร้อมแถบความคืบหน้า — `src/lib/upload-client.ts`)
+
 ## ฟีเจอร์
 
 - **Daily Scrum แยกต่อทีม** — ส่งได้วันละ 1 ครั้งต่อทีม (แก้ไขได้ทั้งวัน) คนที่อยู่หลายทีมมีแท็บเลือกทีม กระดานของแต่ละทีมเห็นเฉพาะสิ่งที่เขียนให้ทีมนั้น

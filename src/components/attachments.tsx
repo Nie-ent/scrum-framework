@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { deleteAttachment, setAttachmentImportant } from "@/app/actions/attachments";
 import { MAX_FILES_PER_UPLOAD, formatBytes, type AttachmentTarget, type FileItem } from "@/lib/attachments";
-import { checkFiles, uploadFiles } from "@/lib/upload-client";
+import { checkFiles, uploadFiles, type UploadProgress } from "@/lib/upload-client";
 import { Icon } from "@/components/icons";
 
 type Menu = { file: FileItem; x: number; y: number };
@@ -183,8 +183,9 @@ export function PickedFiles({ files, onRemove }: { files: File[]; onRemove: (ind
 
 /** แนบไฟล์เข้ากับสิ่งที่มีอยู่แล้ว (เช่น งาน) — เลือกแล้วอัปโหลดทันที */
 export function AttachButton({ target }: { target: AttachmentTarget }) {
-  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const busy = progress !== null;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <FilePicker
@@ -195,14 +196,31 @@ export function AttachButton({ target }: { target: AttachmentTarget }) {
         onChange={async (files, problem) => {
           setError(problem);
           if (problem || files.length === 0 || busy) return;
-          setBusy(true);
-          const result = await uploadFiles(target, files);
-          setBusy(false);
+          setProgress({ fileName: files[0].name, index: 0, total: files.length, percent: 0 });
+          const result = await uploadFiles(target, files, setProgress);
+          setProgress(null);
           if (result.errors.length > 0) setError(result.errors.join(" · "));
         }}
       />
-      {busy && <span className="text-xs text-slate-500">กำลังอัปโหลด…</span>}
+      <UploadProgressBar progress={progress} />
       {error && <span role="alert" className="text-xs font-medium text-rose-700">{error}</span>}
+    </span>
+  );
+}
+
+/** แถบความคืบหน้าระหว่างอัปโหลดไฟล์ */
+export function UploadProgressBar({ progress }: { progress: UploadProgress | null }) {
+  if (!progress) return null;
+  return (
+    <span role="status" className="inline-flex min-w-0 items-center gap-2 text-xs text-slate-500">
+      <span className="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={progress.percent} aria-valuemin={0} aria-valuemax={100}>
+        <span className="block h-full rounded-full bg-indigo-500 transition-[width]" style={{ width: `${progress.percent}%` }} />
+      </span>
+      <span className="shrink-0 tabular-nums">{progress.percent}%</span>
+      <span className="truncate">
+        กำลังอัปโหลด {progress.fileName}
+        {progress.total > 1 && ` (${progress.index + 1}/${progress.total})`}
+      </span>
     </span>
   );
 }

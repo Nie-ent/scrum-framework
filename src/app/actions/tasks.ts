@@ -4,27 +4,20 @@ import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
-import { isDateKey, keyToDate, todayKey } from "@/lib/dates";
+import { keyToDate, todayKey } from "@/lib/dates";
 import { notify } from "@/lib/notify";
+import { TaskFields } from "@/lib/schemas";
 import { nextTaskNumbers } from "@/lib/task-store";
 import { toTasks } from "@/lib/tasks";
 import { getManageableTeamIds } from "@/lib/teams";
 import type { FormState } from "./auth";
 
-const TaskSchema = z.object({
-  teamId: z.string().min(1),
-  assigneeId: z.string().min(1),
-  title: z.string().trim().min(1, { error: "กรุณาระบุชื่องาน" }).max(200),
-  description: z
-    .string()
-    .trim()
-    .max(2000)
-    .transform((v) => v || null),
-  dueDate: z
-    .string()
-    .refine((v) => v === "" || isDateKey(v), { error: "วันที่ไม่ถูกต้อง" })
-    .transform((v) => (v ? keyToDate(v) : null)),
-});
+// กฎของช่องกรอกใช้ร่วมกับฟอร์มฝั่งเบราว์เซอร์ (src/lib/schemas.ts) — ที่นี่แปลงเป็นค่าที่จะบันทึก
+const TaskSchema = TaskFields.extend({ teamId: z.string().min(1) }).transform((d) => ({
+  ...d,
+  description: d.description || null,
+  dueDate: d.dueDate ? keyToDate(d.dueDate) : null,
+}));
 
 function done() {
   revalidatePath("/tasks");
