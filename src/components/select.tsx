@@ -90,7 +90,7 @@ export function Select({
         title={title}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
-        className={`flex items-center justify-between gap-2 rounded-xl border border-border-strong bg-surface text-left text-foreground shadow-soft transition hover:bg-surface-sunken disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/20 ${size === "sm" ? "min-h-8 px-2.5 text-xs" : "min-h-11 px-3.5 text-[0.95rem]"} ${className || "w-full"}`}
+        className={`flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white text-left text-slate-800 shadow-sm transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/20 ${size === "sm" ? "min-h-8 px-2.5 text-xs" : "min-h-11 px-3 text-base sm:text-sm"} ${className || "w-full"}`}
       >
         <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-subtle"}`}>{selected?.label ?? tr(placeholder)}</span>
         <svg viewBox="0 0 20 20" fill="currentColor" className="size-4 shrink-0 text-subtle" aria-hidden="true">

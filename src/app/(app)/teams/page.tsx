@@ -50,14 +50,14 @@ export default async function TeamsPage() {
           <ul className="divide-y divide-indigo-100">
             {invites.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-800">{i.team.name}</p>
+                <div className="min-w-0 flex-1 basis-48">
+                  <p className="truncate font-medium text-slate-800">{i.team.name}</p>
                   <p className="text-xs text-slate-500">
                     {i.invitedBy ? tr("{0} เชิญ", [i.invitedBy.name]) : tr("ได้รับเชิญ")}{tr("เป็น")}{tr(ACCESS_LABEL[i.access])}
                     {i.title && ` · ${i.title}`}
                   </p>
                 </div>
-                <form action={respondToInvite} className="flex gap-2">
+                <form action={respondToInvite} className="flex shrink-0 gap-2">
                   <input type="hidden" name="id" value={i.id} />
                   <button className="btn min-h-9 px-3 py-1 text-sm">{tr("รับคำเชิญ")}</button>
                   <button name="decline" value="1" className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("ปฏิเสธ")}</button>
@@ -69,7 +69,7 @@ export default async function TeamsPage() {
       )}
 
       <section className="card flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 basis-64">
           <h2 className="font-semibold text-slate-900">{tr("พื้นที่ส่วนตัว")}</h2>
           <p className="text-sm text-slate-500">{tr("งาน บันทึกประจำวัน และโน้ตที่เห็นเฉพาะคุณ — ใช้ได้เลยโดยไม่ต้องมีทีม")}</p>
         </div>
@@ -89,16 +89,16 @@ export default async function TeamsPage() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {teamMemberships.map((m) => (
-              <li key={m.teamId} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-800">{m.team.name}</p>
-                  <p className="text-xs text-slate-500">
+              <li key={m.teamId} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-slate-800">{m.team.name}</p>
+                  <p className="truncate text-xs text-slate-500">
                     {tr(ACCESS_LABEL[m.access])}
                     {m.title && ` · ${m.title}`}
                     {!m.participates && tr(" · ไม่ต้องเช็กอิน")}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   {canLead(m) ? (
                     <Link href={`/teams/${m.teamId}`} className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("จัดการทีม")}</Link>
                   ) : (

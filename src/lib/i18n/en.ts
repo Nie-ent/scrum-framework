@@ -914,4 +914,7 @@ export const en: Record<string, string> = {
   "→ โน้ตนี้อ้างถึง": "→ linked from this note",
   "← อ้างถึงโน้ตนี้": "← links to this note",
   "หัวลูกศรชี้ไปหาสิ่งที่ถูกอ้างถึง — สองหัวคือลิงก์หากันทั้งสองทาง": "Arrows point to what is referenced — two heads mean the notes link to each other",
+  "เลือกวัน": "Pick a date",
+  "ไม่กำหนดวัน": "No date",
+  "พิมพ์ได้หลายบรรทัด วางลิงก์ได้": "Multiple lines are fine. Links work too.",
 };

@@ -9,6 +9,7 @@ import { TaskFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
 import { Select } from "@/components/select";
+import { DatePicker } from "@/components/date-picker";
 import { useT } from "@/components/i18n";
 
 export function TaskForm({
@@ -66,7 +67,8 @@ export function TaskForm({
         <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
           <div>
             <label className="label" htmlFor="task-description">{tr("รายละเอียด")}</label>
-            <input id="task-description" className="input" maxLength={2000} placeholder={tr("วางลิงก์ได้")} {...field("description")} />
+            {/* หลายบรรทัดได้: Enter ในช่องนี้ = ขึ้นบรรทัดใหม่ (ไม่ใช่การเพิ่มงาน) */}
+            <textarea id="task-description" rows={2} className="input resize-y" maxLength={2000} placeholder={tr("พิมพ์ได้หลายบรรทัด วางลิงก์ได้")} {...field("description")} />
             <FieldError name="description" message={error("description")} />
           </div>
           {members ? (
@@ -86,7 +88,7 @@ export function TaskForm({
           )}
           <div>
             <label className="label" htmlFor="task-due">{tr("กำหนดส่ง")}</label>
-            <input id="task-due" type="date" min={today} defaultValue={defaultDue} className="input" {...field("dueDate")} />
+            <DatePicker id="task-due" min={today} today={today} defaultValue={defaultDue} inputProps={field("dueDate")} />
             <FieldError name="dueDate" message={error("dueDate")} />
           </div>
           {canAttach && (

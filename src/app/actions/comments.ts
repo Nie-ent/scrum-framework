@@ -34,7 +34,7 @@ async function loadTarget(taskId: string, standupId: string) {
       teamId: task.teamId,
       ownerId: task.assigneeId,
       label: task.title,
-      url: () => `/tasks?team=${task.teamId}`,
+      url: () => `/tasks?team=${task.teamId}${task.number === null ? "" : `&task=${task.number}`}`,
     };
   }
   if (standupId) {

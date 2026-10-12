@@ -201,7 +201,7 @@ function Toolbar({
             }}
             placeholder={tr("https://… (เว้นว่างเพื่อเอาลิงก์ออก)")}
             aria-label={tr("ที่อยู่ลิงก์")}
-            className="input h-8 flex-1 py-1 text-sm"
+            className="input h-8 min-h-0 flex-1 py-1 text-sm"
             autoFocus
           />
           <button type="button" className="btn-ghost min-h-8 px-3 py-1 text-xs" onClick={applyLink}>{tr("ตกลง")}</button>

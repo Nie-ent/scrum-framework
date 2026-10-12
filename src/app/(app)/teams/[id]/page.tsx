@@ -71,14 +71,14 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
         {invites.length > 0 && (
           <ul className="mt-4 divide-y divide-slate-100 border-t border-slate-100">
             {invites.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
-                <div className="min-w-0">
-                  <span className="font-medium text-slate-800">{i.email}</span>
+              <li key={i.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <div className="min-w-0 flex-1">
+                  <span className="break-all font-medium text-slate-800">{i.email}</span>
                   <span className="text-xs text-slate-500"> · {tr(ACCESS_LABEL[i.access])}{i.title && ` · ${i.title}`} {tr("· หมดอายุ")}{" "}{formatDateTime(i.expiresAt)}</span>
                 </div>
                 <form action={revokeInvite}>
                   <input type="hidden" name="id" value={i.id} />
-                  <button className="text-xs text-slate-400 transition hover:text-rose-600">{tr("ยกเลิกคำเชิญ")}</button>
+                  <button className="shrink-0 whitespace-nowrap text-xs text-slate-400 transition hover:text-rose-600">{tr("ยกเลิกคำเชิญ")}</button>
                 </form>
               </li>
             ))}
@@ -89,10 +89,9 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
       <section className="card">
         <h2 className="mb-1 font-semibold text-slate-900">{tr("สมาชิก")}</h2>
         {!owner && <p className="mb-2 text-sm text-slate-500">{tr("เฉพาะเจ้าของทีมแก้สิทธิ์และบทบาทได้")}</p>}
-        <datalist id="team-titles-edit">{titles.map((t) => <option key={t} value={t} />)}</datalist>
         <ul className="divide-y divide-slate-100">
           {members.map((m) => (
-            <li key={m.userId} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
+            <li key={m.userId} className="grid gap-x-4 gap-y-2 py-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
               <div className="flex min-w-0 items-center gap-3">
                 <Avatar user={m.user} size={36} />
                 <div className="min-w-0">
@@ -104,6 +103,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
                 <MemberForm
                   teamId={team.id}
                   self={m.userId === user.id}
+                  titles={titles}
                   member={{ userId: m.userId, name: m.user.name, access: m.access, title: m.title, participates: m.participates }}
                 />
               ) : (
@@ -133,8 +133,8 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
             <ul className="mb-4 divide-y divide-slate-100">
               {children.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <span className="font-medium text-slate-800">{c.name} <span className="text-xs font-normal text-slate-500">· {tr("{0} คน", [c._count.members])}</span></span>
-                  <Link href={`/teams/${c.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">{tr("จัดการ →")}</Link>
+                  <span className="min-w-0 flex-1 truncate font-medium text-slate-800">{c.name} <span className="text-xs font-normal text-slate-500">· {tr("{0} คน", [c._count.members])}</span></span>
+                  <Link href={`/teams/${c.id}`} className="shrink-0 whitespace-nowrap text-sm font-semibold text-indigo-600 hover:text-indigo-800">{tr("จัดการ →")}</Link>
                 </li>
               ))}
             </ul>

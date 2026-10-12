@@ -57,7 +57,8 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
     await notify([{ userId: data.assigneeId }], (tr) => ({
       title: tr("งานใหม่จาก {0}", [user.name]),
       body: tr("{0} · ทีม {1}", [data.title, assignee.team.name]),
-      url: `/tasks?team=${data.teamId}`,
+      // เปิดแล้วเห็นงานนี้เลย ไม่ต้องหาในรายการ
+      url: `/tasks?team=${data.teamId}&task=${number}`,
     }));
   }
   done();
@@ -119,7 +120,7 @@ export async function setTaskProgress(formData: FormData) {
 /** ผู้เกี่ยวข้องกับงาน: คนรับงาน คนมอบหมาย และหัวหน้า/เจ้าของทีมของงานนั้นและของทีมแม่ (ไม่รวมคนที่อัปเดตเอง) */
 async function notifyProgress(
   actor: CurrentUser,
-  task: { id: string; teamId: string; assigneeId: string; createdById: string | null; title: string; progress: number },
+  task: { id: string; teamId: string; assigneeId: string; createdById: string | null; title: string; progress: number; number: number | null },
   progress: number,
   reason: string,
 ) {
@@ -137,7 +138,7 @@ async function notifyProgress(
     (tr) => ({
       title: progress >= 100 && task.progress < 100 ? tr("{0} ทำงานเสร็จแล้ว", [actor.name]) : tr("{0} อัปเดตความคืบหน้า {1}", [actor.name, change]),
       body: `${task.title}${reason ? ` — ${reason}` : ""}`,
-      url: `/tasks?team=${task.teamId}`,
+      url: `/tasks?team=${task.teamId}${task.number === null ? "" : `&task=${task.number}`}`,
     }),
     // อัปเดต % เกิดบ่อย: แจ้งในแอปและ push เท่านั้น ไม่ส่งอีเมล
     { email: false },
