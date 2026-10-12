@@ -58,11 +58,15 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const rangeEnd = view === "month" ? shiftKey(weekStart(last), 6) : view === "week" ? shiftKey(rangeStart, 6) : anchor;
   const days: string[] = [];
   for (let key = rangeStart; key <= rangeEnd; key = shiftKey(key, 1)) days.push(key);
+  // มือถือ: มุมมองวันมีแถบสัปดาห์ด้านบนให้กดเลื่อนวัน จึงดึงงานของทั้งสัปดาห์มาแสดงจุด
+  const stripDays = view === "day" ? Array.from({ length: 7 }, (_, i) => shiftKey(weekStart(anchor), i)) : days;
+  const queryStart = stripDays[0];
+  const queryEnd = stripDays[stripDays.length - 1];
 
   const select = { id: true, number: true, title: true, progress: true, dueDate: true, assigneeId: true, assignee: { select: { name: true } } } as const;
   const [scheduled, unscheduled] = await Promise.all([
     prisma.task.findMany({
-      where: { teamId: team.id, deletedAt: null, dueDate: { gte: keyToDate(rangeStart), lte: keyToDate(rangeEnd) } },
+      where: { teamId: team.id, deletedAt: null, dueDate: { gte: keyToDate(queryStart), lte: keyToDate(queryEnd) } },
       select,
       orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
     }),
@@ -80,9 +84,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     byDay.set(key, [...(byDay.get(key) ?? []), t]);
   }
   // มุมมองเดือนนับเฉพาะงานของเดือนนั้น (ตารางมีวันของเดือนข้างเคียงติดมาด้วย)
-  const inRange = view === "month" ? scheduled.filter((t) => dateToKey(t.dueDate!).startsWith(month)) : scheduled;
+  const inRange = view === "month" ? scheduled.filter((t) => dateToKey(t.dueDate!).startsWith(month)) : view === "day" ? scheduled.filter((t) => dateToKey(t.dueDate!) === anchor) : scheduled;
   const canEdit = (t: Row) => canManage || t.assigneeId === user.id;
   const shared = !team.personalOfId;
+  // สีจุดของงานในปฏิทินย่อบนมือถือ
+  const dot = (t: Row, key: string) => (t.progress >= 100 ? "bg-success" : key < today ? "bg-danger" : t.assigneeId === user.id ? "bg-primary" : "bg-subtle");
   const tone = (t: Row, key: string) =>
     t.progress >= 100 ? "bg-success-soft text-success line-through" : key < today ? "bg-danger-soft text-danger" : t.assigneeId === user.id ? "bg-primary-soft text-primary" : "bg-surface-sunken text-foreground";
   const href = (v: View, date: string) => `/calendar?team=${team.id}&view=${v}&date=${date}`;
@@ -152,6 +158,35 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           <Link href={step(1)} aria-label={tr("{0}ถัดไป", [unit])} className={arrow}>›</Link>
         </div>
       </div>
+
+      {/* ปฏิทินย่อ (มือถือ): เดือน = ทั้งเดือน · สัปดาห์/วัน = แถบ 7 วัน — จุดสี = งานของวันนั้น กดวันเพื่อลงไปชั้นถัดไป */}
+      <section className="overflow-hidden rounded-2xl border border-border bg-surface p-2 shadow-soft md:hidden" aria-label={tr("ปฏิทิน {0}", [rangeLabel])}>
+        <div className="grid grid-cols-7 text-center text-2xs font-semibold text-muted-foreground">
+          {WEEKDAYS.map((d, i) => <div key={d} className={`pb-1 ${i === 0 || i === 6 ? "text-danger" : ""}`}>{tr(d)}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-y-1">
+          {stripDays.map((key) => {
+            const tasks = byDay.get(key) ?? [];
+            const outside = view === "month" && !key.startsWith(month);
+            const selected = view === "day" && key === anchor;
+            return (
+              <Link key={key} href={view === "day" ? href("day", key) : deeper(key)} scroll={false} aria-current={selected ? "date" : undefined} aria-label={`${formatDateKey(key)}${holidayName(key) ? ` ${holidayName(key)}` : ""} · ${tasks.length} ${tr("งาน")}`} className={`flex min-h-12 flex-col items-center gap-1 rounded-xl py-1 transition active:bg-surface-sunken ${selected ? "bg-primary-soft" : ""} ${outside ? "opacity-40" : ""}`}>
+                <span className={`flex size-7 items-center justify-center rounded-full text-sm tabular-nums ${key === today ? "bg-primary font-semibold text-primary-foreground" : dayTone(key)} ${selected && key !== today ? "font-semibold ring-2 ring-primary" : ""}`}>{Number(key.slice(8))}</span>
+                <span className="flex h-1.5 items-center gap-0.5">
+                  {tasks.slice(0, 3).map((t) => <span key={t.id} className={`size-1.5 rounded-full ${dot(t, key)}`} />)}
+                  {tasks.length > 3 && <span className="text-[0.6rem] leading-none text-muted-foreground">+</span>}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+        <p className="mt-1.5 flex flex-wrap justify-center gap-x-3 gap-y-0.5 border-t border-border pt-1.5 text-2xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-primary" />{tr("งานของฉัน")}</span>
+          {shared && <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-subtle" />{tr("งานของคนอื่น")}</span>}
+          <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-danger" />{tr("เลยกำหนด")}</span>
+          <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full bg-success" />{tr("เสร็จแล้ว")}</span>
+        </p>
+      </section>
 
       {/* ตาราง (จอใหญ่): เดือน = ช่องเตี้ย เห็นได้ 3 งานต่อวัน · สัปดาห์ = ช่องสูง เห็นทุกงาน */}
       {view !== "day" && (
