@@ -6,7 +6,7 @@ import { prisma } from "./db";
 import { SESSION_COOKIE, decryptSession } from "./session";
 import { canViewOverview } from "./permissions";
 import { ensurePersonalSpace } from "./personal";
-import { ensureLang } from "./i18n/server";
+import { ensureLang, tr } from "./i18n/server";
 
 /** โหลด user จาก DB ทุก request เพื่อให้การเปลี่ยน role มีผลทันที */
 const loadUser = (id: string) =>
@@ -30,6 +30,8 @@ export const getCurrentUser = cache(async () => {
   }
   // ทีมจริงขึ้นก่อน พื้นที่ส่วนตัวอยู่ท้าย — หน้าต่าง ๆ เลือกทีมแรกเป็นค่าเริ่มต้น
   user.memberships.sort((a, b) => Number(Boolean(a.team.personalOfId)) - Number(Boolean(b.team.personalOfId)));
+  // ชื่อพื้นที่ส่วนตัวเป็นชื่อที่ระบบตั้ง ("ส่วนตัว") — แสดงตามภาษาที่ใช้อยู่ (ชื่อในฐานข้อมูลไม่เปลี่ยน)
+  for (const m of user.memberships) if (m.team.personalOfId) m.team.name = tr(m.team.name);
   // session ที่ออกก่อนเปลี่ยนรหัสผ่านใช้ไม่ได้ (เผื่อ 1 วินาที เพราะ iat ปัดเป็นวินาที)
   if (user.passwordChangedAt && session.issuedAt * 1000 < user.passwordChangedAt.getTime() - 1000) return null;
   return user;
