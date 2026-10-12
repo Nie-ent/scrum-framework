@@ -191,3 +191,18 @@ src/app/(app)/admin     จัดการผู้ใช้ / roles & levels / 
 - เพิ่มข้อความใหม่: server component ใช้ `tr("ข้อความ")` จาก `@/lib/i18n/server` · client component ใช้ `const tr = useT()` จาก `@/components/i18n` · server action ใช้ `const tr = await getTr()` · ข้อความถึงคนอื่น (อีเมล/แจ้งเตือน) ใช้ `trFor(user.locale)` · ตัวแปรเขียนเป็น `{0}` `{1}` เช่น `tr("ค้างอยู่ {0} งาน", [n])` แล้วเพิ่มคำแปลใน `en.ts`
 - ข้อความ `{ error }` / `{ ok }` แบบคงที่จาก server action ไม่ต้องครอบ — `FormMessage` แปลให้ตอนแสดง แค่เพิ่มคำแปลใน `en.ts`
 - วันที่ใช้ `formatDateKey` / `formatDateTime` จาก `@/lib/format-dates` (ตามภาษา) · ไฟล์ที่ client component import ห้าม import `@/lib/i18n/server`
+
+## เชื่อมต่อผู้ช่วย AI (MCP)
+
+Pace เป็นเซิร์ฟเวอร์ [MCP](https://modelcontextprotocol.io) ในตัว ให้ผู้ช่วย AI เช่น Claude ดูและจัดการงาน โน้ต และเช็กอินได้
+
+- ที่อยู่: `POST /api/mcp` (Streamable HTTP แบบไม่เก็บสถานะ — ตอบเป็น JSON ไม่มี SSE)
+- ยืนยันตัว: `Authorization: Bearer <โทเคน>` — ผู้ใช้สร้างโทเคนเองที่ บัญชี → เชื่อมต่อผู้ช่วย AI (ตาราง `ApiToken` เก็บเฉพาะ hash) เลือกแบบอ่านอย่างเดียวได้
+- สิทธิ์: ทุกเครื่องมือทำงานในนามเจ้าของโทเคน ใช้กฎชุดเดียวกับหน้าเว็บ (`src/lib/task-ops.ts`) จำกัด 120 คำขอต่อนาทีต่อคน
+- เครื่องมือ (`src/lib/mcp.ts`): `list_spaces` `list_tasks` `get_task` `create_task` `update_task` `list_notes` `read_note` `create_note` `update_note` `get_checkins`
+
+```bash
+claude mcp add --transport http pace https://<โดเมน>/api/mcp --header "Authorization: Bearer <โทเคน>"
+```
+
+ยังไม่รองรับ OAuth — โปรแกรมที่เพิ่มเซิร์ฟเวอร์ได้เฉพาะแบบ OAuth (เช่น ตัวเชื่อมต่อแบบกำหนดเองบนเว็บ claude.ai) จึงยังใช้ไม่ได้

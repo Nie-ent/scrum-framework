@@ -37,6 +37,23 @@ export const getCurrentUser = cache(async () => {
   return user;
 });
 
+/**
+ * ผู้ใช้จากโทเคนส่วนตัว (Authorization: Bearer …) — ใช้กับ /api/mcp ที่ไม่มี cookie
+ * ได้ข้อมูลรูปเดียวกับ getCurrentUser จึงใช้กฎสิทธิ์ชุดเดียวกันได้ทั้งหมด
+ */
+export async function userFromApiToken(tokenHash: string) {
+  const row = await prisma.apiToken.findUnique({ where: { tokenHash }, select: { id: true, userId: true, readOnly: true, lastUsedAt: true } });
+  if (!row) return null;
+  const user = await loadUser(row.userId);
+  if (!user || !user.active) return null;
+  user.memberships.sort((a, b) => Number(Boolean(a.team.personalOfId)) - Number(Boolean(b.team.personalOfId)));
+  // บันทึกเวลาใช้ล่าสุดไม่เกินนาทีละครั้ง (ไม่เขียนฐานข้อมูลทุกคำขอ)
+  if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > 60_000) {
+    await prisma.apiToken.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
+  }
+  return { user, readOnly: row.readOnly };
+}
+
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 /** ใช้ใน page / server action: ถ้าไม่ login หรือ level ไม่ถึงจะ redirect */

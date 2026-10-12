@@ -110,6 +110,7 @@ model User {
   updatedNotes       Note[]             @relation("NoteEditor")
   createdAt          DateTime           @default(now()) @db.Timestamptz(3)
   noteFavorites NoteFavorite[]
+  apiTokens     ApiToken[]
   /// ภาษาที่ใช้ในแอป อีเมล และแจ้งเตือนที่ส่งถึงคนนี้ ("th" | "en")
   locale        String         @default("th")
 }
@@ -371,4 +372,20 @@ model NoteLink {
   @@unique([fromId, toTaskId])
   @@index([toNoteId])
   @@index([toTaskId])
+}
+
+/// โทเคนส่วนตัวสำหรับให้ผู้ช่วย AI เชื่อมเข้ามาผ่าน MCP (/api/mcp) — ทำได้เท่าที่เจ้าของบัญชีทำได้
+/// เก็บเฉพาะ hash: ตัวโทเคนแสดงให้เห็นครั้งเดียวตอนสร้าง
+model ApiToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique
+  /// true = อ่านอย่างเดียว (เครื่องมือที่แก้ไขข้อมูลถูกปิด)
+  readOnly   Boolean   @default(false)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([userId])
 }

@@ -24,7 +24,7 @@ export function LoginForm({ next }: { next?: string }) {
         <FieldError name="password" message={error("password")} />
       </div>
       <label className="flex items-center gap-2 text-sm text-slate-600">
-        <input type="checkbox" name="remember" defaultChecked className="h-4 w-4 rounded border-slate-300 accent-indigo-600" />
+        <input type="checkbox" name="remember" defaultChecked />
         {tr("จดจำฉันไว้ในเครื่องนี้")}{" "}<span className="text-slate-400">{tr("(30 วัน)")}</span>
       </label>
       <FormMessage state={state} />

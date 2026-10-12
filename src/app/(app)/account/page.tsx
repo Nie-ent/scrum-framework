@@ -5,6 +5,10 @@ import { canAdmin, teamsLabel } from "@/lib/permissions";
 import { pushPublicKey } from "@/lib/push";
 import type { Metadata } from "next";
 import { isEmailConfigured } from "@/lib/email";
+import { prisma } from "@/lib/db";
+import { appUrl } from "@/lib/email";
+import { formatDateTime } from "@/lib/format-dates";
+import { AiConnect } from "./ai-connect";
 import { EmailSettings } from "./email-settings";
 import { NotificationSettings } from "./notification-settings";
 import { PasswordForm } from "./password-form";
@@ -19,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AccountPage() {
   const user = await requireUser();
+  const tokens = await prisma.apiToken.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
   return (
     <div className="max-w-xl space-y-6">
       <div><p className="eyebrow">{tr("การตั้งค่า")}</p><h1 className="page-title">{tr("บัญชีของฉัน")}</h1><p className="page-subtitle">{tr("ข้อมูลและการตั้งค่าการเข้าสู่ระบบของคุณ")}</p></div>
@@ -56,6 +61,10 @@ export default async function AccountPage() {
       </section>
       <NotificationSettings publicKey={pushPublicKey()} />
       <EmailSettings email={user.email} verified={Boolean(user.emailVerifiedAt)} enabled={user.emailNotifications} canSend={isEmailConfigured()} />
+      <AiConnect
+        endpoint={appUrl("/api/mcp")}
+        tokens={tokens.map((t) => ({ id: t.id, name: t.name, readOnly: t.readOnly, created: formatDateTime(t.createdAt), lastUsed: t.lastUsedAt ? formatDateTime(t.lastUsedAt) : null }))}
+      />
       <PasswordForm />
       <form action={logout} className="card flex items-center justify-between gap-3">
         <div>

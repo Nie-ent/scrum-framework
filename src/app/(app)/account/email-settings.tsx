@@ -29,7 +29,7 @@ export function EmailSettings({ email, verified, enabled, canSend }: { email: st
       )}
       <form action={action} className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="enabled" defaultChecked={enabled} className="h-4 w-4 rounded border-slate-300 accent-indigo-600" />
+          <input type="checkbox" name="enabled" defaultChecked={enabled} />
           {tr("รับอีเมลแจ้งเตือน")}
         </label>
         <SubmitButton className="btn-ghost">{tr("บันทึก")}</SubmitButton>

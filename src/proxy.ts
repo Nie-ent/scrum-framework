@@ -24,6 +24,7 @@ export async function proxy(request: NextRequest) {
 // ไม่ผ่านการเช็ค session:
 // - manifest.webmanifest / sw.js: เบราว์เซอร์ดึงเองโดยอาจไม่มี cookie
 // - api/cron: ตรวจสิทธิ์ด้วย CRON_SECRET ใน route เอง
+// - api/mcp: ผู้ช่วย AI ยืนยันตัวด้วยโทเคนส่วนตัว (Authorization: Bearer) ใน route เอง
 export const config = {
-  matcher: ["/((?!api/health|api/cron|sw.js|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|ico)$).*)"],
+  matcher: ["/((?!api/health|api/cron|api/mcp|sw.js|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|ico)$).*)"],
 };
