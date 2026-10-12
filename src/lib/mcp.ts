@@ -5,7 +5,7 @@ import type { CurrentUser } from "./auth";
 import { dateToKey, isDateKey, keyToDate, todayKey } from "./dates";
 import { noteKey } from "./note-links";
 import { relinkMentions, syncLinks } from "./notes";
-import { NoteFields, TaskFields } from "./schemas";
+import { NoteFields, TaskFields, noteTitle } from "./schemas";
 import { createTaskFor, setDueFor, setProgressFor } from "./task-ops";
 import { toTasks } from "./tasks";
 import { getWorkspaceTeams } from "./teams";
@@ -73,6 +73,15 @@ async function findNote(user: CurrentUser, id: unknown) {
   const allowed = note && !note.deletedAt && (await spaces(user)).some((s) => s.id === note.teamId);
   if (!note || !allowed) throw new ToolError("Note not found");
   return note;
+}
+
+/** folder_id ที่ส่งมาต้องเป็นโฟลเดอร์ในพื้นที่นี้ — ไม่ส่งมาคือระดับบนสุด */
+async function folderIn(teamId: string, value: unknown) {
+  const parentId = str(value) || null;
+  if (!parentId) return null;
+  const parent = await prisma.note.findUnique({ where: { id: parentId } }).catch(() => null);
+  if (!parent || parent.deletedAt || parent.teamId !== teamId || parent.kind !== "FOLDER") throw new ToolError("folder_id is not a folder in this space");
+  return parentId;
 }
 
 async function titleTaken(teamId: string, parentId: string | null, title: string, exceptId?: string) {
@@ -266,11 +275,7 @@ export const TOOLS: Tool[] = [
       const space = await pickSpace(user, args.space);
       const parsed = NoteFields.safeParse({ title: str(args.title), content: typeof args.content === "string" ? args.content : "" });
       if (!parsed.success) fail(user, parsed.error.issues[0].message);
-      const parentId = str(args.folder_id) || null;
-      if (parentId) {
-        const parent = await prisma.note.findUnique({ where: { id: parentId } }).catch(() => null);
-        if (!parent || parent.deletedAt || parent.teamId !== space.id || parent.kind !== "FOLDER") throw new ToolError("folder_id is not a folder in this space");
-      }
+      const parentId = await folderIn(space.id, args.folder_id);
       const { title, content } = parsed.data;
       if (await titleTaken(space.id, parentId, title)) fail(user, "มีชื่อนี้อยู่แล้วในโฟลเดอร์นี้");
       const note = await prisma.note.create({ data: { teamId: space.id, parentId, kind: "NOTE", title, content, createdById: user.id, updatedById: user.id } });
@@ -279,6 +284,30 @@ export const TOOLS: Tool[] = [
       revalidatePath("/notes", "layout");
       revalidatePath("/tasks");
       return { created: true, id: note.id, url: `${appUrl}/notes/${note.id}` };
+    },
+  },
+  {
+    name: "create_folder",
+    title: "Create a folder",
+    description: "Create a folder for notes, optionally inside another folder. Returns the id to pass as folder_id.",
+    inputSchema: object(
+      {
+        space: SPACE,
+        title: { type: "string", description: "Folder name (max 120 characters, no [ ] or |)" },
+        folder_id: { type: "string", description: "Optional parent folder id from list_notes" },
+      },
+      ["title"],
+    ),
+    write: true,
+    run: async (args, { user, appUrl }) => {
+      const space = await pickSpace(user, args.space);
+      const parsed = noteTitle.safeParse(str(args.title));
+      if (!parsed.success) fail(user, parsed.error.issues[0].message);
+      const parentId = await folderIn(space.id, args.folder_id);
+      if (await titleTaken(space.id, parentId, parsed.data)) fail(user, "มีชื่อนี้อยู่แล้วในโฟลเดอร์นี้");
+      const folder = await prisma.note.create({ data: { teamId: space.id, parentId, kind: "FOLDER", title: parsed.data, createdById: user.id, updatedById: user.id } });
+      revalidatePath("/notes", "layout");
+      return { created: true, id: folder.id, url: `${appUrl}/notes/${folder.id}` };
     },
   },
   {
