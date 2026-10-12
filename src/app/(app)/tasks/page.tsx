@@ -81,11 +81,12 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const who = typeof params.who === "string" ? tasks.find((t) => t.assignee.id === params.who)?.assignee : undefined;
   // คำค้น: ชื่องาน รายละเอียด เลขงาน (#12 หรือ 12) ชื่อผู้รับงาน หรือชื่อผู้มอบหมาย
   const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
-  const term = q.toLowerCase();
-  const matches = (t: (typeof tasks)[number]) =>
-    !term ||
-    [t.title, t.description ?? "", t.assignee.name, t.createdBy?.name ?? ""].some((text) => text.toLowerCase().includes(term)) ||
-    (t.number !== null && String(t.number) === term.replace(/^#/, ""));
+  // หลายคำ = ต้องเจอทุกคำ (ไม่ต้องเรียงติดกัน)
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = (t: (typeof tasks)[number]) => {
+    const texts = [t.title, t.description ?? "", t.assignee.name, t.createdBy?.name ?? ""].map((text) => text.toLowerCase());
+    return words.every((word) => texts.some((text) => text.includes(word)) || (t.number !== null && String(t.number) === word.replace(/^#/, "")));
+  };
   const scoped = onlyOverdue || Boolean(who);
   const filtered = scoped || Boolean(q);
   const shown = open.filter((t) => (!onlyOverdue || (t.dueDate && dateToKey(t.dueDate) < today)) && (!who || t.assignee.id === who.id) && matches(t));

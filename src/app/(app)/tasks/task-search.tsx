@@ -9,11 +9,15 @@ export function TaskSearch({ base, q }: { /** ลิงก์ของหน้�
   const tr = useT();
   const router = useRouter();
   const [text, setText] = useState(q);
-  // คำค้นถูกเปลี่ยนจากที่อื่น (เช่นกด "ดูงานทั้งหมด") — ช่องนี้ต้องตามให้ตรง
+  // คำค้นที่ช่องนี้ส่งไปแล้วแต่หน้ายังโหลดไม่เสร็จ — ผลที่กลับมาช้ากว่าที่พิมพ์ต้องไม่เขียนทับสิ่งที่กำลังพิมพ์
+  const [sent, setSent] = useState<string[]>([]);
   const [seen, setSeen] = useState(q);
   if (q !== seen) {
     setSeen(q);
-    if (q !== text.trim()) setText(q);
+    const at = sent.lastIndexOf(q);
+    if (at >= 0) setSent(sent.slice(at + 1));
+    // ไม่ใช่คำที่เราส่งเอง = ถูกเปลี่ยนจากที่อื่น (เช่นกด "ดูงานทั้งหมด") ช่องนี้จึงตามให้ตรง
+    else setText(q);
   }
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -22,6 +26,7 @@ export function TaskSearch({ base, q }: { /** ลิงก์ของหน้�
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       const term = value.trim();
+      setSent((list) => [...list.slice(-20), term]);
       router.replace(term ? `${base}&q=${encodeURIComponent(term)}` : base, { scroll: false });
     }, wait);
   };
