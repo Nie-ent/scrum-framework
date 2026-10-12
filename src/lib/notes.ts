@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { prisma } from "./db";
-import { extractLinks, noteKey } from "./note-links";
+import { extractLinks, linkResolver } from "./note-links";
 
 export type NoteNode = { id: string; parentId: string | null; kind: "FOLDER" | "NOTE"; title: string };
 export type NoteTreeNode = NoteNode & { children: NoteTreeNode[] };
@@ -46,33 +46,39 @@ export function descendantIds(nodes: NoteNode[], id: string): string[] {
 /**
  * อ่านลิงก์จากเนื้อหาแล้วเขียนตาราง NoteLink ของโน้ตนี้ใหม่ทั้งชุด
  * ลิงก์ไปชื่อที่ยังไม่มีโน้ตจะไม่ถูกเก็บ (จะถูกเก็บเมื่อมีโน้ตชื่อนั้น — ดู relinkMentions)
+ * ปลายทางหาด้วย linkResolver ตัวเดียวกับตอนแสดงผล — ลิงก์ไปหัวข้อในโน้ตตัวเองไม่นับเป็นความสัมพันธ์
  */
-export async function syncLinks(note: { id: string; teamId: string; content: string }) {
-  const { titles, taskNumbers } = extractLinks(note.content);
-  const wanted = new Set(titles.map(noteKey));
-  const [candidates, tasks] = await Promise.all([
-    wanted.size === 0 ? [] : prisma.note.findMany({ where: { teamId: note.teamId, kind: "NOTE", deletedAt: null, id: { not: note.id } }, select: { id: true, title: true } }),
+export async function syncLinks(note: { id: string; teamId: string; parentId: string | null; content: string }, nodes?: NoteNode[]) {
+  const { targets, taskNumbers } = extractLinks(note.content);
+  const [all, tasks] = await Promise.all([
+    targets.length === 0 ? [] : (nodes ?? listNotes(note.teamId)),
     taskNumbers.length === 0 ? [] : prisma.task.findMany({ where: { teamId: note.teamId, number: { in: taskNumbers }, deletedAt: null }, select: { id: true } }),
   ]);
-  // ชื่อซ้ำกันหลายโน้ต: ลิงก์ไปโน้ตแรกตามลำดับชื่อ (เหมือนตอนแสดงผล)
-  const firstByKey = new Map<string, string>();
-  for (const c of candidates) if (wanted.has(noteKey(c.title)) && !firstByKey.has(noteKey(c.title))) firstByKey.set(noteKey(c.title), c.id);
+  const resolve = linkResolver(all, note);
+  const noteIds = new Set(targets.flatMap((t) => resolve(t).noteId ?? []));
+  noteIds.delete(note.id);
   await prisma.$transaction([
     prisma.noteLink.deleteMany({ where: { fromId: note.id } }),
     prisma.noteLink.createMany({
-      data: [...[...firstByKey.values()].map((toNoteId) => ({ fromId: note.id, toNoteId })), ...tasks.map((t) => ({ fromId: note.id, toTaskId: t.id }))],
+      data: [...[...noteIds].map((toNoteId) => ({ fromId: note.id, toNoteId })), ...tasks.map((t) => ({ fromId: note.id, toTaskId: t.id }))],
     }),
   ]);
 }
 
-/** มีโน้ตชื่อนี้เกิดขึ้น/เปลี่ยนชื่อ: โน้ตอื่นในทีมที่เขียน [[ชื่อนี้]] ไว้ก่อนแล้วจะเชื่อมกันทันที */
+/**
+ * มีโน้ตชื่อนี้เกิดขึ้น/เปลี่ยนชื่อ/ย้ายที่: โน้ตอื่นในทีมที่เขียนลิงก์ถึงชื่อนี้ไว้จะเชื่อมกันใหม่ทันที
+ * (ค้นจากชื่อในเนื้อหา เพราะลิงก์อาจมีโฟลเดอร์นำหน้า เช่น [[โฟลเดอร์/ชื่อ]])
+ */
 export async function relinkMentions(teamId: string, title: string) {
-  const mentions = await prisma.note.findMany({
-    where: { teamId, kind: "NOTE", deletedAt: null, content: { contains: `[[${title.trim()}`, mode: "insensitive" } },
-    select: { id: true, teamId: true, content: true },
-    take: 200,
-  });
-  for (const note of mentions) await syncLinks(note);
+  const [mentions, nodes] = await Promise.all([
+    prisma.note.findMany({
+      where: { teamId, kind: "NOTE", deletedAt: null, AND: [{ content: { contains: "[[" } }, { content: { contains: title.trim(), mode: "insensitive" } }] },
+      select: { id: true, teamId: true, parentId: true, content: true },
+      take: 200,
+    }),
+    listNotes(teamId),
+  ]);
+  for (const note of mentions) await syncLinks(note, nodes);
 }
 
 /** id ของโน้ต/โฟลเดอร์ที่คนนี้ติดดาวไว้ในทีมนี้ */

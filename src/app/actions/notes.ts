@@ -6,7 +6,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { teamAccess } from "@/lib/access";
-import { noteKey, renameLinks } from "@/lib/note-links";
+import { linkResolver, noteKey, renameLinks } from "@/lib/note-links";
 import { descendantIds, listNotes, relinkMentions, syncLinks } from "@/lib/notes";
 import { NoteFields, noteTitle } from "@/lib/schemas";
 import type { FormState } from "./auth";
@@ -83,14 +83,18 @@ export async function saveNote(_: FormState, formData: FormData): Promise<FormSt
   const renamed = title !== note.title;
   if (renamed && (await nameTaken(note.teamId, note.parentId, title, note.id))) return { error: "มีชื่อนี้อยู่แล้วในโฟลเดอร์นี้" };
 
+  // ต้นไม้ก่อนเปลี่ยนชื่อ — ใช้ดูว่าลิงก์ไหนในโน้ตอื่นชี้มาที่โน้ตนี้จริง (ไม่ใช่โน้ตอื่นที่ชื่อซ้ำกัน)
+  const before = renamed ? await listNotes(note.teamId) : [];
   await prisma.note.update({ where: { id: note.id }, data: { title, content, updatedById: user.id } });
-  await syncLinks({ id: note.id, teamId: note.teamId, content });
+  await syncLinks({ id: note.id, teamId: note.teamId, parentId: note.parentId, content });
   if (renamed) {
     // โน้ตที่ลิงก์มาหาเรา: แก้ชื่อในเนื้อหาให้ตรงกับชื่อใหม่
-    const backlinks = await prisma.note.findMany({ where: { linksOut: { some: { toNoteId: note.id } }, deletedAt: null }, select: { id: true, content: true } });
+    const backlinks = await prisma.note.findMany({ where: { linksOut: { some: { toNoteId: note.id } }, deletedAt: null }, select: { id: true, parentId: true, content: true } });
     for (const b of backlinks) {
-      await prisma.note.update({ where: { id: b.id }, data: { content: renameLinks(b.content, note.title, title) } });
+      await prisma.note.update({ where: { id: b.id }, data: { content: renameLinks(b.content, linkResolver(before, b), note.id, title) } });
     }
+    // ชื่อเดิมอาจยังมีโน้ตอื่นใช้อยู่ — ลิงก์ที่เคยชี้มาที่นี่เพราะอยู่ใกล้กว่าต้องหาปลายทางใหม่
+    await relinkMentions(note.teamId, note.title);
     await relinkMentions(note.teamId, title);
   }
   done();
@@ -110,6 +114,23 @@ export async function renameFolder(_: FormState, formData: FormData): Promise<Fo
   return { ok: "เปลี่ยนชื่อแล้ว" };
 }
 
+/**
+ * ย้ายที่แล้ว "โน้ตที่ใกล้ที่สุด" ของชื่อที่ซ้ำกันอาจเปลี่ยน — หาปลายทางของลิงก์ใหม่
+ * ทั้งลิงก์ที่โน้ตที่ย้ายเขียนไว้ และลิงก์ในโน้ตอื่นที่อ้างถึงชื่อซ้ำนั้น (ทีมที่ไม่มีชื่อซ้ำไม่ต้องทำอะไร)
+ */
+async function relinkMoved(teamId: string, id: string) {
+  const nodes = await listNotes(teamId);
+  const count = new Map<string, number>();
+  for (const n of nodes) if (n.kind === "NOTE") count.set(noteKey(n.title), (count.get(noteKey(n.title)) ?? 0) + 1);
+  if (![...count.values()].some((c) => c > 1)) return;
+  const movedIds = descendantIds(nodes, id);
+  const moved = await prisma.note.findMany({ where: { id: { in: movedIds }, kind: "NOTE", deletedAt: null }, select: { id: true, teamId: true, parentId: true, title: true, content: true } });
+  for (const m of moved) {
+    await syncLinks(m, nodes);
+    if ((count.get(noteKey(m.title)) ?? 0) > 1) await relinkMentions(teamId, m.title);
+  }
+}
+
 /** ย้ายโน้ตหรือโฟลเดอร์ไปโฟลเดอร์อื่น (ว่าง = ระดับบนสุด) */
 export async function moveNote(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
@@ -125,6 +146,7 @@ export async function moveNote(_: FormState, formData: FormData): Promise<FormSt
   }
   if (await nameTaken(note.teamId, parentId, note.title, note.id)) return { error: "มีชื่อนี้อยู่แล้วในโฟลเดอร์ปลายทาง" };
   await prisma.note.update({ where: { id: note.id }, data: { parentId } });
+  await relinkMoved(note.teamId, note.id);
   done();
   return { ok: "ย้ายแล้ว" };
 }

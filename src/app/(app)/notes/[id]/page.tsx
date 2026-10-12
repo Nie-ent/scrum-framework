@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format-dates";
-import { linkify, noteKey, noteSnippet } from "@/lib/note-links";
+import { linkResolver, linkify, noteSnippet } from "@/lib/note-links";
 import { favoriteIds, listNotes, pathTo } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { Icon } from "@/components/icons";
@@ -107,12 +107,11 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
     );
   }
 
-  // ลิงก์ในเนื้อหา: ชื่อโน้ต → โน้ตแรกที่ชื่อตรง (ไม่สนตัวพิมพ์), เลขงาน → งานของทีม
-  const idByKey = new Map<string, string>();
-  for (const n of others) if (!idByKey.has(noteKey(n.title))) idByKey.set(noteKey(n.title), n.id);
+  // ลิงก์ในเนื้อหา: ชื่อโน้ต → โน้ตที่ชื่อตรง (ชื่อซ้ำเลือกตัวที่ใกล้โน้ตนี้ที่สุด), เลขงาน → งานของทีม
   const taskNumbers = new Set(tasks.map((t) => t.number));
   const rendered = linkify(note.content, {
-    noteId: (title) => idByKey.get(noteKey(title)),
+    self: note.id,
+    note: linkResolver(nodes, note),
     taskUrl: (number) => (taskNumbers.has(number) ? `/tasks?team=${team.id}&task=${number}` : undefined),
     newNoteUrl: (title) => `/notes/new?team=${team.id}&title=${encodeURIComponent(title)}${note.parentId ? `&parent=${note.parentId}` : ""}`,
   });

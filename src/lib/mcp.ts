@@ -248,7 +248,7 @@ export const TOOLS: Tool[] = [
   {
     name: "read_note",
     title: "Read a note",
-    description: "Read a note's full Markdown content. [[Title]] links to another note in the same space and #12 links to task 12.",
+    description: "Read a note's full Markdown content. [[Title]] links to another note in the same space ([[Title#Heading]] to a heading, [[Folder/Title]] when titles repeat) and #12 links to task 12.",
     inputSchema: object({ id: { type: "string", description: "Note id from list_notes" } }, ["id"]),
     write: false,
     run: async (args, { user, appUrl }) => {
@@ -260,7 +260,7 @@ export const TOOLS: Tool[] = [
   {
     name: "create_note",
     title: "Create a note",
-    description: "Create a note with Markdown content. Use [[Title]] to link to another note and #12 to link to a task.",
+    description: "Create a note with Markdown content. Use [[Title]] to link to another note ([[Title#Heading]] for a heading, [[Folder/Title]] when titles repeat) and #12 to link to a task.",
     inputSchema: object(
       {
         space: SPACE,
@@ -279,7 +279,7 @@ export const TOOLS: Tool[] = [
       const { title, content } = parsed.data;
       if (await titleTaken(space.id, parentId, title)) fail(user, "มีชื่อนี้อยู่แล้วในโฟลเดอร์นี้");
       const note = await prisma.note.create({ data: { teamId: space.id, parentId, kind: "NOTE", title, content, createdById: user.id, updatedById: user.id } });
-      await syncLinks({ id: note.id, teamId: space.id, content });
+      await syncLinks({ id: note.id, teamId: space.id, parentId, content });
       await relinkMentions(space.id, title);
       revalidatePath("/notes", "layout");
       revalidatePath("/tasks");
@@ -333,7 +333,7 @@ export const TOOLS: Tool[] = [
       const parsed = NoteFields.safeParse({ title: note.title, content: next });
       if (!parsed.success) fail(user, parsed.error.issues[0].message);
       await prisma.note.update({ where: { id: note.id }, data: { content: parsed.data.content, updatedById: user.id } });
-      await syncLinks({ id: note.id, teamId: note.teamId, content: parsed.data.content });
+      await syncLinks({ id: note.id, teamId: note.teamId, parentId: note.parentId, content: parsed.data.content });
       revalidatePath("/notes", "layout");
       revalidatePath("/tasks");
       return { updated: true, id: note.id, url: `${appUrl}/notes/${note.id}` };

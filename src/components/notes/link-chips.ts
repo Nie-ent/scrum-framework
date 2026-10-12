@@ -1,10 +1,10 @@
 import { Extension } from "@tiptap/react";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
-import { noteKey } from "@/lib/note-links";
+import { noteKey, targetExists } from "@/lib/note-links";
 import type { Translate } from "@/lib/i18n/core";
 
-const PATTERN = /\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]+?))?\]\]|(^|[^\p{L}\p{N}_/#&=\\\[])#(\d{1,6})(?![\w-])/gu;
+const PATTERN = /\[\[([^\[\]|\n]+?)(?:\\?\|([^\[\]\n]+?))?\]\]|(^|[^\p{L}\p{N}_/#&=\\\[])#(\d{1,6})(?![\w-])/gu;
 
 /**
  * แสดงลิงก์ [[ชื่อโน้ต]] และ #เลขงาน ในตัวแก้ไขเป็น "ป้าย" (ไม่เห็นวงเล็บ) โดยไม่เปลี่ยนข้อความจริง
@@ -34,7 +34,7 @@ export const LinkChips = Extension.create<{ noteTitles: string[]; taskNumbers: n
                   const start = pos + match.index;
                   const end = start + match[0].length;
                   const editing = selFrom <= end && selTo >= start;
-                  const exists = known.has(noteKey(match[1]));
+                  const exists = targetExists(match[1], known);
                   const chip = `note-chip ${exists ? "" : "note-chip-new"}`;
                   if (editing) {
                     decorations.push(Decoration.inline(start, end, { class: `${chip} note-chip-editing` }));
