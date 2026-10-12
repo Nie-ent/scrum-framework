@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/components/i18n";
 
 export type GraphPoint = { id: string; label: string; href: string; kind: "note" | "task" };
-export type GraphEdge = { from: string; to: string };
+/** both = เชื่อมหากันทั้งสองทาง (วาดเป็นเส้นเดียว หัวลูกศรสองด้าน) */
+export type GraphEdge = { from: string; to: string; both?: boolean };
 type Body = { id: string; x: number; y: number; vx: number; vy: number; fixed: boolean };
 
 const short = (label: string) => (label.length > 24 ? `${label.slice(0, 23)}…` : label);
@@ -48,16 +49,22 @@ export function ForceGraph({ points, edges }: { points: GraphPoint[]; edges: Gra
       return { id: p.id, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, vx: 0, vy: 0, fixed: false };
     });
     state.bodies = new Map(bodies.map((b) => [b.id, b]));
-    const links = pairs.map((e) => ({ a: state.bodies.get(e.from)!, b: state.bodies.get(e.to)! }));
+    const radius = new Map(dots.map((d) => [d.id, d.r]));
+    const links = pairs.map((e) => ({ a: state.bodies.get(e.from)!, b: state.bodies.get(e.to)!, ra: radius.get(e.from)! + 3, rb: radius.get(e.to)! + 3 }));
     const paint = () => {
       for (const b of bodies) nodeEls.current.get(b.id)?.setAttribute("transform", `translate(${b.x.toFixed(1)} ${b.y.toFixed(1)})`);
-      links.forEach(({ a, b }, i) => {
+      links.forEach(({ a, b, ra, rb }, i) => {
         const line = lineEls.current[i];
         if (!line) return;
-        line.setAttribute("x1", a.x.toFixed(1));
-        line.setAttribute("y1", a.y.toFixed(1));
-        line.setAttribute("x2", b.x.toFixed(1));
-        line.setAttribute("y2", b.y.toFixed(1));
+        // ปลายเส้นหยุดที่ขอบวงกลม ให้หัวลูกศรไม่ถูกจุดบัง
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+        const fit = d > ra + rb + 4 ? 1 : 0;
+        line.setAttribute("x1", (a.x + (dx / d) * ra * fit).toFixed(1));
+        line.setAttribute("y1", (a.y + (dy / d) * ra * fit).toFixed(1));
+        line.setAttribute("x2", (b.x - (dx / d) * rb * fit).toFixed(1));
+        line.setAttribute("y2", (b.y - (dy / d) * rb * fit).toFixed(1));
       });
       const { x, y, k } = state.view;
       world.current?.setAttribute("transform", `translate(${x} ${y}) scale(${k})`);
@@ -201,11 +208,21 @@ export function ForceGraph({ points, edges }: { points: GraphPoint[]; edges: Gra
       onPointerUp={onUp}
       onPointerCancel={onUp}
     >
+      <defs>
+        {/* หัวลูกศรบอกทิศของลิงก์: ชี้ไปหาโน้ต/งานที่ถูกอ้างถึง */}
+        <marker id="graph-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+          <path d="M0 1.5 9 5 0 8.5z" className="fill-subtle" />
+        </marker>
+        <marker id="graph-arrow-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+          <path d="M0 1.5 9 5 0 8.5z" className="fill-primary" />
+        </marker>
+      </defs>
       <g ref={world}>
         <g strokeLinecap="round">
-          {pairs.map(({ from, to }, i) => {
+          {pairs.map(({ from, to, both }, i) => {
             const on = hover !== null && (from === hover || to === hover);
-            return <line key={i} ref={(el) => { lineEls.current[i] = el; }} className={`transition-opacity duration-200 ${on ? "stroke-primary" : "stroke-border-strong"}`} strokeWidth={on ? 1.8 : 1} opacity={hover === null || on ? 1 : 0.15} />;
+            const arrow = `url(#graph-arrow${on ? "-on" : ""})`;
+            return <line key={i} ref={(el) => { lineEls.current[i] = el; }} markerEnd={arrow} markerStart={both ? arrow : undefined} className={`transition-opacity duration-200 ${on ? "stroke-primary" : "stroke-subtle"}`} strokeWidth={on ? 1.8 : both ? 1.4 : 1} opacity={hover === null || on ? 1 : 0.15} />;
           })}
         </g>
         {dots.map((b) => (

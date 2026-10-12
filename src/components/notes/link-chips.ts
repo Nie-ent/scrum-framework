@@ -4,7 +4,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { noteKey } from "@/lib/note-links";
 import type { Translate } from "@/lib/i18n/core";
 
-const PATTERN = /\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]+?))?\]\]|(^|[\s(])#(\d{1,6})(?![\w-])/g;
+const PATTERN = /\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]+?))?\]\]|(^|[^\p{L}\p{N}_/#&=\\\[])#(\d{1,6})(?![\w-])/gu;
 
 /**
  * แสดงลิงก์ [[ชื่อโน้ต]] และ #เลขงาน ในตัวแก้ไขเป็น "ป้าย" (ไม่เห็นวงเล็บ) โดยไม่เปลี่ยนข้อความจริง

@@ -10,6 +10,7 @@ import { pickSpace } from "@/lib/space";
 import { EmptyState } from "@/components/ui-state";
 import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-delete";
 import { TaskForm } from "./task-form";
+import { TaskSearch } from "./task-search";
 import { ProgressSlider } from "./progress-slider";
 import { DueForm } from "../calendar/due-form";
 import { Avatar } from "@/components/avatar";
@@ -78,8 +79,18 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   // ตัวกรองจากลิงก์ (เช่นป้าย "เลยกำหนด" ในหน้าสถิติ): เฉพาะงานเลยกำหนด และ/หรือของคนเดียว
   const onlyOverdue = params.overdue === "1";
   const who = typeof params.who === "string" ? tasks.find((t) => t.assignee.id === params.who)?.assignee : undefined;
-  const filtered = onlyOverdue || Boolean(who);
-  const shown = open.filter((t) => (!onlyOverdue || (t.dueDate && dateToKey(t.dueDate) < today)) && (!who || t.assignee.id === who.id));
+  // คำค้น: ชื่องาน รายละเอียด เลขงาน (#12 หรือ 12) ชื่อผู้รับงาน หรือชื่อผู้มอบหมาย
+  const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
+  const term = q.toLowerCase();
+  const matches = (t: (typeof tasks)[number]) =>
+    !term ||
+    [t.title, t.description ?? "", t.assignee.name, t.createdBy?.name ?? ""].some((text) => text.toLowerCase().includes(term)) ||
+    (t.number !== null && String(t.number) === term.replace(/^#/, ""));
+  const scoped = onlyOverdue || Boolean(who);
+  const filtered = scoped || Boolean(q);
+  const shown = open.filter((t) => (!onlyOverdue || (t.dueDate && dateToKey(t.dueDate) < today)) && (!who || t.assignee.id === who.id) && matches(t));
+  // งานที่เสร็จแล้วค้นเจอได้ด้วย (ตัวกรองเลยกำหนด/รายคน ดูเฉพาะงานค้าง)
+  const finishedShown = scoped ? [] : finished.filter(matches);
 
   // จัดกลุ่มตามคน — งานของตัวเองขึ้นก่อน
   const groups = [...new Map(shown.map((t) => [t.assignee.id, t.assignee])).values()]
@@ -96,7 +107,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const canDelete = (t: TaskRow) => canManage || (t.assignee.id === user.id && t.createdBy?.id === user.id);
   const canUpdate = (t: TaskRow) => canManage || t.assignee.id === user.id;
   const all = `/tasks?team=${team.id}`;
-  const base = `${all}${onlyOverdue ? "&overdue=1" : ""}${who ? `&who=${who.id}` : ""}`;
+  const scope = `${all}${onlyOverdue ? "&overdue=1" : ""}${who ? `&who=${who.id}` : ""}`;
+  const base = `${scope}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
   const detailHref = (t: TaskRow) => (t.number === null ? base : `${base}&task=${t.number}`);
   const selected = typeof params.task === "string" ? tasks.find((t) => String(t.number) === params.task) : undefined;
 
@@ -126,6 +138,9 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
               {t.number !== null && <span className="mr-1.5 font-normal tabular-nums text-subtle">#{t.number}</span>}
               {t.title}
             </span>
+            {t.createdBy && t.createdBy.id !== t.assignee.id && (
+              <span className="block truncate text-xs text-subtle">{t.createdBy.id === user.id ? tr("มอบหมายโดยคุณ") : tr("มอบหมายโดย {0}", [t.createdBy.name])}</span>
+            )}
           </span>
           {dueKey && !done && (
             <span className={`badge shrink-0 ${late ? "badge-danger" : dueKey === today ? "badge-warning" : "badge-neutral"}`}>
@@ -170,17 +185,19 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           <TaskForm key={`${team.id}:${defaultDue ?? ""}`} canAttach={canAttach} defaultDue={defaultDue} teamId={team.id} selfId={user.id} members={canManage ? members.map((m) => m.user) : null} today={today} />
         </section>
 
+        {tasks.length > 0 && <TaskSearch key={scope} base={scope} q={q} />}
+
         {filtered && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-sunken px-4 py-2.5 text-sm">
             <span className="text-foreground">
-              {tr("กำลังแสดงเฉพาะ")}{onlyOverdue ? tr("งานที่เลยกำหนด") : tr("งานค้าง")}{who && <>{tr("ของ")}{" "}<b className="font-semibold">{who.name}</b></>} · {tr("{0} งาน", [shown.length])}
+              {tr("กำลังแสดงเฉพาะ")}{onlyOverdue ? tr("งานที่เลยกำหนด") : tr("งานที่ยังค้าง")}{who && <>{tr("ของ")}{" "}<b className="font-semibold">{who.name}</b></>}{q && <>{" "}{tr("ที่ตรงกับ")}{" "}<b className="font-semibold">&quot;{q}&quot;</b></>} · {tr("{0} งาน", [shown.length])}
             </span>
             <Link href={all} className="font-medium text-primary hover:text-primary-strong">{tr("ดูงานทั้งหมด")}</Link>
           </div>
         )}
 
         {filtered && shown.length === 0 ? (
-          <p className="card text-sm text-muted-foreground">{tr("ไม่มีงานที่ตรงกับตัวกรองนี้")}</p>
+          finishedShown.length === 0 && <p className="card text-sm text-muted-foreground">{q ? tr("ไม่พบงานที่ตรงกับคำค้น") : tr("ไม่มีงานที่ตรงกับตัวกรองนี้")}</p>
         ) : open.length === 0 ? (
           <EmptyState title={tr("ไม่มีงานค้าง")} description={shared ? tr("เพิ่มงานจากช่องด้านบน งานของคุณจะไปขึ้นในหน้าเช็กอินด้วย") : tr("พิมพ์ชื่องานในช่องด้านบนแล้วกด Enter เพื่อเริ่มรายการของคุณ")} />
         ) : (
@@ -195,10 +212,10 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           ))
         )}
 
-        {!filtered && finished.length > 0 && (
-          <details className="card" open={selected ? selected.progress >= 100 : undefined}>
-            <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">{tr("เสร็จแล้ว (")}{finished.length})</summary>
-            <ul className="mt-2 divide-y divide-border">{finished.slice(0, 30).map(renderTask)}</ul>
+        {finishedShown.length > 0 && (
+          <details key={q} className="card" open={q ? true : selected ? selected.progress >= 100 : undefined}>
+            <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">{tr("เสร็จแล้ว (")}{finishedShown.length})</summary>
+            <ul className="mt-2 divide-y divide-border">{finishedShown.slice(0, 30).map(renderTask)}</ul>
           </details>
         )}
       </div>

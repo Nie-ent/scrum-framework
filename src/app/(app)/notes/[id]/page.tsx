@@ -37,8 +37,9 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   if (!team) notFound();
   const canManage = manageableIds.has(team.id);
 
-  const [nodes, backlinks, taskLinks, tasks] = await Promise.all([
+  const [nodes, outlinks, backlinks, taskLinks, tasks] = await Promise.all([
     listNotes(team.id),
+    prisma.noteLink.findMany({ where: { fromId: note.id, toNote: { deletedAt: null } }, select: { toNote: { select: { id: true, title: true } } } }),
     prisma.noteLink.findMany({ where: { toNoteId: note.id, from: { deletedAt: null } }, select: { from: { select: { id: true, title: true } } }, orderBy: { from: { title: "asc" } } }),
     prisma.noteLink.findMany({ where: { fromId: note.id, toTaskId: { not: null } }, select: { toTask: { select: { number: true, title: true, progress: true, deletedAt: true } } } }),
     prisma.task.findMany({ where: { teamId: team.id, deletedAt: null, number: { not: null } }, select: { number: true, title: true, progress: true }, orderBy: { number: "desc" }, take: 300 }),
@@ -115,6 +116,11 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
     taskUrl: (number) => (taskNumbers.has(number) ? `/tasks?team=${team.id}&task=${number}` : undefined),
     newNoteUrl: (title) => `/notes/new?team=${team.id}&title=${encodeURIComponent(title)}${note.parentId ? `&parent=${note.parentId}` : ""}`,
   });
+  // โน้ตที่เชื่อมกับโน้ตนี้ทั้งขาไป (เราอ้างถึง) และขากลับ (อ้างถึงเรา) — กดไปมาได้จากทั้งสองฝั่ง
+  const related = new Map<string, { id: string; title: string; out: boolean; in: boolean }>();
+  for (const l of outlinks) if (l.toNote) related.set(l.toNote.id, { ...l.toNote, out: true, in: false });
+  for (const b of backlinks) related.set(b.from.id, { ...b.from, out: related.has(b.from.id), in: true });
+  const relatedNotes = [...related.values()].sort((a, b) => a.title.localeCompare(b.title, "th"));
   const linkedTasks = taskLinks.flatMap((l) => (l.toTask && !l.toTask.deletedAt ? [l.toTask] : []));
 
   return (
@@ -137,13 +143,19 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
 
         <div className="grid gap-4 md:grid-cols-2">
           <section className="card">
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900"><Icon name="link" className="h-4 w-4 text-indigo-600" />{tr("โน้ตที่ลิงก์มาที่นี่ (")}{backlinks.length})</h2>
-            {backlinks.length === 0 ? (
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900"><Icon name="link" className="h-4 w-4 text-indigo-600" />{tr("โน้ตที่เชื่อมกัน (")}{relatedNotes.length})</h2>
+            {relatedNotes.length === 0 ? (
               <p className="text-sm text-slate-500">{tr("ยังไม่มีโน้ตไหนลิงก์มา — เขียน")}{" "}<code className="rounded bg-slate-100 px-1">[[{note.title}]]</code> {tr("ในโน้ตอื่นเพื่อเชื่อมกัน")}</p>
             ) : (
               <ul className="space-y-1">
-                {backlinks.map((b) => (
-                  <li key={b.from.id}><Link href={`/notes/${b.from.id}`} className="flex items-center gap-2 rounded-lg py-1 text-sm font-medium text-indigo-600 hover:text-indigo-800"><Icon name="note" className="h-4 w-4 text-slate-400" />{b.from.title}</Link></li>
+                {relatedNotes.map((r) => (
+                  <li key={r.id}>
+                    <Link href={`/notes/${r.id}`} className="flex items-center gap-2 rounded-lg py-1 text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                      <Icon name="note" className="h-4 w-4 shrink-0 text-slate-400" />
+                      <span className="min-w-0 flex-1 truncate">{r.title}</span>
+                      <span className="shrink-0 text-xs font-normal text-slate-500">{r.out && r.in ? tr("↔ เชื่อมหากัน") : r.out ? tr("→ โน้ตนี้อ้างถึง") : tr("← อ้างถึงโน้ตนี้")}</span>
+                    </Link>
+                  </li>
                 ))}
               </ul>
             )}

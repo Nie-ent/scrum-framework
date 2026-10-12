@@ -36,9 +36,16 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
     ...notes.map((n): Point => ({ id: n.id, label: n.title, href: `/notes/${n.id}`, kind: "note" })),
     ...[...tasks.values()].map((t): Point => ({ id: t.id, label: `#${t.number} ${t.title}`, href: `/tasks?team=${team.id}&task=${t.number}`, kind: "task" })),
   ];
-  const edges = links.flatMap((l) => {
+  const known = new Set(points.map((p) => p.id));
+  const directed = links.flatMap((l) => {
     const to = l.toNoteId ?? (l.toTask && !l.toTask.deletedAt ? l.toTask.id : null);
-    return to && points.some((p) => p.id === to) ? [{ from: l.fromId, to }] : [];
+    return to && known.has(to) ? [{ from: l.fromId, to }] : [];
+  });
+  // โน้ตสองอันที่ลิงก์หากันทั้งสองทาง = เส้นเดียวที่มีหัวลูกศรสองด้าน (ไม่วาดซ้อนกันจนดูเหมือนเส้นเดียว)
+  const has = new Set(directed.map((e) => `${e.from}>${e.to}`));
+  const edges = directed.flatMap((e) => {
+    const both = has.has(`${e.to}>${e.from}`);
+    return both && e.from > e.to ? [] : [{ ...e, both }];
   });
   return (
     <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)}>
@@ -47,7 +54,7 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
           <div>
             <p className="eyebrow">{tr("ภาพรวมการเชื่อมโยง")}</p>
             <h1 className="page-title">{tr("แผนผังความสัมพันธ์")}</h1>
-            <p className="page-subtitle">{team.name} · {notes.length} {tr("โน้ต ·")}{" "}{tasks.size} {tr("งานที่ถูกอ้างถึง ·")}{" "}{edges.length} {tr("เส้นเชื่อม")}</p>
+            <p className="page-subtitle">{team.name} · {notes.length} {tr("โน้ต ·")}{" "}{tasks.size} {tr("งานที่ถูกอ้างถึง ·")}{" "}{directed.length} {tr("เส้นเชื่อม")}</p>
           </div>
         </div>
         {points.length === 0 ? (
@@ -59,6 +66,7 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-primary" />{tr("โน้ตที่มีความสัมพันธ์")}</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-success" />{tr("งาน")}</span>
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-subtle" />{tr("โน้ตที่ยังไม่ถูกเชื่อม")}</span>
+              <span>{tr("หัวลูกศรชี้ไปหาสิ่งที่ถูกอ้างถึง — สองหัวคือลิงก์หากันทั้งสองทาง")}</span>
               <span>{tr("ลากจุดเพื่อจัดวาง · ลากพื้นหลังเพื่อเลื่อน · หมุนล้อเมาส์เพื่อซูม · คลิกที่จุดเพื่อเปิด")}</span>
             </p>
           </div>

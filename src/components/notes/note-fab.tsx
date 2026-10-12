@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { Tooltip } from "@/components/tooltip";
 import { NewItemForm } from "./note-forms";
 import { NEW_IN_FOLDER } from "./note-menu";
@@ -13,10 +14,20 @@ import { useT } from "@/components/i18n";
  */
 export function NoteFab({ teamId, folders, parentId, q = "", buttons = true }: { teamId: string; folders: { id: string; label: string }[]; parentId: string | null; q?: string; /** false = ไม่แสดงปุ่มลอย (ยังเปิดฟอร์มจากเมนูโฟลเดอร์ได้) */ buttons?: boolean }) {
   const tr = useT();
+  const router = useRouter();
   const [sheet, setSheet] = useState<"search" | "add" | null>(null);
   // โฟลเดอร์ที่เลือกจากเมนูคลิกขวา/กดค้าง — ไม่ได้เลือก = โฟลเดอร์ที่เปิดอยู่
   const [into, setInto] = useState<{ id: string; title: string } | null>(null);
   const close = () => setSheet(null);
+  // ไปหน้าผลการค้นหาเอง: ถ้าปล่อยให้เบราว์เซอร์ส่งฟอร์ม แผ่นนี้จะปิด (ฟอร์มหายจากหน้า) ก่อนส่ง แล้วไม่เกิดอะไรขึ้น
+  const search = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const text = String(new FormData(e.currentTarget).get("q") ?? "").trim();
+    const query = new URLSearchParams({ team: teamId });
+    if (text) query.set("q", text);
+    close();
+    router.push(`/notes?${query}`);
+  };
 
   useEffect(() => {
     const open = (e: Event) => {
@@ -62,7 +73,7 @@ export function NoteFab({ teamId, folders, parentId, q = "", buttons = true }: {
                 <button type="button" onClick={close} className="rounded-lg px-2 py-1 text-sm font-medium text-muted-foreground hover:bg-surface-sunken hover:text-foreground">{tr("ปิด")}</button>
               </div>
               {sheet === "search" ? (
-                <form action="/notes" onSubmit={close} className="flex gap-2">
+                <form action="/notes" onSubmit={search} className="flex gap-2">
                   <input type="hidden" name="team" value={teamId} />
                   <input name="q" type="search" autoFocus defaultValue={q} enterKeyHint="search" className="input py-2" placeholder={tr("ค้นหาชื่อหรือเนื้อหา")} aria-label={tr("คำค้น")} />
                   <button className="btn shrink-0 px-3.5">{tr("ค้นหา")}</button>

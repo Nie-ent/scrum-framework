@@ -63,5 +63,6 @@ export const noteTitle = z
 
 export const NoteFields = z.object({
   title: noteTitle,
-  content: z.string().max(200_000, { error: "เนื้อหายาวเกินไป" }),
+  // ฟอร์มส่งขึ้นบรรทัดใหม่มาเป็น \r\n — เก็บเป็น \n แบบเดียวเสมอ
+  content: z.string().max(200_000, { error: "เนื้อหายาวเกินไป" }).transform((v) => v.replace(/\r\n?/g, "\n")),
 });
