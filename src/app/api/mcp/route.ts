@@ -1,5 +1,5 @@
 import { userFromApiToken } from "@/lib/auth";
-import { appUrl } from "@/lib/email";
+import { publicOrigin } from "@/lib/origin";
 import { TOOLS, ToolError } from "@/lib/mcp";
 import { resourceMetadataUrl } from "@/lib/oauth";
 import { rateLimit } from "@/lib/rate-limit";
@@ -29,8 +29,9 @@ export const DELETE = GET;
 export async function POST(request: Request) {
   const token = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
   const auth = token ? await userFromApiToken(hashToken(token)) : null;
+  const origin = await publicOrigin();
   if (!auth) {
-    return json(failure(null, -32001, "Missing, expired or invalid access token. Sign in through OAuth, or create a token in Pace: Account → Connect an AI assistant."), 401, { "WWW-Authenticate": `Bearer realm="Pace MCP", resource_metadata="${resourceMetadataUrl()}"` });
+    return json(failure(null, -32001, "Missing, expired or invalid access token. Sign in through OAuth, or create a token in Pace: Account → Connect an AI assistant."), 401, { "WWW-Authenticate": `Bearer realm="Pace MCP", resource_metadata="${resourceMetadataUrl(origin)}"` });
   }
   if (!(await rateLimit(`mcp:${auth.user.id}`, 120, 60))) return json(failure(null, -32002, "Too many requests. Try again in a minute."), 429);
 
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
         if (!tool) return failure(id, -32602, `Unknown tool: ${String(params?.name)}`);
         const args = params?.arguments && typeof params.arguments === "object" ? (params.arguments as Record<string, unknown>) : {};
         try {
-          const result = await tool.run(args, { user: auth.user, appUrl: appUrl("").replace(/\/$/, "") });
+          const result = await tool.run(args, { user: auth.user, appUrl: origin });
           return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] } };
         } catch (e) {
           // ข้อผิดพลาดของเครื่องมือส่งกลับเป็นผลลัพธ์ (isError) ให้โมเดลอ่านแล้วแก้เองได้ — ข้อผิดพลาดของระบบไม่เปิดเผยรายละเอียด

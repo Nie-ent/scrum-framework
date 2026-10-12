@@ -6,7 +6,7 @@ import { pushPublicKey } from "@/lib/push";
 import type { Metadata } from "next";
 import { isEmailConfigured } from "@/lib/email";
 import { prisma } from "@/lib/db";
-import { appUrl } from "@/lib/email";
+import { publicOrigin } from "@/lib/origin";
 import { formatDateTime } from "@/lib/format-dates";
 import { AiConnect } from "./ai-connect";
 import { SsoAccounts } from "./sso-accounts";
@@ -66,7 +66,7 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
       <NotificationSettings publicKey={pushPublicKey()} />
       <EmailSettings email={user.email} verified={Boolean(user.emailVerifiedAt)} enabled={user.emailNotifications} canSend={isEmailConfigured()} />
       <AiConnect
-        endpoint={appUrl("/api/mcp")}
+        endpoint={`${await publicOrigin()}/api/mcp`}
         tokens={tokens.map((t) => ({ id: t.id, name: t.name, readOnly: t.readOnly, oauth: Boolean(t.clientId), created: formatDateTime(t.createdAt), lastUsed: t.lastUsedAt ? formatDateTime(t.lastUsedAt) : null }))}
       />
       <SsoAccounts providers={ssoProviders()} linked={identities} notice={typeof sso === "string" ? sso : undefined} />

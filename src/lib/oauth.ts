@@ -1,7 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "./db";
-import { appUrl } from "./email";
 import { hashToken } from "./tokens";
 
 /**
@@ -17,22 +16,22 @@ export const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-
 export const oauthJson = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...CORS } });
 export const oauthError = (error: string, description: string, status = 400) => oauthJson({ error, error_description: description }, status);
 
-export const resourceUrl = () => appUrl("/api/mcp");
-export const resourceMetadataUrl = () => appUrl("/.well-known/oauth-protected-resource");
+/** origin = ที่อยู่หลักที่ผู้เรียกใช้อยู่จริง (ดู publicOrigin) — ทุกปลายทางต้องอยู่บนโดเมนเดียวกับที่โปรแกรมเชื่อมเข้ามา */
+export const resourceMetadataUrl = (origin: string) => `${origin}/.well-known/oauth-protected-resource`;
 
-export const resourceMetadata = () => ({
-  resource: resourceUrl(),
-  authorization_servers: [appUrl()],
+export const resourceMetadata = (origin: string) => ({
+  resource: `${origin}/api/mcp`,
+  authorization_servers: [origin],
   bearer_methods_supported: ["header"],
   scopes_supported: [SCOPE],
   resource_name: "Pace",
 });
 
-export const serverMetadata = () => ({
-  issuer: appUrl(),
-  authorization_endpoint: appUrl("/oauth/authorize"),
-  token_endpoint: appUrl("/api/oauth/token"),
-  registration_endpoint: appUrl("/api/oauth/register"),
+export const serverMetadata = (origin: string) => ({
+  issuer: origin,
+  authorization_endpoint: `${origin}/oauth/authorize`,
+  token_endpoint: `${origin}/api/oauth/token`,
+  registration_endpoint: `${origin}/api/oauth/register`,
   response_types_supported: ["code"],
   grant_types_supported: ["authorization_code", "refresh_token"],
   code_challenge_methods_supported: ["S256"],

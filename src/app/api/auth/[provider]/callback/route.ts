@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { isLang, LANG_COOKIE } from "@/lib/i18n/core";
 import { isSignupOpen, openInvite } from "@/lib/invites";
+import { publicOrigin } from "@/lib/origin";
 import { createSession } from "@/lib/session";
 import { SSO_COOKIE, fetchProfile, getProvider, readSsoState } from "@/lib/sso";
 import { hashToken } from "@/lib/tokens";
@@ -28,7 +29,7 @@ export async function GET(request: Request, { params }: RouteContext<"/api/auth/
   const code = url.searchParams.get("code");
   if (!saved || saved.provider !== provider.id || !code || url.searchParams.get("state") !== saved.state) return fail("expired");
 
-  const profile = await fetchProfile(provider, code, saved.verifier);
+  const profile = await fetchProfile(provider, await publicOrigin(), code, saved.verifier);
   if (!profile) return fail("failed");
 
   const identity = await prisma.userIdentity.findUnique({ where: { provider_subject: { provider: provider.id, subject: profile.subject } }, include: { user: true } });

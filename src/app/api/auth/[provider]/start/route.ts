@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { safeNextPath } from "@/lib/invites";
+import { publicOrigin } from "@/lib/origin";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { SSO_COOKIE, beginSso, getProvider } from "@/lib/sso";
 
@@ -18,7 +19,7 @@ export async function GET(request: Request, { params }: RouteContext<"/api/auth/
     if (!user) return to("/login");
     linkUserId = user.id;
   }
-  const begun = await beginSso(provider, safeNextPath(url.searchParams.get("next")), linkUserId);
+  const begun = await beginSso(provider, await publicOrigin(), safeNextPath(url.searchParams.get("next")), linkUserId);
   const response = NextResponse.redirect(begun.url);
   response.cookies.set(SSO_COOKIE, begun.cookie, {
     httpOnly: true,

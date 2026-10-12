@@ -132,8 +132,8 @@ npm run dev
 | `ALLOW_SIGNUP` | `true` = เปิดให้สมัครเองโดยไม่ต้องมีคำเชิญ |
 | `RESEND_API_KEY` / `EMAIL_FROM` | ส่งอีเมลผ่าน [Resend](https://resend.com) — `EMAIL_FROM` ต้องเป็นผู้ส่งบนโดเมนที่ verify แล้ว เช่น `Pace <noreply@your-domain.com>` (ไม่ตั้ง = ไม่ส่งอีเมล) |
 | `APP_URL` | URL หลักของเว็บ ใช้สร้างลิงก์คำเชิญ/อีเมล (บน Vercel ไม่ต้องตั้ง ใช้โดเมน production ให้เอง) |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Google" — redirect URI ที่ต้องลงทะเบียน: `<APP_URL>/api/auth/google/callback` |
-| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Microsoft" — redirect URI: `<APP_URL>/api/auth/microsoft/callback` · `MICROSOFT_TENANT` (ไม่บังคับ, default `common`) จำกัดเฉพาะองค์กรเดียวได้ |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Google" — redirect URI ที่ต้องลงทะเบียน: `https://<โดเมนที่ผู้ใช้เข้าจริง>/api/auth/google/callback` |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Microsoft" — redirect URI: `https://<โดเมนที่ผู้ใช้เข้าจริง>/api/auth/microsoft/callback` · `MICROSOFT_TENANT` (ไม่บังคับ, default `common`) จำกัดเฉพาะองค์กรเดียวได้ |
 
 ## โครงสร้าง
 
@@ -212,7 +212,7 @@ claude mcp add --transport http pace https://<โดเมน>/api/mcp --header 
 - ค้นหาปลายทาง: `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`
 - ลงทะเบียนโปรแกรมเอง: `POST /api/oauth/register` · หน้ายินยอม: `/oauth/authorize` · แลกโทเคน: `POST /api/oauth/token`
 - authorization code + PKCE (S256) เท่านั้น ไม่มี client secret · access token อายุ 1 ชั่วโมง ต่ออายุด้วย refresh token ที่หมุนทุกครั้ง · ยกเลิกได้ที่หน้าบัญชี
-- `APP_URL` ต้องตรงกับโดเมนที่ผู้ใช้เข้าจริง (เป็น issuer)
+- ที่อยู่ทั้งหมดอิงโดเมนที่ผู้ใช้เข้ามาจริง (ต่างจาก `APP_URL` ได้แค่มี/ไม่มี `www`)
 
 ## เข้าสู่ระบบด้วย Google / Microsoft
 

@@ -1,12 +1,11 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
-import { appUrl } from "./email";
 
 /**
  * เข้าสู่ระบบด้วย Google / Microsoft (OpenID Connect แบบ authorization code + PKCE)
  * เปิดใช้เมื่อใส่ client id/secret ของผู้ให้บริการนั้นใน environment — ไม่ใส่ = ปุ่มไม่ขึ้น
- * ปลายทางที่ต้องลงทะเบียนกับผู้ให้บริการ: <APP_URL>/api/auth/google/callback และ /api/auth/microsoft/callback
+ * ปลายทางที่ต้องลงทะเบียนกับผู้ให้บริการ: <โดเมนที่ผู้ใช้เข้าจริง>/api/auth/google/callback และ /api/auth/microsoft/callback
  */
 export type ProviderId = "google" | "microsoft";
 type Provider = {
@@ -52,7 +51,8 @@ function all(): Provider[] {
 /** ผู้ให้บริการที่ตั้งค่าไว้ครบ (สำหรับแสดงปุ่ม) */
 export const ssoProviders = () => all().filter((p) => p.clientId && p.clientSecret).map(({ id, label }) => ({ id, label }));
 export const getProvider = (id: string) => all().find((p) => p.id === id && p.clientId && p.clientSecret);
-export const callbackUrl = (id: ProviderId) => appUrl(`/api/auth/${id}/callback`);
+/** origin = ที่อยู่หลักที่ผู้ใช้เข้ามาจริง (ดู publicOrigin) — ต้องตรงกับที่ลงทะเบียนกับผู้ให้บริการ และเหมือนกันทั้งตอนเริ่มและตอนแลกรหัส */
+export const callbackUrl = (origin: string, id: ProviderId) => `${origin}/api/auth/${id}/callback`;
 
 export const SSO_COOKIE = "pace_sso";
 const SSO_SECONDS = 600;
@@ -61,7 +61,7 @@ const key = () => new TextEncoder().encode(process.env.AUTH_SECRET ?? "");
 /** สิ่งที่ต้องจำระหว่างที่ผู้ใช้ไปหน้าของผู้ให้บริการ — เซ็นไว้ใน cookie อายุ 10 นาที */
 export type SsoState = { provider: ProviderId; state: string; verifier: string; next: string; /** มีค่า = กำลังผูกเข้ากับบัญชีที่ล็อกอินอยู่ */ linkUserId?: string };
 
-export async function beginSso(provider: Provider, next: string, linkUserId?: string) {
+export async function beginSso(provider: Provider, origin: string, next: string, linkUserId?: string) {
   const state = randomBytes(24).toString("base64url");
   const verifier = randomBytes(32).toString("base64url");
   const cookie = await new SignJWT({ provider: provider.id, state, verifier, next, ...(linkUserId ? { linkUserId } : {}) })
@@ -71,7 +71,7 @@ export async function beginSso(provider: Provider, next: string, linkUserId?: st
   const url = new URL(provider.authorizeUrl);
   url.search = new URLSearchParams({
     client_id: provider.clientId,
-    redirect_uri: callbackUrl(provider.id),
+    redirect_uri: callbackUrl(origin, provider.id),
     response_type: "code",
     scope: "openid email profile",
     state,
@@ -97,11 +97,11 @@ export async function readSsoState(cookie: string | undefined): Promise<SsoState
 export type SsoProfile = { subject: string; email: string; emailVerified: boolean; name: string };
 
 /** แลกรหัสเป็นโทเคนแล้วถามข้อมูลผู้ใช้จากผู้ให้บริการโดยตรง (ผ่าน TLS ถึงผู้ให้บริการ จึงไม่ต้องตรวจลายเซ็น id_token เอง) */
-export async function fetchProfile(provider: Provider, code: string, verifier: string): Promise<SsoProfile | null> {
+export async function fetchProfile(provider: Provider, origin: string, code: string, verifier: string): Promise<SsoProfile | null> {
   const tokenResponse = await fetch(provider.tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-    body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: callbackUrl(provider.id), client_id: provider.clientId, client_secret: provider.clientSecret, code_verifier: verifier }),
+    body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: callbackUrl(origin, provider.id), client_id: provider.clientId, client_secret: provider.clientSecret, code_verifier: verifier }),
   });
   if (!tokenResponse.ok) {
     console.error(`sso ${provider.id}: token exchange failed`, tokenResponse.status);
