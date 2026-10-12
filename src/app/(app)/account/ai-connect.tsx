@@ -5,7 +5,7 @@ import { createApiToken, revokeApiToken } from "@/app/actions/api-tokens";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { useT } from "@/components/i18n";
 
-type TokenRow = { id: string; name: string; readOnly: boolean; created: string; lastUsed: string | null };
+type TokenRow = { id: string; name: string; readOnly: boolean; /** เชื่อมผ่านการกดอนุญาต (OAuth) ไม่ใช่โทเคนที่สร้างเอง */ oauth: boolean; created: string; lastUsed: string | null };
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const tr = useT();
@@ -42,6 +42,7 @@ export function AiConnect({ endpoint, tokens }: { endpoint: string; tokens: Toke
 
       <div className="space-y-1.5">
         <p className="label mb-0">{tr("ที่อยู่ของเซิร์ฟเวอร์")}</p>
+        <p className="text-xs text-slate-500">{tr("โปรแกรมที่รองรับการเข้าสู่ระบบ (เช่น ตัวเชื่อมต่อแบบกำหนดเองของ claude.ai): ใส่ที่อยู่นี้อย่างเดียว แล้วกดอนุญาตในหน้าที่เปิดขึ้น ไม่ต้องใช้โทเคน")}</p>
         <div className="flex items-center gap-2">
           <input readOnly value={endpoint} aria-label={tr("ที่อยู่ของเซิร์ฟเวอร์")} className="input flex-1 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
           <CopyButton text={endpoint} label={tr("คัดลอก")} />
@@ -53,7 +54,7 @@ export function AiConnect({ endpoint, tokens }: { endpoint: string; tokens: Toke
           {tokens.map((t) => (
             <li key={t.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-800">{t.name}{t.readOnly && <span className="badge badge-neutral ml-2">{tr("อ่านอย่างเดียว")}</span>}</p>
+                <p className="truncate text-sm font-medium text-slate-800">{t.name}{t.oauth && <span className="badge badge-neutral ml-2">{tr("เชื่อมผ่านการอนุญาต")}</span>}{t.readOnly && <span className="badge badge-neutral ml-2">{tr("อ่านอย่างเดียว")}</span>}</p>
                 <p className="truncate text-xs text-slate-500">{tr("สร้าง {0}", [t.created])} · {t.lastUsed ? tr("ใช้ล่าสุด {0}", [t.lastUsed]) : tr("ยังไม่เคยใช้")}</p>
               </div>
               <form action={revokeApiToken} className="shrink-0">

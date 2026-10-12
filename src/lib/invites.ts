@@ -7,6 +7,12 @@ export const openInvite = () => ({ acceptedAt: null, revokedAt: null, expiresAt:
 
 export const INVITE_DAYS = 7;
 
+/** ปลายทางหลัง login/สมัคร: เฉพาะหน้าคำเชิญ หรือหน้ายินยอม OAuth ของเราเอง (กัน open redirect) */
+export function safeNextPath(value: unknown): string {
+  if (typeof value !== "string") return "/";
+  return /^\/invite\/[A-Za-z0-9_-]+$/.test(value) || /^\/oauth\/authorize\?[^#\\]*$/.test(value) ? value : "/";
+}
+
 /** เปิดให้ใครก็สมัครเองได้ (ALLOW_SIGNUP=true) — ปิดอยู่ = สมัครได้เฉพาะคนที่มีลิงก์คำเชิญ */
 export const isSignupOpen = () => process.env.ALLOW_SIGNUP === "true";
 

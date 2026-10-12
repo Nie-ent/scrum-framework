@@ -9,7 +9,7 @@ import { createSession, deleteSession } from "@/lib/session";
 import { isLang, LANG_COOKIE } from "@/lib/i18n/core";
 import { ensureLang, getTr, trFor } from "@/lib/i18n/server";
 import { appUrl, isEmailConfigured, sendEmail } from "@/lib/email";
-import { isSignupOpen, openInvite } from "@/lib/invites";
+import { isSignupOpen, openInvite, safeNextPath } from "@/lib/invites";
 import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
 import { ChangePasswordFields, LoginFields, NewPasswordFields, SignupFields, email } from "@/lib/schemas";
 import { hashToken, inHours, newToken } from "@/lib/tokens";
@@ -39,9 +39,9 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   redirect(safeNext(formData.get("next")));
 }
 
-/** หลัง login/สมัคร กลับไปได้เฉพาะหน้าคำเชิญ (กัน open redirect) */
+/** หลัง login/สมัคร กลับไปได้เฉพาะหน้าคำเชิญ หรือหน้ายินยอม OAuth ของเราเอง (กัน open redirect) */
 function safeNext(value: unknown) {
-  return typeof value === "string" && /^\/invite\/[A-Za-z0-9_-]+$/.test(value) ? value : "/";
+  return safeNextPath(value);
 }
 
 export async function signup(_: FormState, formData: FormData): Promise<FormState> {

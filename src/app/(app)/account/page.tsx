@@ -9,6 +9,8 @@ import { prisma } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { formatDateTime } from "@/lib/format-dates";
 import { AiConnect } from "./ai-connect";
+import { SsoAccounts } from "./sso-accounts";
+import { ssoProviders } from "@/lib/sso";
 import { EmailSettings } from "./email-settings";
 import { NotificationSettings } from "./notification-settings";
 import { PasswordForm } from "./password-form";
@@ -21,8 +23,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: tr("บัญชีของฉัน") };
 }
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: PageProps<"/account">) {
   const user = await requireUser();
+  const { sso } = await searchParams;
+  const identities = await prisma.userIdentity.findMany({ where: { userId: user.id }, select: { provider: true, email: true } });
   const tokens = await prisma.apiToken.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
   return (
     <div className="max-w-xl space-y-6">
@@ -63,8 +67,9 @@ export default async function AccountPage() {
       <EmailSettings email={user.email} verified={Boolean(user.emailVerifiedAt)} enabled={user.emailNotifications} canSend={isEmailConfigured()} />
       <AiConnect
         endpoint={appUrl("/api/mcp")}
-        tokens={tokens.map((t) => ({ id: t.id, name: t.name, readOnly: t.readOnly, created: formatDateTime(t.createdAt), lastUsed: t.lastUsedAt ? formatDateTime(t.lastUsedAt) : null }))}
+        tokens={tokens.map((t) => ({ id: t.id, name: t.name, readOnly: t.readOnly, oauth: Boolean(t.clientId), created: formatDateTime(t.createdAt), lastUsed: t.lastUsedAt ? formatDateTime(t.lastUsedAt) : null }))}
       />
+      <SsoAccounts providers={ssoProviders()} linked={identities} notice={typeof sso === "string" ? sso : undefined} />
       <PasswordForm />
       <form action={logout} className="card flex items-center justify-between gap-3">
         <div>

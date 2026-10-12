@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AuthShell } from "@/components/auth-shell";
 import { isSignupOpen } from "@/lib/invites";
+import { SsoButtons } from "@/components/sso-buttons";
 import { SignupForm } from "./signup-form";
 import { ensureLang, tr } from "@/lib/i18n/server";
 
@@ -19,7 +20,10 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   return (
     <AuthShell>
       {isSignupOpen() || nextPath ? (
-        <SignupForm next={nextPath} />
+        <>
+          <SignupForm next={nextPath} />
+          <SsoButtons next={nextPath} />
+        </>
       ) : (
         <div className="card space-y-2 text-center">
           <h2 className="font-semibold text-slate-900">{tr("ยังไม่เปิดให้สมัครเอง")}</h2>

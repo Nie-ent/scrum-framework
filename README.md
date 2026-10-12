@@ -132,6 +132,8 @@ npm run dev
 | `ALLOW_SIGNUP` | `true` = เปิดให้สมัครเองโดยไม่ต้องมีคำเชิญ |
 | `RESEND_API_KEY` / `EMAIL_FROM` | ส่งอีเมลผ่าน [Resend](https://resend.com) — `EMAIL_FROM` ต้องเป็นผู้ส่งบนโดเมนที่ verify แล้ว เช่น `Pace <noreply@your-domain.com>` (ไม่ตั้ง = ไม่ส่งอีเมล) |
 | `APP_URL` | URL หลักของเว็บ ใช้สร้างลิงก์คำเชิญ/อีเมล (บน Vercel ไม่ต้องตั้ง ใช้โดเมน production ให้เอง) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Google" — redirect URI ที่ต้องลงทะเบียน: `<APP_URL>/api/auth/google/callback` |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Microsoft" — redirect URI: `<APP_URL>/api/auth/microsoft/callback` · `MICROSOFT_TENANT` (ไม่บังคับ, default `common`) จำกัดเฉพาะองค์กรเดียวได้ |
 
 ## โครงสร้าง
 
@@ -205,4 +207,17 @@ Pace เป็นเซิร์ฟเวอร์ [MCP](https://modelcontextpro
 claude mcp add --transport http pace https://<โดเมน>/api/mcp --header "Authorization: Bearer <โทเคน>"
 ```
 
-ยังไม่รองรับ OAuth — โปรแกรมที่เพิ่มเซิร์ฟเวอร์ได้เฉพาะแบบ OAuth (เช่น ตัวเชื่อมต่อแบบกำหนดเองบนเว็บ claude.ai) จึงยังใช้ไม่ได้
+รองรับ OAuth 2.1 ด้วย (สำหรับโปรแกรมที่ให้ผู้ใช้กดอนุญาตเอง เช่น ตัวเชื่อมต่อแบบกำหนดเองของ claude.ai — ใส่แค่ที่อยู่ `https://<โดเมน>/api/mcp`):
+
+- ค้นหาปลายทาง: `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`
+- ลงทะเบียนโปรแกรมเอง: `POST /api/oauth/register` · หน้ายินยอม: `/oauth/authorize` · แลกโทเคน: `POST /api/oauth/token`
+- authorization code + PKCE (S256) เท่านั้น ไม่มี client secret · access token อายุ 1 ชั่วโมง ต่ออายุด้วย refresh token ที่หมุนทุกครั้ง · ยกเลิกได้ที่หน้าบัญชี
+- `APP_URL` ต้องตรงกับโดเมนที่ผู้ใช้เข้าจริง (เป็น issuer)
+
+## เข้าสู่ระบบด้วย Google / Microsoft
+
+ตั้ง `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` หรือ `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` แล้วปุ่มจะขึ้นในหน้าเข้าสู่ระบบ/สมัคร และหน้าบัญชี (โค้ด: `src/lib/sso.ts`, `src/app/api/auth/[provider]/`)
+
+- Google: บัญชี Pace ที่อีเมลตรงกันจะถูกผูกให้อัตโนมัติ (Google ยืนยันอีเมลให้)
+- Microsoft: อีเมลไม่ถือว่ายืนยันแล้ว — ผู้ใช้เดิมต้องเข้าด้วยรหัสผ่านก่อน แล้วกด "เชื่อม" ที่หน้าบัญชี
+- บัญชีใหม่สร้างได้ตามกฎเดียวกับการสมัครปกติ (`ALLOW_SIGNUP=true` หรือมาจากลิงก์คำเชิญ)

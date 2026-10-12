@@ -14,7 +14,7 @@ export async function createApiToken(_: FormState, formData: FormData): Promise<
   const user = await requireUser();
   const name = String(formData.get("name") ?? "").trim().slice(0, 60);
   if (!name) return { error: "กรุณาตั้งชื่อ" };
-  if ((await prisma.apiToken.count({ where: { userId: user.id } })) >= MAX_TOKENS) return { error: "มีโทเคนครบจำนวนแล้ว — ยกเลิกอันที่ไม่ใช้ก่อน" };
+  if ((await prisma.apiToken.count({ where: { userId: user.id, clientId: null } })) >= MAX_TOKENS) return { error: "มีโทเคนครบจำนวนแล้ว — ยกเลิกอันที่ไม่ใช้ก่อน" };
   const token = `pace_${randomBytes(32).toString("base64url")}`;
   await prisma.apiToken.create({ data: { userId: user.id, name, tokenHash: hashToken(token), readOnly: formData.get("readOnly") === "on" } });
   revalidatePath("/account");

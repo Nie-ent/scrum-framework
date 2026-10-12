@@ -1,6 +1,7 @@
 import { userFromApiToken } from "@/lib/auth";
 import { appUrl } from "@/lib/email";
 import { TOOLS, ToolError } from "@/lib/mcp";
+import { resourceMetadataUrl } from "@/lib/oauth";
 import { rateLimit } from "@/lib/rate-limit";
 import { hashToken } from "@/lib/tokens";
 
@@ -10,7 +11,7 @@ import { hashToken } from "@/lib/tokens";
  * แต่ละคำขอจบในตัว: ไม่มี session ไม่มี SSE — จึงทำงานบน serverless ได้ตรง ๆ
  */
 const VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version, mcp-session-id", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version, mcp-session-id", "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Expose-Headers": "WWW-Authenticate" };
 const INSTRUCTIONS =
   "Pace is a team work tracker: tasks with progress and due dates, daily check-ins, and linked notes, organised into spaces (teams and one personal space). " +
   "Call list_spaces first to get space ids. Everything is done as the token owner and limited to what they can do in the app. Dates are YYYY-MM-DD.";
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   const token = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
   const auth = token ? await userFromApiToken(hashToken(token)) : null;
   if (!auth) {
-    return json(failure(null, -32001, "Missing or invalid access token. Create one in Pace: Account → Connect an AI assistant."), 401, { "WWW-Authenticate": 'Bearer realm="Pace MCP"' });
+    return json(failure(null, -32001, "Missing, expired or invalid access token. Sign in through OAuth, or create a token in Pace: Account → Connect an AI assistant."), 401, { "WWW-Authenticate": `Bearer realm="Pace MCP", resource_metadata="${resourceMetadataUrl()}"` });
   }
   if (!(await rateLimit(`mcp:${auth.user.id}`, 120, 60))) return json(failure(null, -32002, "Too many requests. Try again in a minute."), 429);
 

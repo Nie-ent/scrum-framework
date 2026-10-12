@@ -42,8 +42,9 @@ export const getCurrentUser = cache(async () => {
  * ได้ข้อมูลรูปเดียวกับ getCurrentUser จึงใช้กฎสิทธิ์ชุดเดียวกันได้ทั้งหมด
  */
 export async function userFromApiToken(tokenHash: string) {
-  const row = await prisma.apiToken.findUnique({ where: { tokenHash }, select: { id: true, userId: true, readOnly: true, lastUsedAt: true } });
-  if (!row) return null;
+  const row = await prisma.apiToken.findUnique({ where: { tokenHash }, select: { id: true, userId: true, readOnly: true, lastUsedAt: true, expiresAt: true } });
+  // โทเคนที่ออกผ่าน OAuth หมดอายุได้ — โปรแกรมจะต่ออายุด้วย refresh token เอง
+  if (!row || (row.expiresAt && row.expiresAt < new Date())) return null;
   const user = await loadUser(row.userId);
   if (!user || !user.active) return null;
   user.memberships.sort((a, b) => Number(Boolean(a.team.personalOfId)) - Number(Boolean(b.team.personalOfId)));

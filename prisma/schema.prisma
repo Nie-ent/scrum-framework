@@ -111,6 +111,8 @@ model User {
   createdAt          DateTime           @default(now()) @db.Timestamptz(3)
   noteFavorites NoteFavorite[]
   apiTokens     ApiToken[]
+  oauthCodes    OAuthCode[]
+  identities    UserIdentity[]
   /// ภาษาที่ใช้ในแอป อีเมล และแจ้งเตือนที่ส่งถึงคนนี้ ("th" | "en")
   locale        String         @default("th")
 }
@@ -386,6 +388,48 @@ model ApiToken {
   readOnly   Boolean   @default(false)
   lastUsedAt DateTime? @db.Timestamptz(3)
   createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  /// มีค่าเมื่อออกผ่าน OAuth (เช่นตัวเชื่อมต่อของ claude.ai) — null = โทเคนที่ผู้ใช้สร้างเองจากหน้าบัญชี
+  clientId    String?      @db.Uuid
+  client      OAuthClient? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  /// โทเคน OAuth หมดอายุเร็วและต่ออายุด้วย refresh token — null = ไม่หมดอายุ (โทเคนที่สร้างเอง)
+  expiresAt   DateTime?    @db.Timestamptz(3)
+  refreshHash String?      @unique
 
   @@index([userId])
+}
+
+/// โปรแกรมที่ลงทะเบียนขอเชื่อมผ่าน OAuth (ลงทะเบียนเองได้ตามมาตรฐาน MCP) — เป็น public client ใช้ PKCE ไม่มี secret
+model OAuthClient {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  redirectUris String[]
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  tokens       ApiToken[]
+  codes        OAuthCode[]
+}
+
+/// รหัสอนุญาตใช้ครั้งเดียว อายุสั้น — แลกเป็นโทเคนที่ /api/oauth/token
+model OAuthCode {
+  codeHash      String      @id
+  clientId      String      @db.Uuid
+  client        OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  redirectUri   String
+  codeChallenge String
+  readOnly      Boolean     @default(false)
+  expiresAt     DateTime    @db.Timestamptz(3)
+}
+
+/// บัญชี Google / Microsoft ที่ผูกกับผู้ใช้ — ใช้เข้าสู่ระบบแทนรหัสผ่าน (subject = รหัสผู้ใช้ฝั่งผู้ให้บริการ ไม่เปลี่ยนแม้เปลี่ยนอีเมล)
+model UserIdentity {
+  provider  String
+  subject   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([provider, subject])
+  @@unique([userId, provider])
 }
