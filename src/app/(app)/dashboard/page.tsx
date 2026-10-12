@@ -297,7 +297,7 @@ function TodayTasks({ value }: { value: unknown }) {
           <span className="line-clamp-1">{t.text}</span>
         </li>
       ))}
-      {tasks.length > 3 && <li className="pl-3 text-xs text-slate-400">{tr("+ อีก")}{" "}{tasks.length - 3} {tr("งาน")}</li>}
+      {tasks.length > 3 && <li className="pl-3 text-xs text-slate-400">{tr("+ อีก {0} งาน", [tasks.length - 3])}</li>}
     </ul>
   );
 }
@@ -314,7 +314,7 @@ function YesterdayTasks({ value }: { value: unknown }) {
           <span className="line-clamp-1">{task.text}</span>
         </li>
       ))}
-      {tasks.length > 2 && <li className="pl-3 text-xs text-slate-400">{tr("+ อีก")}{" "}{tasks.length - 2} {tr("งาน")}</li>}
+      {tasks.length > 2 && <li className="pl-3 text-xs text-slate-400">{tr("+ อีก {0} งาน", [tasks.length - 2])}</li>}
     </ul>
   );
 }

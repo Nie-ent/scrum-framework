@@ -37,7 +37,7 @@ export function TaskForm({
   const submit = async (prev: FormState, formData: FormData): Promise<FormState> => {
     const result = await createTask(prev, formData);
     if (!result?.id || files.length === 0) return result;
-    const { errors } = await uploadFiles({ taskId: result.id }, files, setProgress);
+    const { errors } = await uploadFiles({ taskId: result.id }, files, setProgress, tr);
     setProgress(null);
     setFiles([]);
     return errors.length > 0 ? { error: tr("สร้างงานแล้ว แต่แนบไฟล์ไม่สำเร็จ — {0}", [errors.join(" · ")]) } : result;

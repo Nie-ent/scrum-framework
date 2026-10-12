@@ -14,6 +14,7 @@ import { getTeamControl } from "@/lib/teams";
 import { InviteFields, TeamFields, roleTitle as title, teamName } from "@/lib/schemas";
 import { hashToken, inDays, newToken } from "@/lib/tokens";
 import type { FormState } from "./auth";
+import { getTr, trFor } from "@/lib/i18n/server";
 
 function done(teamId?: string) {
   revalidatePath("/teams");
@@ -84,23 +85,28 @@ export async function inviteMember(_: FormState, formData: FormData): Promise<Fo
     data: { teamId, email, access, title: parsed.data.title, invitedById: user.id, tokenHash, expiresAt: inDays(INVITE_DAYS) },
   });
   const link = appUrl(`/invite/${token}`);
+  // ภาษาของคำเชิญ: ของผู้รับถ้ามีบัญชีอยู่แล้ว ไม่งั้นใช้ภาษาของคนเชิญ
+  const invitee = await prisma.user.findUnique({ where: { email }, select: { id: true, emailVerifiedAt: true, locale: true } });
+  const mine = await getTr();
+  const lang = invitee?.locale ?? user.locale;
+  const tr = trFor(lang);
   const emailed = await sendEmail({
     to: email,
-    subject: `${user.name} เชิญคุณเข้าทีม ${control.team.name} บน Pace`,
-    heading: `คุณได้รับเชิญเข้าทีม ${control.team.name}`,
-    body: `${user.name} เชิญคุณเข้าร่วมทีม ${control.team.name} บน Pace\nคำเชิญนี้ใช้ได้ ${INVITE_DAYS} วัน`,
-    action: { label: "รับคำเชิญ", url: link },
+    subject: tr("{0} เชิญคุณเข้าทีม {1} บน Pace", [user.name, control.team.name]),
+    heading: tr("คุณได้รับเชิญเข้าทีม {0}", [control.team.name]),
+    body: `${tr("{0} เชิญคุณเข้าร่วมทีม {1} บน Pace", [user.name, control.team.name])}\n${tr("คำเชิญนี้ใช้ได้ {0} วัน", [INVITE_DAYS])}`,
+    action: { label: tr("รับคำเชิญ"), url: link },
+    lang,
   });
   // คนที่มีบัญชีอยู่แล้ว: ขึ้นกระดิ่งในแอปให้กดรับได้เลย
-  const invitee = await prisma.user.findUnique({ where: { email }, select: { id: true, emailVerifiedAt: true } });
   if (invitee?.emailVerifiedAt) {
     await prisma.notification.create({
-      data: { userId: invitee.id, title: `${user.name} เชิญคุณเข้าทีม ${control.team.name}`, body: "กดเพื่อดูและรับคำเชิญ", url: "/teams" },
+      data: { userId: invitee.id, title: tr("{0} เชิญคุณเข้าทีม {1}", [user.name, control.team.name]), body: tr("กดเพื่อดูและรับคำเชิญ"), url: "/teams" },
     });
   }
   done(teamId);
   // id = ลิงก์คำเชิญ แสดงให้คัดลอกครั้งเดียว (ใน database เก็บเฉพาะ hash)
-  return { ok: emailed ? `ส่งคำเชิญไปที่ ${email} แล้ว` : "สร้างคำเชิญแล้ว — คัดลอกลิงก์ด้านล่างส่งให้เขา (ถ้าเขามีบัญชีที่ยืนยันอีเมลแล้ว จะเห็นคำเชิญในแอปเลย)", id: link };
+  return { ok: emailed ? mine("ส่งคำเชิญไปที่ {0} แล้ว", [email]) : "สร้างคำเชิญแล้ว — คัดลอกลิงก์ด้านล่างส่งให้เขา (ถ้าเขามีบัญชีที่ยืนยันอีเมลแล้ว จะเห็นคำเชิญในแอปเลย)", id: link };
 }
 
 export async function revokeInvite(formData: FormData) {
@@ -207,7 +213,7 @@ export async function deleteTeam(_: FormState, formData: FormData): Promise<Form
   ]);
   await notify(
     members.map((m) => ({ userId: m.userId })),
-    { title: `ทีม ${control.team.name} ถูกลบ`, body: `${user.name} ลบทีมนี้แล้ว`, url: "/teams" },
+    (tr) => ({ title: tr("ทีม {0} ถูกลบ", [control.team.name]), body: tr("{0} ลบทีมนี้แล้ว", [user.name]), url: "/teams" }),
   );
   done();
   redirect(control.team.parentId ? `/teams/${control.team.parentId}` : "/teams");

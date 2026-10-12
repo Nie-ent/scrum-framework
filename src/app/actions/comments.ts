@@ -73,11 +73,10 @@ export async function addComment(_: FormState, formData: FormData): Promise<Form
   // แจ้งเจ้าของและคนที่เคยคอมเมนต์ในเธรดนี้
   const earlier = await prisma.comment.findMany({ where: target.where, select: { authorId: true }, distinct: ["authorId"] });
   const recipientIds = [...new Set([target.ownerId, ...earlier.map((c) => c.authorId)])].filter((id) => id !== user.id);
-  const text = parsed.data.body || "📎 แนบไฟล์";
-  const body = text.length > 120 ? `${text.slice(0, 120)}…` : text;
+  const clip = (text: string) => (text.length > 120 ? `${text.slice(0, 120)}…` : text);
   await notify(
     recipientIds.map((id) => ({ userId: id, url: target.url(id) })),
-    { title: `${user.name} แสดงความคิดเห็น`, body: `${parsed.data.taskId ? `${target.label}: ` : ""}${body}`, url: target.url(target.ownerId) },
+    (tr) => ({ title: tr("{0} แสดงความคิดเห็น", [user.name]), body: `${parsed.data.taskId ? `${target.label}: ` : ""}${clip(parsed.data.body || tr("📎 แนบไฟล์"))}`, url: target.url(target.ownerId) }),
   );
   done();
   return { ok: "ส่งแล้ว", id: comment.id };

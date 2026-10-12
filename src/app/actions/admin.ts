@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { LEVEL } from "@/lib/permissions";
 import type { FormState } from "./auth";
+import { getTr } from "@/lib/i18n/server";
 
 const requireAdmin = () => requireUser(LEVEL.ADMIN);
 
@@ -41,7 +42,7 @@ export async function saveRole(_: FormState, formData: FormData): Promise<FormSt
   const { id, ...data } = parsed.data;
 
   if (data.level > actor.role.level) {
-    return { error: `กำหนด level ได้ไม่เกิน level ของตัวเอง (${actor.role.level})` };
+    return { error: (await getTr())("กำหนด level ได้ไม่เกิน level ของตัวเอง ({0})", [actor.role.level]) };
   }
   if (id === actor.roleId && data.level < LEVEL.ADMIN) {
     return { error: "ลด level ของ role ตัวเองต่ำกว่า Admin ไม่ได้" };

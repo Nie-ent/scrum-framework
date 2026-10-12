@@ -4,16 +4,18 @@ import { useActionState } from "react";
 import { saveRole, saveTeam, saveUser } from "@/app/actions/admin";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Select } from "@/components/select";
+import { useT } from "@/components/i18n";
 
 type Option = { id: string; name: string };
 
 export function RoleForm({ role }: { role?: { id: string; name: string; level: number; description: string | null } }) {
+  const tr = useT();
   const [state, action] = useActionState(saveRole, undefined);
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-[1fr_120px_2fr_auto] sm:items-end">
       {role && <input type="hidden" name="id" value={role.id} />}
       <div>
-        <label className="label">ชื่อ role</label>
+        <label className="label">{tr("ชื่อ role")}</label>
         <input className="input" name="name" defaultValue={role?.name} required />
       </div>
       <div>
@@ -21,10 +23,10 @@ export function RoleForm({ role }: { role?: { id: string; name: string; level: n
         <input className="input" name="level" type="number" min={1} defaultValue={role?.level ?? 10} required />
       </div>
       <div>
-        <label className="label">คำอธิบาย</label>
+        <label className="label">{tr("คำอธิบาย")}</label>
         <input className="input" name="description" defaultValue={role?.description ?? ""} />
       </div>
-      <SubmitButton>{role ? "บันทึก" : "เพิ่ม role"}</SubmitButton>
+      <SubmitButton>{role ? tr("บันทึก") : tr("เพิ่ม role")}</SubmitButton>
       <div className="sm:col-span-4"><FormMessage state={state} /></div>
     </form>
   );
@@ -39,21 +41,22 @@ export function TeamForm({
   parents: Option[];
   hasChildren?: boolean;
 }) {
+  const tr = useT();
   const [state, action] = useActionState(saveTeam, undefined);
   return (
     <form action={action} className="flex flex-wrap items-start gap-2">
       {team && <input type="hidden" name="id" value={team.id} />}
-      <input className="input max-w-xs" name="name" defaultValue={team?.name} placeholder="ชื่อทีม" required />
+      <input className="input max-w-xs" name="name" defaultValue={team?.name} placeholder={tr("ชื่อทีม")} required />
       <Select
         className="w-56"
         name="parentId"
-        aria-label="ระดับของทีม"
+        aria-label={tr("ระดับของทีม")}
         defaultValue={team?.parentId ?? ""}
         disabled={hasChildren}
-        title={hasChildren ? "ทีมที่มีทีมย่อยต้องเป็นทีมระดับบน" : undefined}
-        options={[{ value: "", label: "ทีมระดับบน" }, ...parents.filter((p) => p.id !== team?.id).map((p) => ({ value: p.id, label: `ทีมย่อยของ ${p.name}` }))]}
+        title={hasChildren ? tr("ทีมที่มีทีมย่อยต้องเป็นทีมระดับบน") : undefined}
+        options={[{ value: "", label: tr("ทีมระดับบน") }, ...parents.filter((p) => p.id !== team?.id).map((p) => ({ value: p.id, label: tr("ทีมย่อยของ {0}", [p.name]) }))]}
       />
-      <SubmitButton className={team ? "btn-ghost" : "btn"}>{team ? "บันทึก" : "เพิ่มทีม"}</SubmitButton>
+      <SubmitButton className={team ? "btn-ghost" : "btn"}>{team ? tr("บันทึก") : tr("เพิ่มทีม")}</SubmitButton>
       <FormMessage state={state} />
     </form>
   );
@@ -80,36 +83,37 @@ export function UserForm({
   /** เรียงแบบต้นไม้แล้ว (ทีมใหญ่ → ทีมย่อย) */
   teams: TeamOption[];
 }) {
+  const tr = useT();
   const [state, action] = useActionState(saveUser, undefined);
   const member = new Map(user?.memberships.map((m) => [m.teamId, m.lead]));
   return (
     <form action={action} className="grid gap-3 md:grid-cols-3">
       {user && <input type="hidden" name="id" value={user.id} />}
       <div>
-        <label className="label">ชื่อ</label>
+        <label className="label">{tr("ชื่อ")}</label>
         <input className="input" name="name" defaultValue={user?.name} required />
       </div>
       <div>
-        <label className="label">อีเมล</label>
+        <label className="label">{tr("อีเมล")}</label>
         <input className="input" name="email" type="email" defaultValue={user?.email} required />
       </div>
       <div>
-        <label className="label">{user ? "รีเซ็ตรหัสผ่าน (เว้นว่าง = ไม่เปลี่ยน)" : "รหัสผ่านเริ่มต้น"}</label>
+        <label className="label">{user ? tr("รีเซ็ตรหัสผ่าน (เว้นว่าง = ไม่เปลี่ยน)") : tr("รหัสผ่านเริ่มต้น")}</label>
         <input className="input" name="password" type="password" minLength={8} required={!user} autoComplete="new-password" />
       </div>
       <div>
         <label className="label">Role</label>
-        <Select name="roleId" aria-label="Role" placeholder="เลือก role" defaultValue={user?.roleId ?? ""} options={roles.map((r) => ({ value: r.id, label: `${r.name} (Lv ${r.level})` }))} />
+        <Select name="roleId" aria-label="Role" placeholder={tr("เลือก role")} defaultValue={user?.roleId ?? ""} options={roles.map((r) => ({ value: r.id, label: `${r.name} (Lv ${r.level})` }))} />
       </div>
       <div className="flex items-end gap-3 md:col-span-2">
         <label className="flex items-center gap-2 pb-2 text-sm">
-          <input type="checkbox" name="active" defaultChecked={user?.active ?? true} /> ใช้งานอยู่
+          <input type="checkbox" name="active" defaultChecked={user?.active ?? true} /> {tr("ใช้งานอยู่")}
         </label>
       </div>
       <fieldset className="md:col-span-3">
-        <legend className="label">ทีม <span className="font-normal text-slate-400">(เลือกได้หลายทีม · ★ = หัวหน้าทีม เห็นภาพรวมทีมนั้นและทีมย่อย)</span></legend>
+        <legend className="label">{tr("ทีม")}{" "}<span className="font-normal text-slate-400">{tr("(เลือกได้หลายทีม · ★ = หัวหน้าทีม เห็นภาพรวมทีมนั้นและทีมย่อย)")}</span></legend>
         {teams.length === 0 ? (
-          <p className="text-sm text-slate-400">ยังไม่มีทีม — สร้างได้ที่เมนู ทีม</p>
+          <p className="text-sm text-slate-400">{tr("ยังไม่มีทีม — สร้างได้ที่เมนู ทีม")}</p>
         ) : (
           <div className="grid gap-1 rounded-lg border border-slate-200 p-2 sm:grid-cols-2">
             {teams.map((t) => (
@@ -120,7 +124,7 @@ export function UserForm({
                   {t.name}
                 </label>
                 <label className="flex items-center gap-1 text-xs text-slate-500">
-                  <input type="checkbox" name="leads" value={t.id} defaultChecked={member.get(t.id) === true} /> ★ หัวหน้า
+                  <input type="checkbox" name="leads" value={t.id} defaultChecked={member.get(t.id) === true} /> {tr("★ หัวหน้า")}
                 </label>
               </div>
             ))}
@@ -129,7 +133,7 @@ export function UserForm({
       </fieldset>
       <div className="md:col-span-3 flex items-center justify-between gap-3">
         <FormMessage state={state} />
-        <SubmitButton>{user ? "บันทึก" : "เพิ่มผู้ใช้"}</SubmitButton>
+        <SubmitButton>{user ? tr("บันทึก") : tr("เพิ่มผู้ใช้")}</SubmitButton>
       </div>
     </form>
   );

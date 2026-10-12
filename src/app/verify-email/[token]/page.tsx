@@ -4,7 +4,10 @@ import { verifyEmail } from "@/app/actions/auth";
 import { AuthShell } from "@/components/auth-shell";
 import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "ยืนยันอีเมล", referrer: "no-referrer" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("ยืนยันอีเมล"), referrer: "no-referrer" };
+}
 
 export default async function VerifyEmailPage({ params }: PageProps<"/verify-email/[token]">) {
   await ensureLang();

@@ -4,7 +4,10 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { cookies } from "next/headers";
 import { createSession, deleteSession } from "@/lib/session";
+import { isLang, LANG_COOKIE } from "@/lib/i18n/core";
+import { ensureLang, getTr, trFor } from "@/lib/i18n/server";
 import { appUrl, isEmailConfigured, sendEmail } from "@/lib/email";
 import { isSignupOpen, openInvite } from "@/lib/invites";
 import { TOO_MANY, clientIp, rateLimit } from "@/lib/rate-limit";
@@ -30,6 +33,9 @@ export async function login(_: FormState, formData: FormData): Promise<FormState
   if (!valid) return { error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" };
 
   await createSession(user.id, formData.get("remember") === "on");
+  // เบราว์เซอร์นี้ยังไม่เคยเลือกภาษา → ใช้ภาษาที่บัญชีตั้งไว้
+  const jar = await cookies();
+  if (!jar.get(LANG_COOKIE) && isLang(user.locale)) jar.set(LANG_COOKIE, user.locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   redirect(safeNext(formData.get("next")));
 }
 
@@ -74,12 +80,16 @@ async function sendVerification(userId: string, email: string) {
   if (!isEmailConfigured()) return false;
   const { token, tokenHash } = newToken();
   await prisma.authToken.create({ data: { userId, type: "EMAIL_VERIFY", tokenHash, expiresAt: inHours(48) } });
+  // คนที่ขอคือเจ้าของอีเมลเอง — ใช้ภาษาที่เขากำลังใช้อยู่
+  const lang = await ensureLang();
+  const tr = trFor(lang);
   return sendEmail({
     to: email,
-    subject: "ยืนยันอีเมลของคุณบน Pace",
-    heading: "ยืนยันอีเมล",
-    body: "กดปุ่มด้านล่างเพื่อยืนยันว่าอีเมลนี้เป็นของคุณ เมื่อยืนยันแล้วคำเชิญเข้าทีมที่ส่งถึงอีเมลนี้จะขึ้นในแอปให้กดรับได้เลย\nลิงก์ใช้ได้ 48 ชั่วโมง",
-    action: { label: "ยืนยันอีเมล", url: appUrl(`/verify-email/${token}`) },
+    subject: tr("ยืนยันอีเมลของคุณบน Pace"),
+    heading: tr("ยืนยันอีเมล"),
+    body: `${tr("กดปุ่มด้านล่างเพื่อยืนยันว่าอีเมลนี้เป็นของคุณ เมื่อยืนยันแล้วคำเชิญเข้าทีมที่ส่งถึงอีเมลนี้จะขึ้นในแอปให้กดรับได้เลย")}\n${tr("ลิงก์ใช้ได้ 48 ชั่วโมง")}`,
+    action: { label: tr("ยืนยันอีเมล"), url: appUrl(`/verify-email/${token}`) },
+    lang,
   });
 }
 
@@ -92,7 +102,7 @@ export async function resendVerification(): Promise<FormState> {
     where: { userId: user.id, type: "EMAIL_VERIFY", createdAt: { gt: new Date(Date.now() - 2 * 60 * 1000) } },
   });
   if (recent) return { error: "เพิ่งส่งไป กรุณารอสักครู่แล้วลองใหม่" };
-  return (await sendVerification(user.id, user.email)) ? { ok: `ส่งลิงก์ยืนยันไปที่ ${user.email} แล้ว` } : { error: "ส่งอีเมลไม่สำเร็จ" };
+  return (await sendVerification(user.id, user.email)) ? { ok: (await getTr())("ส่งลิงก์ยืนยันไปที่ {0} แล้ว", [user.email]) } : { error: "ส่งอีเมลไม่สำเร็จ" };
 }
 
 /** ใช้ token ครั้งเดียว — คืน userId ถ้าถูกต้องและยังไม่หมดอายุ */
@@ -127,12 +137,14 @@ export async function requestPasswordReset(_: FormState, formData: FormData): Pr
     if (!recent) {
       const { token, tokenHash } = newToken();
       await prisma.authToken.create({ data: { userId: user.id, type: "PASSWORD_RESET", tokenHash, expiresAt: inHours(1) } });
+      const tr = trFor(user.locale);
       await sendEmail({
         to: user.email,
-        subject: "ตั้งรหัสผ่านใหม่สำหรับ Pace",
-        heading: "ตั้งรหัสผ่านใหม่",
-        body: "มีคนขอตั้งรหัสผ่านใหม่ให้บัญชีนี้ ถ้าไม่ใช่คุณ ไม่ต้องทำอะไร รหัสผ่านเดิมยังใช้ได้\nลิงก์ใช้ได้ 1 ชั่วโมง และใช้ได้ครั้งเดียว",
-        action: { label: "ตั้งรหัสผ่านใหม่", url: appUrl(`/reset-password/${token}`) },
+        subject: tr("ตั้งรหัสผ่านใหม่สำหรับ Pace"),
+        heading: tr("ตั้งรหัสผ่านใหม่"),
+        body: `${tr("มีคนขอตั้งรหัสผ่านใหม่ให้บัญชีนี้ ถ้าไม่ใช่คุณ ไม่ต้องทำอะไร รหัสผ่านเดิมยังใช้ได้")}\n${tr("ลิงก์ใช้ได้ 1 ชั่วโมง และใช้ได้ครั้งเดียว")}`,
+        action: { label: tr("ตั้งรหัสผ่านใหม่"), url: appUrl(`/reset-password/${token}`) },
+        lang: user.locale,
       });
     }
   }

@@ -2,6 +2,7 @@ import { deleteTeam } from "@/app/actions/admin";
 import { prisma } from "@/lib/db";
 import { sortTeamTree } from "@/lib/teams";
 import { TeamForm } from "../forms";
+import { tr } from "@/lib/i18n/server";
 
 export default async function TeamsPage() {
   const teams = sortTeamTree(
@@ -20,9 +21,9 @@ export default async function TeamsPage() {
   return (
     <div className="space-y-4">
       <div className="card">
-        <h2 className="mb-1 font-semibold">เพิ่มทีม</h2>
+        <h2 className="mb-1 font-semibold">{tr("เพิ่มทีม")}</h2>
         <p className="mb-3 text-sm text-slate-500">
-          ซ้อนได้ 2 ชั้น เช่น ทีมใหญ่ &quot;Tribe Payment&quot; → ทีมย่อย &quot;Squad Checkout&quot; · หัวหน้าทีมใหญ่เห็นภาพรวมทุกทีมย่อย
+          {tr("ซ้อนได้ 2 ชั้น เช่น ทีมใหญ่ \"Tribe Payment\" → ทีมย่อย \"Squad Checkout\" · หัวหน้าทีมใหญ่เห็นภาพรวมทุกทีมย่อย")}
         </p>
         <TeamForm parents={parents} />
       </div>
@@ -35,19 +36,19 @@ export default async function TeamsPage() {
             </div>
             <div className="flex items-center gap-3 text-sm text-slate-500">
               <span>
-                {team._count.members} คน
+                {tr("{0} คน", [team._count.members])}
                 {team.members.length > 0 && ` · ★ ${team.members.map((m) => m.user.name).join(", ")}`}
               </span>
               {team._count.children === 0 && (
                 <form action={deleteTeam}>
                   <input type="hidden" name="id" value={team.id} />
-                  <button className="text-red-600 hover:underline">ลบ</button>
+                  <button className="text-red-600 hover:underline">{tr("ลบ")}</button>
                 </form>
               )}
             </div>
           </div>
         ))}
-        {teams.length === 0 && <p className="text-sm text-slate-500">ยังไม่มีทีม</p>}
+        {teams.length === 0 && <p className="text-sm text-slate-500">{tr("ยังไม่มีทีม")}</p>}
       </div>
     </div>
   );

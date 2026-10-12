@@ -4,7 +4,10 @@ import { AuthShell } from "@/components/auth-shell";
 import { ResetForm } from "./reset-form";
 import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "ตั้งรหัสผ่านใหม่", referrer: "no-referrer" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("ตั้งรหัสผ่านใหม่"), referrer: "no-referrer" };
+}
 
 export default async function ResetPasswordPage({ params }: PageProps<"/reset-password/[token]">) {
   await ensureLang();

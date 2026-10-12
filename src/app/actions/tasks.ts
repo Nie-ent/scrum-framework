@@ -54,11 +54,11 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
   const task = await prisma.task.create({ data: { ...data, number, createdById: user.id } });
 
   if (data.assigneeId !== user.id) {
-    await notify([{ userId: data.assigneeId }], {
-      title: `งานใหม่จาก ${user.name}`,
-      body: `${data.title} · ทีม ${assignee.team.name}`,
+    await notify([{ userId: data.assigneeId }], (tr) => ({
+      title: tr("งานใหม่จาก {0}", [user.name]),
+      body: tr("{0} · ทีม {1}", [data.title, assignee.team.name]),
       url: `/tasks?team=${data.teamId}`,
-    });
+    }));
   }
   done();
   return { ok: data.assigneeId === user.id ? "เพิ่มงานแล้ว" : "มอบหมายงานแล้ว", id: task.id };
@@ -134,11 +134,11 @@ async function notifyProgress(
   const change = progress === task.progress ? `${progress}%` : `${task.progress}% → ${progress}%`;
   await notify(
     [...ids].map((userId) => ({ userId })),
-    {
-      title: progress >= 100 && task.progress < 100 ? `${actor.name} ทำงานเสร็จแล้ว` : `${actor.name} อัปเดตความคืบหน้า ${change}`,
+    (tr) => ({
+      title: progress >= 100 && task.progress < 100 ? tr("{0} ทำงานเสร็จแล้ว", [actor.name]) : tr("{0} อัปเดตความคืบหน้า {1}", [actor.name, change]),
       body: `${task.title}${reason ? ` — ${reason}` : ""}`,
       url: `/tasks?team=${task.teamId}`,
-    },
+    }),
     // อัปเดต % เกิดบ่อย: แจ้งในแอปและ push เท่านั้น ไม่ส่งอีเมล
     { email: false },
   );

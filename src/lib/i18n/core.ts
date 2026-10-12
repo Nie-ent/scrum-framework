@@ -18,14 +18,18 @@ export type Translate = (text: string, vars?: Vars) => string;
 
 const fill = (text: string, vars?: Vars) => (vars ? text.replace(/\{(\d+)\}/g, (whole, i) => (vars[Number(i)] === undefined ? whole : String(vars[Number(i)]))) : text);
 
+/** ภาษาอังกฤษ: "1 tasks" → "1 task" สำหรับคำนับที่ใช้ในแอป */
+const SINGULAR: Record<string, string> = { tasks: "task", days: "day", files: "file", items: "item", notes: "note", devices: "device", times: "time", workdays: "workday", "check-ins": "check-in", people: "person", folders: "folder", invitations: "invitation" };
+const one = (text: string) => text.replace(/(^|[^\d.,])1 (tasks|days|files|items|notes|devices|times|workdays|check-ins|people|folders|invitations)\b/g, (_, before, word) => `${before}1 ${SINGULAR[word]}`);
+
 export function translate(lang: Lang, text: string, vars?: Vars): string {
   if (lang === "th") return fill(text, vars);
   const hit = en[text];
-  if (hit !== undefined) return fill(hit, vars);
+  if (hit !== undefined) return one(fill(hit, vars));
   // ข้อความที่มีช่องว่างหัวท้าย: หาคำแปลของส่วนกลาง แล้วคืนช่องว่างเดิม
   const core = text.trim();
   const inner = core === text ? undefined : en[core];
-  return fill(inner === undefined ? text : text.replace(core, inner), vars);
+  return one(fill(inner === undefined ? text : text.replace(core, inner), vars));
 }
 
 /** locale ของ Intl สำหรับวันที่และตัวเลข */

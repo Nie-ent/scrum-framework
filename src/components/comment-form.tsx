@@ -20,7 +20,7 @@ export function CommentForm({ target, label, canAttach }: { target: CommentTarge
     if (files.length > 0) formData.set("hasFiles", "1");
     const result = await addComment(prev, formData);
     if (!result?.id || files.length === 0) return result;
-    const { uploaded, errors } = await uploadFiles({ commentId: result.id }, files, setProgress);
+    const { uploaded, errors } = await uploadFiles({ commentId: result.id }, files, setProgress, tr);
     setProgress(null);
     setFiles([]);
     if (errors.length === 0) return result;

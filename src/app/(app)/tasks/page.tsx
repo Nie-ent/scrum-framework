@@ -160,7 +160,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             <p className="eyebrow">{tr("รายการงาน")}</p>
             <h1 className="page-title">{tr("งาน")}</h1>
             <p className="page-subtitle">
-              {team.name} {tr("· ค้างอยู่")}{" "}{open.length} {tr("งาน")}{shared && mine.length !== open.length && tr(" (ของฉัน {0})", [mine.length])}
+              {team.name} · {tr("ค้างอยู่ {0} งาน", [open.length])}{shared && mine.length !== open.length && tr(" (ของฉัน {0})", [mine.length])}
               {overdue > 0 && <> · <Link href={`${all}&overdue=1`} className="font-medium text-danger underline-offset-2 hover:underline">{tr("เลยกำหนด")}{" "}{overdue}</Link></>}
             </p>
           </div>
@@ -173,7 +173,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         {filtered && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-sunken px-4 py-2.5 text-sm">
             <span className="text-foreground">
-              {tr("กำลังแสดงเฉพาะ")}{onlyOverdue ? tr("งานที่เลยกำหนด") : tr("งานค้าง")}{who && <>{tr("ของ")}{" "}<b className="font-semibold">{who.name}</b></>} · {shown.length} {tr("งาน")}
+              {tr("กำลังแสดงเฉพาะ")}{onlyOverdue ? tr("งานที่เลยกำหนด") : tr("งานค้าง")}{who && <>{tr("ของ")}{" "}<b className="font-semibold">{who.name}</b></>} · {tr("{0} งาน", [shown.length])}
             </span>
             <Link href={all} className="font-medium text-primary hover:text-primary-strong">{tr("ดูงานทั้งหมด")}</Link>
           </div>
@@ -188,7 +188,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             <section key={g.id} className="card">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2.5 text-sm font-semibold text-foreground">{shared && <Avatar user={g.person} size={24} />}{g.name}</h2>
-                <span className="badge badge-neutral">{g.tasks.length} {tr("งาน")}</span>
+                <span className="badge badge-neutral">{tr("{0} งาน", [g.tasks.length])}</span>
               </div>
               <ul className="divide-y divide-border">{g.tasks.map(renderTask)}</ul>
             </section>

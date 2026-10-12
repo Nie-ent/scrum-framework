@@ -8,6 +8,7 @@ import { teamAccess } from "@/lib/access";
 import { MAX_FILE_BYTES, formatBytes } from "@/lib/attachments";
 import { newExpiry, purgeAttachments } from "@/lib/attachment-store";
 import { createUploadUrl, isFileStorageConfigured, storedSize } from "@/lib/file-store";
+import { getTr } from "@/lib/i18n/server";
 
 function done() {
   revalidatePath("/tasks");
@@ -35,7 +36,7 @@ export async function requestUpload(input: z.input<typeof UploadSchema>): Promis
   const parsed = UploadSchema.safeParse(input);
   if (!parsed.success) return { error: "ข้อมูลไฟล์ไม่ถูกต้อง" };
   const { taskId, commentId, name, mimeType, size } = parsed.data;
-  if (size > MAX_FILE_BYTES) return { error: `ไฟล์ใหญ่เกิน ${formatBytes(MAX_FILE_BYTES)}` };
+  if (size > MAX_FILE_BYTES) return { error: (await getTr())("ไฟล์ใหญ่เกิน {0}", [formatBytes(MAX_FILE_BYTES)]) };
 
   let allowed = false;
   if (taskId && !commentId) {

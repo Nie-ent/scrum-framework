@@ -54,7 +54,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
           <div>
             <p className="eyebrow">{parent ? tr("ทีมย่อยของ {0}", [parent.name]) : tr("ตั้งค่าทีม")}</p>
             <h1 className="page-title">{team.name}</h1>
-            <p className="page-subtitle">{members.length} {tr("คน")}{invites.length > 0 && tr(" · รอรับคำเชิญ {0}", [invites.length])}</p>
+            <p className="page-subtitle">{tr("{0} คน", [members.length])}{invites.length > 0 && tr(" · รอรับคำเชิญ {0}", [invites.length])}</p>
           </div>
         </div>
       </div>
@@ -133,7 +133,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
             <ul className="mb-4 divide-y divide-slate-100">
               {children.map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <span className="font-medium text-slate-800">{c.name} <span className="text-xs font-normal text-slate-500">· {c._count.members} {tr("คน")}</span></span>
+                  <span className="font-medium text-slate-800">{c.name} <span className="text-xs font-normal text-slate-500">· {tr("{0} คน", [c._count.members])}</span></span>
                   <Link href={`/teams/${c.id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">{tr("จัดการ →")}</Link>
                 </li>
               ))}

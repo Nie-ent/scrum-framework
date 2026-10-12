@@ -102,7 +102,8 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       : view === "week"
         ? `${fmt(rangeStart, { day: "numeric", month: "short" })} – ${fmt(rangeEnd, { day: "numeric", month: "short", year: "numeric" })}`
         : formatDateKey(anchor);
-  const unit = { month: tr("เดือน"), week: tr("สัปดาห์"), day: tr("วัน") }[view];
+  // ใช้กลางประโยค — ภาษาอังกฤษเป็นตัวพิมพ์เล็ก (ภาษาไทยไม่เปลี่ยน)
+  const unit = { month: tr("เดือน"), week: tr("สัปดาห์"), day: tr("วัน") }[view].toLowerCase();
   // ตัวเลือกเดือน: ย้อนหลังและล่วงหน้า 12 เดือนจากเดือนที่ดูอยู่
   const monthHref = (m: string) => href(view, m === today.slice(0, 7) ? today : `${m}-01`);
   const monthOptions = Array.from({ length: 25 }, (_, i) => shiftMonth(month, i - 12)).map((m) => ({ value: monthHref(m), label: monthLabel(m) }));
@@ -215,7 +216,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
                   </div>
                   <ul className="space-y-1">
                     {tasks.slice(0, limit).map((t) => <Chip key={t.id} t={t} day={key} />)}
-                    {tasks.length > limit && <li><Link href={deeper(key)} className="px-1.5 text-xs text-muted-foreground hover:text-primary">{tr("+ อีก")}{" "}{tasks.length - limit} {tr("งาน")}</Link></li>}
+                    {tasks.length > limit && <li><Link href={deeper(key)} className="px-1.5 text-xs text-muted-foreground hover:text-primary">{tr("+ อีก {0} งาน", [tasks.length - limit])}</Link></li>}
                   </ul>
                 </div>
               );

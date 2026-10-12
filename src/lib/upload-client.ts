@@ -1,13 +1,17 @@
 import axios from "axios";
+import { translate, type Translate } from "./i18n/core";
+
+/** ไม่ได้ส่งตัวแปลมา = ข้อความไทยตามเดิม */
+const same: Translate = (text, vars) => translate("th", text, vars);
 import { confirmUpload, requestUpload } from "@/app/actions/attachments";
 import { MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD, formatBytes, type AttachmentTarget } from "./attachments";
 
 /** ตรวจไฟล์ที่เลือกก่อนอัปโหลด — คืนข้อความ error หรือ null */
-export function checkFiles(files: File[]): string | null {
-  if (files.length > MAX_FILES_PER_UPLOAD) return `แนบได้ครั้งละไม่เกิน ${MAX_FILES_PER_UPLOAD} ไฟล์`;
+export function checkFiles(files: File[], tr: Translate = same): string | null {
+  if (files.length > MAX_FILES_PER_UPLOAD) return tr("แนบได้ครั้งละไม่เกิน {0} ไฟล์", [MAX_FILES_PER_UPLOAD]);
   const big = files.find((f) => f.size > MAX_FILE_BYTES);
-  if (big) return `"${big.name}" ใหญ่เกิน ${formatBytes(MAX_FILE_BYTES)}`;
-  if (files.some((f) => f.size === 0)) return "แนบไฟล์ว่างไม่ได้";
+  if (big) return tr('"{0}" ใหญ่เกิน {1}', [big.name, formatBytes(MAX_FILE_BYTES)]);
+  if (files.some((f) => f.size === 0)) return tr("แนบไฟล์ว่างไม่ได้");
   return null;
 }
 
@@ -23,6 +27,7 @@ export async function uploadFiles(
   target: AttachmentTarget,
   files: File[],
   onProgress?: (progress: UploadProgress) => void,
+  tr: Translate = same,
 ): Promise<{ uploaded: number; errors: string[] }> {
   let uploaded = 0;
   const errors: string[] = [];
@@ -35,7 +40,7 @@ export async function uploadFiles(
     try {
       const ticket = await requestUpload({ ...target, name: file.name, mimeType: file.type, size: file.size });
       if ("error" in ticket) {
-        errors.push(`${file.name}: ${ticket.error}`);
+        errors.push(`${file.name}: ${tr(ticket.error)}`);
         continue;
       }
       await axios.put(ticket.uploadUrl, file, {
@@ -43,12 +48,12 @@ export async function uploadFiles(
         onUploadProgress: (e) => report(e.loaded),
       });
       if (!(await confirmUpload(ticket.id)).ok) {
-        errors.push(`${file.name}: อัปโหลดไม่สำเร็จ`);
+        errors.push(`${file.name}: ${tr("อัปโหลดไม่สำเร็จ")}`);
         continue;
       }
       uploaded++;
     } catch {
-      errors.push(`${file.name}: อัปโหลดไม่สำเร็จ`);
+      errors.push(`${file.name}: ${tr("อัปโหลดไม่สำเร็จ")}`);
     } finally {
       sentBefore += file.size;
       report(0);

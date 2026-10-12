@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { canLead, teamsLabel } from "@/lib/permissions";
 import { sortTeamTree } from "@/lib/teams";
 import { UserForm } from "../forms";
+import { tr } from "@/lib/i18n/server";
 
 export default async function UsersPage() {
   const [users, roles, teams] = await Promise.all([
@@ -18,7 +19,7 @@ export default async function UsersPage() {
   return (
     <div className="space-y-4">
       <div className="card">
-        <div className="mb-4 flex items-center justify-between"><div><p className="eyebrow">New member</p><h2 className="font-semibold text-slate-900">เพิ่มผู้ใช้</h2></div><span className="badge badge-neutral">{users.length} คน</span></div>
+        <div className="mb-4 flex items-center justify-between"><div><p className="eyebrow">New member</p><h2 className="font-semibold text-slate-900">{tr("เพิ่มผู้ใช้")}</h2></div><span className="badge badge-neutral">{tr("{0} คน", [users.length])}</span></div>
         <UserForm roles={roles} teams={teamTree} />
       </div>
       {users.map((user) => (
@@ -27,10 +28,10 @@ export default async function UsersPage() {
             <span className={user.active ? "" : "opacity-50"}>
               <span className="font-medium">{user.name}</span>
               <span className="ml-2 text-sm text-slate-500">{user.email}</span>
-              {!user.active && <span className="badge badge-danger ml-2">ปิดใช้งาน</span>}
+              {!user.active && <span className="badge badge-danger ml-2">{tr("ปิดใช้งาน")}</span>}
             </span>
             <span className="text-sm text-slate-500">
-              {user.role.name} · Lv {user.role.level} · {teamsLabel(user.memberships)} <span className="ml-1 text-indigo-600">แก้ไข</span>
+              {user.role.name} · Lv {user.role.level} · {teamsLabel(user.memberships)} <span className="ml-1 text-indigo-600">{tr("แก้ไข")}</span>
             </span>
           </summary>
           <div className="mt-4 border-t border-slate-100 pt-4">

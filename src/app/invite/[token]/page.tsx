@@ -9,7 +9,10 @@ import { hashToken } from "@/lib/tokens";
 import { AcceptForm } from "./accept-form";
 import { ensureLang, tr } from "@/lib/i18n/server";
 
-export const metadata: Metadata = { title: "คำเชิญเข้าทีม", referrer: "no-referrer" };
+export async function generateMetadata(): Promise<Metadata> {
+  await ensureLang();
+  return { title: tr("คำเชิญเข้าทีม"), referrer: "no-referrer" };
+}
 
 /** หน้าลิงก์คำเชิญ — เปิดได้ทั้งตอน login แล้วและยังไม่ login */
 export default async function InvitePage({ params }: PageProps<"/invite/[token]">) {

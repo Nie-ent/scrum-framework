@@ -159,7 +159,7 @@ export function FilePicker({
         onChange={(e) => {
           const next = [...files, ...Array.from(e.target.files ?? [])].slice(0, MAX_FILES_PER_UPLOAD + 1);
           e.target.value = "";
-          const error = checkFiles(next);
+          const error = checkFiles(next, tr);
           onChange(error ? files : next, error);
         }}
       />
@@ -205,7 +205,7 @@ export function AttachButton({ target }: { target: AttachmentTarget }) {
           setError(problem);
           if (problem || files.length === 0 || busy) return;
           setProgress({ fileName: files[0].name, index: 0, total: files.length, percent: 0 });
-          const result = await uploadFiles(target, files, setProgress);
+          const result = await uploadFiles(target, files, setProgress, tr);
           setProgress(null);
           if (result.errors.length > 0) setError(result.errors.join(" · "));
         }}

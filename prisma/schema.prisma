@@ -110,6 +110,8 @@ model User {
   updatedNotes       Note[]             @relation("NoteEditor")
   createdAt          DateTime           @default(now()) @db.Timestamptz(3)
   noteFavorites NoteFavorite[]
+  /// ภาษาที่ใช้ในแอป อีเมล และแจ้งเตือนที่ส่งถึงคนนี้ ("th" | "en")
+  locale        String         @default("th")
 }
 
 /// Daily scrum หนึ่งรายการต่อคน ต่อทีม ต่อวัน — กระดานของแต่ละทีมแยกกัน

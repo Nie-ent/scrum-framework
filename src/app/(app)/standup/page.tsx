@@ -122,7 +122,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
           <section className="card mb-4 border-warning/30 bg-warning-soft/40">
             <div className="mb-1 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-foreground">{tr("งานที่ต้องทำวันนี้")}</h2>
-              <span className="badge badge-warning">{dueNow.length} {tr("งาน")}</span>
+              <span className="badge badge-warning">{tr("{0} งาน", [dueNow.length])}</span>
             </div>
             <ul className="divide-y divide-border/70">
               {dueNow.map((t) => {
@@ -179,7 +179,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
               <p className="eyebrow">{tr("ทีมวันนี้")}</p>
               <h2 className="font-semibold text-slate-900">{tr("เช็กอินของทีมวันนี้ ·")}{" "}{team.name}</h2>
             </div>
-            <span className="badge badge-neutral">{teammates.length} {tr("คน")}</span>
+            <span className="badge badge-neutral">{tr("{0} คน", [teammates.length])}</span>
           </div>
           {teammates.length === 0 ? (
             <p className="text-sm text-slate-500">{tr("ยังไม่มีเพื่อนร่วมทีมเช็กอินวันนี้")}</p>

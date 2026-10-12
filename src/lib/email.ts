@@ -1,4 +1,5 @@
 import "server-only";
+import { trFor } from "./i18n/server";
 
 /**
  * ส่งอีเมลผ่าน Resend (REST API) — ต้องตั้ง RESEND_API_KEY และ EMAIL_FROM (ผู้ส่งบนโดเมนที่ verify กับ Resend แล้ว)
@@ -25,13 +26,14 @@ export function appUrl(path = "") {
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** อีเมลรูปแบบเดียวกันทั้งระบบ: หัวข้อ ข้อความ และปุ่มลิงก์เดียว — คืน false ถ้าไม่ได้ส่ง (ไม่ได้ตั้งค่าหรือ Resend ปฏิเสธ) */
-export async function sendEmail(mail: { to: string; subject: string; heading: string; body: string; action: { label: string; url: string } }): Promise<boolean> {
+export async function sendEmail(mail: { to: string; subject: string; heading: string; body: string; action: { label: string; url: string }; /** ภาษาของข้อความท้ายอีเมล (ค่าเริ่มต้น ไทย) */ lang?: unknown }): Promise<boolean> {
   if (!isEmailConfigured()) return false;
+  const tr = trFor(mail.lang);
   const html = `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#0f172a">
 <h1 style="font-size:20px;margin:0 0 12px">${escapeHtml(mail.heading)}</h1>
 <p style="font-size:15px;line-height:1.6;margin:0 0 20px;white-space:pre-line">${escapeHtml(mail.body)}</p>
 <a href="${escapeHtml(mail.action.url)}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:12px">${escapeHtml(mail.action.label)}</a>
-<p style="font-size:12px;color:#64748b;margin:24px 0 0">ถ้าปุ่มกดไม่ได้ ให้คัดลอกลิงก์นี้ไปเปิด: ${escapeHtml(mail.action.url)}</p>
+<p style="font-size:12px;color:#64748b;margin:24px 0 0">${escapeHtml(tr("ถ้าปุ่มกดไม่ได้ ให้คัดลอกลิงก์นี้ไปเปิด:"))} ${escapeHtml(mail.action.url)}</p>
 <p style="font-size:12px;color:#94a3b8;margin:8px 0 0">Pace — Keep your team moving.</p></div>`;
   try {
     const res = await fetch("https://api.resend.com/emails", {

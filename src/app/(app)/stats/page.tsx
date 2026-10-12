@@ -67,7 +67,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label={tr("เช็กอิน")} value={me.rate === null ? "—" : `${me.rate}%`} hint={tr("{0} จาก {1} วันทำงาน", [me.submitted, me.expected])} tone="text-indigo-600" />
             <Stat label={tr("ส่งต่อเนื่อง")} value={tr("{0} วัน", [me.streak])} hint={tr("วันทำงานติดต่อกันล่าสุด")} tone="text-emerald-600" />
-            <Stat label={tr("งานที่ทำเสร็จ")} value={me.tasksDone} hint={<>{tr("ค้างอยู่")}{" "}{me.tasksOpen}{me.tasksOverdue > 0 && <> · <Link href={`/tasks?team=${team.id}&overdue=1&who=${user.id}`} className="font-medium text-danger underline-offset-2 hover:underline">{tr("เลยกำหนด")}{" "}{me.tasksOverdue} ›</Link></>}</>} tone="text-slate-900" />
+            <Stat label={tr("งานที่ทำเสร็จ")} value={me.tasksDone} hint={<>{tr("ค้างอยู่ {0}", [me.tasksOpen])}{me.tasksOverdue > 0 && <> · <Link href={`/tasks?team=${team.id}&overdue=1&who=${user.id}`} className="font-medium text-danger underline-offset-2 hover:underline">{tr("เลยกำหนด")}{" "}{me.tasksOverdue} ›</Link></>}</>} tone="text-slate-900" />
             <Stat label={tr("ความคิดเห็น")} value={me.comments} hint={tr("ขอความช่วยเหลือ {0} ครั้ง", [me.blockers])} tone="text-slate-900" />
           </div>
         </section>

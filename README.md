@@ -183,3 +183,11 @@ src/app/(app)/admin     จัดการผู้ใช้ / roles & levels / 
 
 คำแนะนำ: เริ่มที่ **Railway** (ง่ายและเร็ว) หรือ **VPS + Coolify** ถ้าอยากคุมค่าใช้จ่ายและข้อมูลเอง
 ทุกแบบต้องตั้ง `AUTH_SECRET` และใช้ HTTPS (อย่าตั้ง `COOKIE_SECURE=false` บน production)
+
+## ภาษา (ไทย / English)
+
+- ผู้ใช้เลือกภาษาได้ที่ รูปโปรไฟล์ → บัญชีและการตั้งค่า → ภาษา (และที่หน้าเข้าสู่ระบบ) ค่าถูกจำใน cookie `pace_lang` ของเบราว์เซอร์ และใน `User.locale` ของบัญชี — เข้าสู่ระบบจากเครื่องใหม่จะได้ภาษาของบัญชี อีเมลและแจ้งเตือนส่งตามภาษาของผู้รับ
+- ข้อความต้นฉบับในโค้ดเป็นภาษาไทย และใช้ข้อความไทยนั้นเป็นคีย์ของคำแปล คำแปลอังกฤษอยู่ที่ `src/lib/i18n/en.ts` (ไม่มีคำแปล = แสดงข้อความไทย)
+- เพิ่มข้อความใหม่: server component ใช้ `tr("ข้อความ")` จาก `@/lib/i18n/server` · client component ใช้ `const tr = useT()` จาก `@/components/i18n` · server action ใช้ `const tr = await getTr()` · ข้อความถึงคนอื่น (อีเมล/แจ้งเตือน) ใช้ `trFor(user.locale)` · ตัวแปรเขียนเป็น `{0}` `{1}` เช่น `tr("ค้างอยู่ {0} งาน", [n])` แล้วเพิ่มคำแปลใน `en.ts`
+- ข้อความ `{ error }` / `{ ok }` แบบคงที่จาก server action ไม่ต้องครอบ — `FormMessage` แปลให้ตอนแสดง แค่เพิ่มคำแปลใน `en.ts`
+- วันที่ใช้ `formatDateKey` / `formatDateTime` จาก `@/lib/format-dates` (ตามภาษา) · ไฟล์ที่ client component import ห้าม import `@/lib/i18n/server`

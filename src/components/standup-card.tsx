@@ -68,7 +68,7 @@ export function TaskListView({ value, showStatus = false }: { value: unknown; sh
       {rest.length > 0 && (
         <details className="group/more text-sm">
           <summary className="mt-0.5 cursor-pointer list-none text-xs font-medium text-indigo-600 marker:hidden hover:text-indigo-800">
-            <span className="group-open/more:hidden">{tr("+ อีก")}{" "}{rest.length} {tr("งาน")}{showStatus && doneInRest > 0 && tr(" (เสร็จแล้ว {0})", [doneInRest])}</span>
+            <span className="group-open/more:hidden">{tr("+ อีก {0} งาน", [rest.length])}{showStatus && doneInRest > 0 && tr(" (เสร็จแล้ว {0})", [doneInRest])}</span>
             <span className="hidden group-open/more:inline">{tr("ย่อรายการ")}</span>
           </summary>
           <ul className="mt-0.5 space-y-0.5">{rest.map((t, i) => row(t, i + VISIBLE_TASKS))}</ul>

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { deleteAvatarImage, saveAvatarImage } from "@/lib/avatar-store";
 import type { FormState } from "./auth";
+import { getTr } from "@/lib/i18n/server";
 
 const MAX_AVATAR_BYTES = 300 * 1024;
 
@@ -49,7 +50,7 @@ export async function uploadAvatar(formData: FormData): Promise<{ ok: boolean; e
     console.error(e);
     // ใส่รหัสสถานะจาก Storage ไว้ท้ายข้อความ ช่วยให้แจ้งปัญหาได้ตรงจุด
     const status = /failed: (\d{3})/.exec(String(e))?.[1];
-    return { ok: false, error: `อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง${status ? ` (Storage ${status})` : ""}` };
+    return { ok: false, error: `${(await getTr())("อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง")}${status ? ` (Storage ${status})` : ""}` };
   }
   await prisma.user.update({ where: { id: user.id }, data: { avatarUpdatedAt: new Date() } });
   revalidatePath("/", "layout");

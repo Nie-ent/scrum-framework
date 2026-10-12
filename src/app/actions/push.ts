@@ -4,6 +4,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isPushConfigured, sendPush } from "@/lib/push";
+import { getTr } from "@/lib/i18n/server";
 
 const SubscriptionSchema = z.object({
   endpoint: z.url().max(2000),
@@ -39,11 +40,12 @@ export async function sendTestPush(): Promise<Result> {
   const user = await requireUser();
   const subs = await prisma.pushSubscription.findMany({ where: { userId: user.id } });
   if (subs.length === 0) return { ok: false, error: "ยังไม่มีเครื่องที่เปิดการแจ้งเตือน" };
+  const tr = await getTr();
   const result = await sendPush(subs, {
-    title: "Pace — ทดสอบการแจ้งเตือน",
-    body: "ถ้าเห็นข้อความนี้ แปลว่าการแจ้งเตือนใช้งานได้ 🎉",
+    title: tr("Pace — ทดสอบการแจ้งเตือน"),
+    body: tr("ถ้าเห็นข้อความนี้ แปลว่าการแจ้งเตือนใช้งานได้ 🎉"),
     url: "/standup",
   });
   if (result.sent === 0) return { ok: false, error: "ส่งไม่สำเร็จ ลองปิดแล้วเปิดการแจ้งเตือนใหม่" };
-  return { ok: true, message: `ส่งแล้ว ${result.sent} เครื่อง` };
+  return { ok: true, message: tr("ส่งแล้ว {0} เครื่อง", [result.sent]) };
 }
