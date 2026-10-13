@@ -3,15 +3,29 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { setTheme } from "@/app/actions/language";
 import { paletteSearch, runCommand, type PaletteItem } from "@/app/actions/palette";
 import { Icon, type IconName } from "@/components/icons";
 import { useLocale, useT } from "@/components/i18n";
 import { todayKey } from "@/lib/dates";
 import { parseCommand, type Command } from "@/lib/quick-command";
+import type { Theme } from "@/lib/theme";
 
 const OPEN = "pace:palette";
 type Space = { id: string; name: string };
-type Row = { key: string; icon: IconName | "run" | "go"; title: string; sub?: string; act: () => void };
+type Row = { key: string; icon: IconName | "run" | "go" | "set"; title: string; sub?: string; act: () => void };
+
+// การตั้งค่าที่สั่งจากแถบคำสั่งได้ — words = คำที่พิมพ์แล้วควรเจอ (นอกจากชื่อของมันเอง)
+const SETTINGS: { theme: Theme; label: string; words: string }[] = [
+  { theme: "dark", label: "เปลี่ยนเป็นธีมมืด", words: "โหมดมืด กลางคืน dark mode theme night" },
+  { theme: "light", label: "เปลี่ยนเป็นธีมสว่าง", words: "โหมดสว่าง กลางวัน light mode theme day" },
+  { theme: "system", label: "ใช้ธีมตามระบบ", words: "โหมดตามระบบ อัตโนมัติ system auto mode theme" },
+];
+const ICON_PATH = {
+  run: "m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z",
+  go: "M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3",
+  set: "M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z",
+};
 
 const SEARCH = "m21 21-5.2-5.2m0 0A7.5 7.5 0 1 0 5.2 5.2a7.5 7.5 0 0 0 10.6 10.6Z";
 const TYPE_ICON: Record<PaletteItem["type"], IconName> = { task: "open", note: "note", folder: "folder", file: "paperclip", person: "comment" };
@@ -44,7 +58,7 @@ export function PaletteButton({ full = false }: { full?: boolean }) {
 /**
  * แถบคำสั่ง (Cmd/Ctrl+K): ช่องเดียวสำหรับค้นงาน โน้ต ไฟล์ และคนในทุกพื้นที่ ไปหน้าต่าง ๆ และพิมพ์คำสั่งลัด
  * เช่น "สร้างงาน เขียนรายงาน ส่ง พรุ่งนี้" · "#12 80%" · "เลื่อน #12 ไปวันศุกร์" — คำสั่งแยกด้วยรูปแบบตายตัว (lib/quick-command) ไม่ใช้ AI
- * คำสั่งทำกับพื้นที่ที่กำลังใช้ และแสดงตัวอย่างให้เห็นก่อนกด Enter เสมอ
+ * คำสั่งทำกับพื้นที่ที่กำลังใช้ และแสดงตัวอย่างให้เห็นก่อนกด Enter เสมอ · พิมพ์ "ธีม" / "dark" เพื่อสลับธีมได้จากที่นี่
  */
 export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; saved?: string; pages: { href: string; label: string }[] }) {
   const tr = useT();
@@ -130,6 +144,20 @@ export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; save
   const sections: { title: string; rows: Row[] }[] = [];
   if (command && space) sections.push({ title: tr("คำสั่ง"), rows: [{ key: "run", icon: "run", title: describe(command), sub: tr("ใน {0} · กด Enter เพื่อทำ", [space.name]), act: run }] });
   const lower = query.toLowerCase();
+  // การตั้งค่า: ต้องตรงทุกคำที่พิมพ์ (เทียบกับชื่อที่แปลแล้วและคำพ้อง)
+  const words = lower.split(/\s+/).filter(Boolean);
+  const settingRows = SETTINGS.filter((item) => words.length > 0 && words.every((w) => `${tr(item.label)} ${item.label} ${item.words}`.toLowerCase().includes(w))).map((item): Row => ({
+    key: `theme:${item.theme}`,
+    icon: "set",
+    title: tr(item.label),
+    act: () => {
+      const form = new FormData();
+      form.set("theme", item.theme);
+      close();
+      start(() => setTheme(form));
+    },
+  }));
+  if (settingRows.length > 0) sections.push({ title: tr("การตั้งค่า"), rows: settingRows });
   const pageRows = pages.filter((p) => !query || p.label.toLowerCase().includes(lower)).map((p): Row => ({ key: p.href, icon: "go", title: p.label, act: () => go(p.href) }));
   const group = (title: string, types: PaletteItem["type"][]) => {
     const rows = items.filter((i) => types.includes(i.type)).map((i): Row => ({ key: `${i.type}:${i.id}`, icon: TYPE_ICON[i.type], title: i.title, sub: i.sub, act: () => go(i.href) }));
@@ -160,7 +188,7 @@ export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; save
   };
 
   if (!open) return null;
-  const examples = [tr("สร้างงาน เขียนรายงาน ส่ง พรุ่งนี้"), "#12 80%", tr("เลื่อน #12 ไปวันศุกร์"), tr("โน้ตใหม่ สรุปประชุม")];
+  const examples = [tr("สร้างงาน เขียนรายงาน ส่ง พรุ่งนี้"), "#12 80%", tr("เลื่อน #12 ไปวันศุกร์"), tr("โน้ตใหม่ สรุปประชุม"), tr("ธีมมืด")];
   let index = -1;
   return createPortal(
     <div className="fixed inset-0 z-[90]">
@@ -201,9 +229,9 @@ export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; save
                   return (
                     <li key={row.key} id={`palette-row-${i}`} data-row={i} role="option" aria-selected={on} onPointerMove={() => on || setActive(i)} onClick={() => running || row.act()} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-1.5 ${on ? "bg-primary-soft" : ""} ${running && row.key === "run" ? "opacity-60" : ""}`}>
                       <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${row.icon === "run" ? "bg-primary text-primary-foreground" : "bg-surface-sunken text-muted-foreground"}`}>
-                        {row.icon === "run" || row.icon === "go" ? (
+                        {row.icon === "run" || row.icon === "go" || row.icon === "set" ? (
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" d={row.icon === "run" ? "m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" : "M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"} />
+                            <path strokeLinecap="round" strokeLinejoin="round" d={ICON_PATH[row.icon]} />
                           </svg>
                         ) : (
                           <Icon name={row.icon} />
@@ -219,7 +247,7 @@ export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; save
               </ul>
             </li>
           ))}
-          {query && !searching && items.length === 0 && !command && pageRows.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted-foreground">{tr("ไม่พบสิ่งที่ตรงกับ \"{0}\"", [query])}</li>}
+          {query && !searching && rows.length === 0 && <li className="px-3 py-6 text-center text-sm text-muted-foreground">{tr("ไม่พบสิ่งที่ตรงกับ \"{0}\"", [query])}</li>}
           {searching && items.length === 0 && <li className="px-3 py-2 text-xs text-subtle">{tr("กำลังค้นหา…")}</li>}
         </ul>
         {!query && (

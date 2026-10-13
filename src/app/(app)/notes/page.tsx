@@ -27,7 +27,6 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
     return <EmptyState title={tr("คุณยังไม่ได้อยู่ในทีมไหน")} description={tr("โน้ตเป็นของทีม — สร้างทีมของคุณ หรือรับคำเชิญเข้าทีมก่อน")} action={{ href: "/teams", label: tr("ไปหน้า ทีม") }} />;
   }
   const team = (await pickSpace(teams, params.team))!;
-  const q = typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   // หน้าแรกแสดงเฉพาะโฟลเดอร์ — รายการโน้ตจะเห็นเมื่อเข้าโฟลเดอร์ หรือเลือก "โน้ตทั้งหมด" / "ยังไม่อยู่ในโฟลเดอร์"
   const view = params.view === "all" || params.view === "loose" || params.view === "fav" ? params.view : null;
   const favorites = await favoriteIds(user.id, team.id);
@@ -39,13 +38,12 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
         teamId: team.id,
         kind: "NOTE",
         deletedAt: null,
-        ...(view === "loose" && !q ? { parentId: null } : {}),
-        ...(view === "fav" && !q ? { id: { in: favorites } } : {}),
-        ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { content: { contains: q, mode: "insensitive" } }] } : {}),
+        ...(view === "loose" ? { parentId: null } : {}),
+        ...(view === "fav" ? { id: { in: favorites } } : {}),
       },
       select: { id: true, parentId: true, title: true, content: true, updatedAt: true },
       orderBy: { updatedAt: "desc" },
-      take: q ? 50 : view ? 300 : 0,
+      take: view ? 300 : 0,
     }),
   ]);
   const titleOf = new Map(nodes.map((n) => [n.id, n.title]));
@@ -54,11 +52,11 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
   const star = (list: ReturnType<typeof folderItems>): FolderItem[] => list.map((f) => ({ ...f, starred: favorites.includes(f.id), children: star(f.children) }));
   const folders = star(folderItems(nodes, null));
   const home = `/notes?team=${team.id}`;
-  const items = notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content, q), folder: n.parentId ? titleOf.get(n.parentId) : undefined, starred: favorites.includes(n.id) }));
+  const items = notes.map((n) => ({ id: n.id, title: n.title, when: formatDateTime(n.updatedAt), snippet: noteSnippet(n.content), folder: n.parentId ? titleOf.get(n.parentId) : undefined, starred: favorites.includes(n.id) }));
   const favoriteFolders = star(nodes.filter((n) => n.kind === "FOLDER" && favorites.includes(n.id)).map((f) => ({ id: f.id, title: f.title, count: nodes.filter((n) => n.parentId === f.id).length, children: [] })));
 
   return (
-    <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)} q={q}>
+    <NotesShell team={team} nodes={nodes} canManageTeam={manageableIds.has(team.id)}>
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="page-header">
           <div>
@@ -68,15 +66,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
           <Link href={`/notes/graph?team=${team.id}`} className="btn-ghost gap-1.5 lg:hidden"><Icon name="link" className="h-4 w-4 text-primary" />{tr("แผนผัง")}</Link>
         </div>
 
-        {q ? (
-          <section className="space-y-2.5">
-            <div className="flex items-center justify-between gap-3 px-1">
-              <h2 className="text-sm font-semibold text-muted-foreground">{tr("ผลการค้นหา \"")}{q}&quot; ({items.length})</h2>
-              <Link href={home} className="text-sm font-medium text-primary hover:text-primary-strong">{tr("ล้างการค้นหา")}</Link>
-            </div>
-            {items.length === 0 ? <p className="card text-sm text-muted-foreground">{tr("ไม่พบโน้ตที่ตรงกับคำค้น")}</p> : <NoteRows notes={items} />}
-          </section>
-        ) : nodes.length === 0 ? (
+        {nodes.length === 0 ? (
           <div className="card space-y-3">
             <h2 className="font-semibold text-foreground">{tr("เริ่มจดโน้ตแรกของคุณ")}</h2>
             <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">

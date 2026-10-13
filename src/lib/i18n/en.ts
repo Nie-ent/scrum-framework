@@ -1030,4 +1030,8 @@ export const en: Record<string, string> = {
   "สว่าง": "Light",
   "มืด": "Dark",
   "ตามระบบ": "System",
+  "เปลี่ยนเป็นธีมมืด": "Switch to dark theme",
+  "เปลี่ยนเป็นธีมสว่าง": "Switch to light theme",
+  "ใช้ธีมตามระบบ": "Use the system theme",
+  "ธีมมืด": "dark theme",
 };

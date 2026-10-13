@@ -42,7 +42,6 @@ export async function NotesShell({
   openIds = [],
   canManageTeam,
   fab = true,
-  q,
   children,
 }: {
   team: TeamRow;
@@ -53,8 +52,6 @@ export async function NotesShell({
   canManageTeam: boolean;
   /** ซ่อนปุ่มลอย (เช่นตอนกำลังแก้โน้ต) */
   fab?: boolean;
-  /** คำค้นปัจจุบัน */
-  q?: string;
   children: React.ReactNode;
 }) {
   const user = await requireUser();
@@ -96,7 +93,7 @@ export async function NotesShell({
         </div>
       </aside>
       <div className="min-w-0">{children}</div>
-      <NoteFab key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} q={q} buttons={fab} />
+      <NoteFab key={activeFolder ?? "root"} teamId={team.id} folders={folderOptions(nodes)} parentId={activeFolder} buttons={fab} />
       <NoteMenuHost teamId={team.id} nodes={nodes} favorites={favorites} />
       <NoteToast />
     </div>
