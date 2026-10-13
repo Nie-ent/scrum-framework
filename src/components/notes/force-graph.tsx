@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useRouter } from "next/navigation";
 import { useT } from "@/components/i18n";
 
-export type GraphPoint = { id: string; label: string; href: string; kind: "note" | "task"; group?: string };
+export type GraphPoint = { id: string; label: string; href: string; kind: "note" | "task"; group?: string; at?: number };
 /** both = เชื่อมหากันทั้งสองทาง (วาดเป็นเส้นเดียว หัวลูกศรสองด้าน) */
 export type GraphEdge = { from: string; to: string; both?: boolean };
 /** กลุ่ม = โฟลเดอร์ระดับบนสุด · slot = ลำดับสีในชุดสี (null = กลุ่มเล็กที่ใช้สีกลาง) */
 export type GraphGroup = { id: string; label: string; slot: number | null; count: number };
-type Body = { i: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; fixed: boolean; sx: number; sy: number; scale: number; depth: number };
+type Body = { i: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; fixed: boolean; sx: number; sy: number; scale: number; depth: number; born: number };
 type Settings = { gap: number; tight: number };
 
 // ชุดสีแยกหมวด 8 สี (ลำดับตายตัว ไม่วนซ้ำ) — กลุ่มที่เกินใช้สีกลาง และทุกกลุ่มมีชื่อกำกับ ไม่พึ่งสีอย่างเดียว
@@ -17,6 +17,8 @@ const PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300
 const FOCAL = 900;
 const DEFAULTS: Settings = { gap: 50, tight: 50 };
 const STORE = "pace-graph-settings";
+// ความเร็วตอนเล่นการเติบโต (เท่าของ 3 จุดต่อวินาที)
+const SPEEDS = [0.5, 1, 2, 4, 8];
 const subscribe = () => () => {};
 const readStore = () => {
   try {
@@ -32,6 +34,8 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 /**
  * แผนผังความสัมพันธ์แบบ 3 มิติ: จุดผลักกัน เส้นเชื่อมดึงเข้าหากัน และโน้ตในโฟลเดอร์หลักเดียวกันเกาะเป็นกลุ่ม
  * ลากพื้นหลังเพื่อหมุนรอบ · Shift+ลาก (หรือสองนิ้ว) เพื่อเลื่อน · ล้อเมาส์/ถ่างนิ้วเพื่อซูม · ลากจุดเพื่อจัดวาง · คลิกเพื่อเปิด
+ * บนเว็บเลือกได้ว่าลากพื้นหลังเพื่อหมุนหรือเลื่อน (Shift สลับชั่วคราว · คลิกขวาลาก = เลื่อนเสมอ)
+ * ปุ่มเล่น = ดูแผนผังเติบโตตามลำดับที่โน้ตถูกสร้าง ปรับความเร็วและลากแถบเวลาได้
  * จุดที่อยู่ลึกจะเล็กและจางกว่า · ตัวเลื่อนปรับระยะห่างระหว่างกลุ่มและความกระจุกในกลุ่ม
  * วาดบน canvas และวาดใหม่เฉพาะตอนที่มีอะไรเปลี่ยน (นิ่งแล้วไม่กิน CPU) — ทุกอย่างคำนวณในเบราว์เซอร์ ไม่เรียกเซิร์ฟเวอร์เพิ่ม
  */
@@ -52,9 +56,13 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
     }
   }, [edited, stored]);
   // สถานะที่เปลี่ยนทุกเฟรมอยู่ใน ref ไม่ใช่ state
-  const sim = useRef({ alpha: 1, frame: 0, bodies: [] as Body[], view: { yaw: 0.5, pitch: -0.3, k: 1, x: 0, y: 0, fit: true }, hover: -1, focal: FOCAL, settings: DEFAULTS, kick: () => {} });
+  const sim = useRef({ alpha: 1, frame: 0, bodies: [] as Body[], view: { yaw: 0.5, pitch: -0.3, k: 1, x: 0, y: 0, fit: true }, hover: -1, focal: FOCAL, settings: DEFAULTS, kick: () => {}, shown: 0, playing: false, speed: 1, carry: 0, last: 0, until: 0, play: () => {}, pause: () => {}, seek: (() => {}) as (n: number) => void });
+  // ความคืบหน้าของการเล่น ผูกกับชุดข้อมูลที่กำลังแสดง (ข้อมูลเปลี่ยน = กลับไปแสดงครบ)
+  const [progress, setProgress] = useState<{ of: unknown; shown: number; playing: boolean } | null>(null);
+  const [speed, setSpeed] = useState(1);
+  const [mode, setMode] = useState<"rotate" | "pan">("rotate");
 
-  const { dots, pairs, neighbors, groupIndex } = useMemo(() => {
+  const { dots, pairs, neighbors, groupIndex, byRank } = useMemo(() => {
     const index = new Map(points.map((p, i) => [p.id, i]));
     const pairs = edges.flatMap((e) => (index.has(e.from) && index.has(e.to) ? [{ a: index.get(e.from)!, b: index.get(e.to)!, both: Boolean(e.both) }] : []));
     const neighbors = points.map(() => new Set<number>());
@@ -64,8 +72,12 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
     }
     const groupIndex = new Map(groups.map((g, i) => [g.id, i]));
     // จุดที่ถูกเชื่อมมากใหญ่กว่า
-    const dots = points.map((p, i) => ({ ...p, r: 5 + Math.min(11, neighbors[i].size * 1.8), g: p.group !== undefined ? (groupIndex.get(p.group) ?? -1) : -1 }));
-    return { dots, pairs, neighbors, groupIndex };
+    // ลำดับที่ถูกสร้าง (เก่าสุดก่อน) — ใช้ตอนเล่นการเติบโตของแผนผัง
+    const byRank = points.map((_, i) => i).sort((a, b) => (points[a].at ?? 0) - (points[b].at ?? 0) || points[a].label.localeCompare(points[b].label, "th"));
+    const rank = points.map(() => 0);
+    byRank.forEach((i, r) => (rank[i] = r));
+    const dots = points.map((p, i) => ({ ...p, rank: rank[i], r: 5 + Math.min(11, neighbors[i].size * 1.8), g: p.group !== undefined ? (groupIndex.get(p.group) ?? -1) : -1 }));
+    return { dots, pairs, neighbors, groupIndex, byRank };
   }, [points, edges, groups]);
 
   const change = (next: Settings) => {
@@ -108,10 +120,37 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       const a = d.g >= 0 ? anchors[d.g] : { x: 0, y: 0, z: 0 };
       const angle = i * 2.4;
       const radius = 20 + 9 * Math.sqrt(i);
-      return { i, x: a.x * reach + Math.cos(angle) * radius, y: a.y * reach + Math.sin(angle) * radius, z: a.z * reach + Math.sin(angle * 1.7) * radius, vx: 0, vy: 0, vz: 0, fixed: false, sx: 0, sy: 0, scale: 1, depth: 0 };
+      return { i, x: a.x * reach + Math.cos(angle) * radius, y: a.y * reach + Math.sin(angle) * radius, z: a.z * reach + Math.sin(angle * 1.7) * radius, vx: 0, vy: 0, vz: 0, fixed: false, sx: 0, sy: 0, scale: 1, depth: 0, born: -Infinity };
     });
     state.bodies = bodies;
     state.hover = -1;
+    state.shown = dots.length;
+    state.playing = false;
+    // จุดที่ยังไม่ถึงคิวตอนเล่น = ยังไม่มีอยู่: ไม่ถูกวาด ไม่ออกแรง และกดไม่ได้
+    const seen = (i: number) => dots[i].rank < state.shown;
+    const report = () => setProgress({ of: dots, shown: state.shown, playing: state.playing });
+    // จุดถัดไปโผล่ข้างสิ่งที่มันเชื่อมอยู่ (ไม่มี = ที่จุดยึดของกลุ่ม) แล้วให้แรงจัดวางต่อ
+    const reveal = (now: number) => {
+      const i = byRank[state.shown];
+      const b = bodies[i];
+      const spread = (state.settings.gap / 50) ** 1.6 * reach;
+      const g = dots[i].g;
+      let from = g >= 0 ? { x: anchors[g].x * spread, y: anchors[g].y * spread, z: anchors[g].z * spread } : { x: 0, y: 0, z: 0 };
+      for (const n of neighbors[i]) {
+        if (seen(n)) {
+          from = bodies[n];
+          break;
+        }
+      }
+      b.x = from.x + (Math.random() - 0.5) * 40;
+      b.y = from.y + (Math.random() - 0.5) * 40;
+      b.z = from.z + (Math.random() - 0.5) * 40;
+      b.vx = b.vy = b.vz = 0;
+      b.born = now;
+      state.shown++;
+      state.alpha = Math.max(state.alpha, 0.5);
+      state.until = now + 1200;
+    };
 
     const tick = () => {
       const alpha = state.alpha;
@@ -122,6 +161,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       const rest = 150 - 80 * tight;
       const hold = 0.004 + tight * 0.05;
       for (let i = 0; i < bodies.length; i++) {
+        if (!seen(i)) continue;
         const a = bodies[i];
         const g = dots[i].g;
         // ดึงเข้าหาจุดยึดของกลุ่ม (ไม่มีกลุ่ม = ดึงเข้ากลางเบา ๆ ไม่ให้ลอยหาย)
@@ -130,6 +170,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
         a.vy -= (a.y - (g >= 0 ? anchors[g].y * spread : 0)) * pull * alpha;
         a.vz -= (a.z - (g >= 0 ? anchors[g].z * spread : 0)) * pull * alpha;
         for (let j = i + 1; j < bodies.length; j++) {
+          if (!seen(j)) continue;
           const b = bodies[j];
           let dx = a.x - b.x;
           let dy = a.y - b.y;
@@ -153,6 +194,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
         }
       }
       for (const { a: ia, b: ib } of pairs) {
+        if (!seen(ia) || !seen(ib)) continue;
         const a = bodies[ia];
         const b = bodies[ib];
         const dx = b.x - a.x;
@@ -187,15 +229,18 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
     let height = 0;
     const order = bodies.map((b) => b);
     const widths: number[] = [];
-    const paint = () => {
+    const paint = (now: number) => {
       const view = state.view;
+      const live = bodies.filter((b) => seen(b.i));
+      // จุดที่เพิ่งโผล่ค่อย ๆ โตขึ้น
+      const grow = (b: Body) => 1 - (1 - clamp((now - b.born) / 400, 0, 1)) ** 3;
       const cy = Math.cos(view.yaw);
       const sy = Math.sin(view.yaw);
       const cp = Math.cos(view.pitch);
       const sp = Math.sin(view.pitch);
       let far = 1;
       const box = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
-      for (const b of bodies) {
+      for (const b of live) {
         // หมุนรอบแกนตั้ง (yaw) แล้วแกนนอน (pitch) จากนั้นฉายแบบมีระยะ: ยิ่งลึกยิ่งเล็ก
         const x1 = b.x * cy + b.z * sy;
         const z1 = -b.x * sy + b.z * cy;
@@ -208,7 +253,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       }
       // กล้องถอยตามขนาดของแผนผัง — ไม่อย่างนั้นจุดที่อยู่หน้าสุดจะใหญ่เกินจริงเมื่อกลุ่มอยู่ห่างกันมาก
       const focal = (state.focal = Math.max(FOCAL, far * 2.5));
-      for (const b of bodies) {
+      for (const b of live) {
         // เก็บตำแหน่งก่อนซูม/เลื่อนไว้ก่อน
         b.scale = focal / (focal + b.depth);
         b.sx *= b.scale;
@@ -219,12 +264,15 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
         box.bottom = Math.max(box.bottom, b.sy);
       }
       // ยังไม่ได้ซูม/เลื่อนเอง: ปรับให้เห็นทั้งแผนผังพอดีกรอบ (เผื่อที่ให้ป้ายชื่อ) — หมุนแล้วก็ยังพอดี
-      if (view.fit && bodies.length > 0 && width > 0) {
-        view.k = clamp(Math.min((width - 150) / Math.max(1, box.right - box.left), (height - 110) / Math.max(1, box.bottom - box.top)), 0.2, 1.6);
-        view.x = (-(box.left + box.right) / 2) * view.k;
-        view.y = (-(box.top + box.bottom) / 2) * view.k + 10;
+      if (view.fit && live.length > 0 && width > 0) {
+        const k = clamp(Math.min((width - 150) / Math.max(1, box.right - box.left), (height - 110) / Math.max(1, box.bottom - box.top)), 0.2, 1.6);
+        // ตอนเล่น กล้องค่อย ๆ ถอยตามแผนผังที่โตขึ้น ไม่กระตุกทุกครั้งที่มีจุดใหม่
+        const ease = now < state.until ? 0.08 : 1;
+        view.k += (k - view.k) * ease;
+        view.x += ((-(box.left + box.right) / 2) * k - view.x) * ease;
+        view.y += ((-(box.top + box.bottom) / 2) * k + 10 - view.y) * ease;
       }
-      for (const b of bodies) {
+      for (const b of live) {
         b.sx = width / 2 + view.x + b.sx * view.k;
         b.sy = height / 2 + view.y + b.sy * view.k;
         // ขนาดจุดตามความลึกและการซูม แต่ไม่เล็กจนกดไม่ได้หรือใหญ่จนบังกัน
@@ -239,6 +287,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       ctx.lineCap = "round";
 
       for (const { a: ia, b: ib, both } of pairs) {
+        if (!seen(ia) || !seen(ib)) continue;
         const a = bodies[ia];
         const b = bodies[ib];
         const on = hover >= 0 && (ia === hover || ib === hover);
@@ -254,7 +303,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
         const y1 = a.sy + uy * ra;
         const x2 = b.sx - ux * rb;
         const y2 = b.sy - uy * rb;
-        ctx.globalAlpha = hover >= 0 && !on ? 0.08 : (on ? 1 : 0.6) * fade((a.depth + b.depth) / 2);
+        ctx.globalAlpha = hover >= 0 && !on ? 0.08 : (on ? 1 : 0.6) * fade((a.depth + b.depth) / 2) * Math.min(grow(a), grow(b));
         ctx.strokeStyle = ctx.fillStyle = on ? ink.primary : ink.subtle;
         ctx.lineWidth = on ? 1.8 : both ? 1.4 : 1;
         ctx.beginPath();
@@ -277,8 +326,9 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       // จุดที่ลึกวาดก่อน จุดที่อยู่หน้าทับ
       order.sort((a, b) => b.depth - a.depth);
       for (const b of order) {
+        if (!seen(b.i)) continue;
         const d = dots[b.i];
-        const r = (b.i === hover ? d.r + 2 : d.r) * b.scale;
+        const r = (b.i === hover ? d.r + 2 : d.r) * b.scale * grow(b);
         const linked = neighbors[b.i].size > 0;
         ctx.globalAlpha = lit(b.i) ? fade(b.depth) : 0.12;
         ctx.beginPath();
@@ -307,7 +357,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
         ctx.textBaseline = "bottom";
         ctx.font = `600 12px ${font}`;
         groups.forEach((group, g) => {
-          const members = bodies.filter((b) => dots[b.i].g === g);
+          const members = live.filter((b) => dots[b.i].g === g);
           if (members.length < 2) return;
           const cx = members.reduce((sum, b) => sum + b.sx, 0) / members.length;
           const top = Math.min(...members.map((b) => b.sy - dots[b.i].r * b.scale));
@@ -328,13 +378,13 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       // ป้ายของจุด: ตอนชี้อยู่ = เฉพาะสิ่งที่เชื่อมกัน · ปกติ = จุดที่ถูกเชื่อมมากและอยู่หน้าได้ที่ก่อน
       ctx.textBaseline = "top";
       ctx.font = `11px ${font}`;
-      const wanted = bodies.filter((b) => b.i !== hover && (hover < 0 || lit(b.i))).sort((a, b) => neighbors[b.i].size - neighbors[a.i].size || a.depth - b.depth);
+      const wanted = live.filter((b) => b.i !== hover && (hover < 0 || lit(b.i))).sort((a, b) => neighbors[b.i].size - neighbors[a.i].size || a.depth - b.depth);
       for (const b of wanted) {
         const text = short(dots[b.i].label);
         const w = (widths[b.i] ??= ctx.measureText(text).width);
         const y = b.sy + dots[b.i].r * b.scale + 4;
         if (!fits(b.sx - w / 2 - 3, y - 1, w + 6, 15)) continue;
-        ctx.globalAlpha = fade(b.depth) * 0.95;
+        ctx.globalAlpha = fade(b.depth) * 0.95 * grow(b);
         ctx.fillStyle = ink.muted;
         ctx.fillText(text, b.sx, y);
       }
@@ -364,12 +414,48 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
 
     // วาดเฉพาะตอนที่มีอะไรเปลี่ยน: kick() เริ่มวง แล้ววงหยุดเองเมื่อการจัดวางนิ่ง
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const loop = () => {
+    const loop = (now: number) => {
       state.frame = 0;
+      if (state.playing) {
+        state.carry += (Math.min(100, now - state.last) / 1000) * 3 * state.speed;
+        state.last = now;
+        const before = state.shown;
+        while (state.carry >= 1 && state.shown < dots.length) {
+          reveal(now);
+          state.carry -= 1;
+        }
+        if (state.shown >= dots.length) state.playing = false;
+        if (state.shown !== before || !state.playing) report();
+      }
       if (still) while (state.alpha > 0) tick();
       else if (state.alpha > 0) tick();
-      paint();
-      if (state.alpha > 0) state.frame = requestAnimationFrame(loop);
+      paint(now);
+      if (state.alpha > 0 || state.playing || now < state.until) state.frame = requestAnimationFrame(loop);
+    };
+    state.play = () => {
+      // เล่นจากต้นเมื่อแสดงครบอยู่แล้ว ไม่อย่างนั้นเล่นต่อจากที่หยุดไว้
+      if (state.shown >= dots.length) {
+        state.shown = 0;
+        state.carry = 1;
+      }
+      state.playing = true;
+      state.last = performance.now();
+      report();
+      state.kick();
+    };
+    state.pause = () => {
+      state.playing = false;
+      report();
+    };
+    state.seek = (n: number) => {
+      const now = performance.now();
+      state.playing = false;
+      state.hover = -1;
+      if (n < state.shown) state.shown = n;
+      else while (state.shown < n) reveal(now);
+      state.alpha = Math.max(state.alpha, 0.4);
+      report();
+      state.kick();
     };
     state.kick = () => {
       if (!state.frame) state.frame = requestAnimationFrame(loop);
@@ -390,8 +476,10 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       cancelAnimationFrame(state.frame);
       state.frame = 0;
       state.kick = () => {};
+      state.play = state.pause = () => {};
+      state.seek = () => {};
     };
-  }, [dots, pairs, neighbors, groups]);
+  }, [dots, pairs, neighbors, groups, byRank]);
 
   // จุดที่อยู่ใต้ตำแหน่งนี้ (ตัวที่อยู่หน้าสุดก่อน) — พื้นที่กดใหญ่กว่าจุดเล็กน้อย
   const hit = useCallback(
@@ -401,6 +489,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       const y = clientY - box.top;
       let found = -1;
       for (const b of sim.current.bodies) {
+        if (dots[b.i].rank >= sim.current.shown) continue;
         const reach = dots[b.i].r * b.scale + 7;
         if ((b.sx - x) ** 2 + (b.sy - y) ** 2 <= reach * reach && (found < 0 || b.depth < sim.current.bodies[found].depth)) found = b.i;
       }
@@ -434,8 +523,10 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
       drag.current = null;
       return;
     }
-    const body = hit(e.clientX, e.clientY);
-    drag.current = { body, pan: e.shiftKey || e.button === 1, x: e.clientX, y: e.clientY, moved: false };
+    // ปุ่มกลาง/ขวา = เลื่อนเสมอ · ปุ่มซ้ายตามโหมดที่เลือก โดย Shift สลับเป็นอีกโหมดชั่วคราว
+    const other = e.button === 1 || e.button === 2;
+    const body = other ? -1 : hit(e.clientX, e.clientY);
+    drag.current = { body, pan: other || (mode === "pan") !== e.shiftKey, x: e.clientX, y: e.clientY, moved: false };
     if (body >= 0) sim.current.bodies[body].fixed = true;
   };
   const onMove = (e: React.PointerEvent) => {
@@ -512,7 +603,13 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 0.89);
+      // ถ่างนิ้วบนแทร็กแพด (มากับ ctrlKey) = ซูมละเอียด · ปัดซ้ายขวา = เลื่อน · หมุนล้อ = ซูม
+      if (e.ctrlKey) zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01));
+      else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        sim.current.view.fit = false;
+        sim.current.view.x -= e.deltaX;
+        sim.current.kick();
+      } else zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 0.89);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -533,13 +630,54 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
     </label>
   );
 
+  const shown = progress && progress.of === dots ? progress.shown : dots.length;
+  const playing = Boolean(progress && progress.of === dots && progress.playing);
+  const tab = (active: boolean) => `inline-flex min-h-8 items-center rounded-full px-3.5 text-xs transition ${active ? "bg-surface font-semibold text-primary shadow-soft" : "text-muted-foreground hover:text-foreground"}`;
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-end gap-x-6 gap-y-2 px-2 pt-1">
         {groupIndex.size > 1 && slider(tr("ระยะห่างระหว่างกลุ่ม"), "gap", tr("ชิด"), tr("ห่าง"))}
         {slider(tr("ความกระจุกของจุด"), "tight", tr("กระจาย"), tr("กระจุก"))}
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          {tr("ลากเพื่อ")}
+          <span className="inline-flex rounded-full bg-surface-sunken p-0.5">
+            <button type="button" aria-pressed={mode === "rotate"} onClick={() => setMode("rotate")} className={tab(mode === "rotate")}>{tr("หมุน")}</button>
+            <button type="button" aria-pressed={mode === "pan"} onClick={() => setMode("pan")} className={tab(mode === "pan")}>{tr("เลื่อน")}</button>
+          </span>
+        </div>
         <button type="button" onClick={resetView} className="btn-ghost min-h-9 px-3 py-1.5 text-xs">{tr("รีเซ็ตมุมมอง")}</button>
       </div>
+      {dots.length > 1 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-2">
+          <button type="button" onClick={() => (playing ? sim.current.pause() : sim.current.play())} aria-label={playing ? tr("หยุด") : tr("เล่นการเติบโตของแผนผัง")} className="btn-ghost min-h-9 gap-1.5 px-3 py-1.5 text-xs">
+            <svg viewBox="0 0 16 16" className="size-3.5 fill-current" aria-hidden="true">{playing ? <path d="M3 2h4v12H3zM9 2h4v12H9z" /> : <path d="M4 2l10 6-10 6z" />}</svg>
+            {playing ? tr("หยุด") : tr("เล่น")}
+          </button>
+          <label className="flex min-w-48 flex-1 items-center gap-2 text-xs text-muted-foreground">
+            <span className="sr-only">{tr("ลำดับการสร้าง")}</span>
+            <input type="range" min={0} max={dots.length} step={1} value={shown} onChange={(e) => sim.current.seek(Number(e.target.value))} className="h-11 min-w-0 flex-1 accent-indigo-600 sm:h-6" />
+            <span className="w-14 text-right tabular-nums">{shown}/{dots.length}</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            {tr("ความเร็ว")}
+            <input
+              type="range"
+              min={0}
+              max={SPEEDS.length - 1}
+              step={1}
+              value={speed}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setSpeed(next);
+                sim.current.speed = SPEEDS[next];
+              }}
+              className="h-11 w-24 accent-indigo-600 sm:h-6"
+            />
+            <span className="w-8 font-normal tabular-nums">{SPEEDS[speed]}×</span>
+          </label>
+        </div>
+      )}
       <canvas
         ref={canvas}
         role="img"
@@ -550,6 +688,7 @@ export function ForceGraph({ points, edges, groups }: { points: GraphPoint[]; ed
         onPointerUp={onUp}
         onPointerCancel={onUp}
         onPointerLeave={onLeave}
+        onContextMenu={(e) => e.preventDefault()}
       />
       {groups.length > 0 && (
         <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 px-2 text-xs text-muted-foreground">

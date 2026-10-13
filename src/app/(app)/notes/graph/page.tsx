@@ -28,11 +28,13 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
   const team = (await pickSpace(teams, params.team))!;
   if (!team) notFound();
 
-  const [nodes, links] = await Promise.all([
+  const [nodes, born, links] = await Promise.all([
     listNotes(team.id),
+    // วันที่สร้างของโน้ต ใช้เรียงลำดับตอนเล่นการเติบโตของแผนผัง
+    prisma.note.findMany({ where: { teamId: team.id, kind: "NOTE", deletedAt: null }, select: { id: true, createdAt: true } }),
     prisma.noteLink.findMany({
       where: { from: { teamId: team.id, deletedAt: null } },
-      select: { fromId: true, toNoteId: true, toTask: { select: { id: true, number: true, title: true, deletedAt: true } } },
+      select: { fromId: true, toNoteId: true, toTask: { select: { id: true, number: true, title: true, deletedAt: true, createdAt: true } } },
     }),
   ]);
   const notes = nodes.filter((n) => n.kind === "NOTE");
@@ -51,10 +53,11 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
   // กลุ่มใหญ่ที่สุดได้สี โดยไล่สีตามชื่อ (สีจึงไม่สลับเมื่อจำนวนโน้ตเปลี่ยนเล็กน้อย)
   const colored = [...sizes.keys()].sort((a, b) => sizes.get(b)! - sizes.get(a)! || byName(a, b)).slice(0, COLORED_GROUPS).sort(byName);
   const groups = [...sizes.keys()].sort(byName).map((id) => ({ id, label: byId.get(id)!.title, slot: colored.includes(id) ? colored.indexOf(id) : null, count: sizes.get(id)! }));
-  type Point = { id: string; label: string; href: string; kind: "note" | "task"; group?: string };
+  const bornAt = new Map(born.map((n) => [n.id, n.createdAt.getTime()]));
+  type Point = { id: string; label: string; href: string; kind: "note" | "task"; group?: string; at: number };
   const points: Point[] = [
-    ...notes.map((n): Point => ({ id: n.id, label: n.title, href: `/notes/${n.id}`, kind: "note", group: groupOf.get(n.id) })),
-    ...[...tasks.values()].map((t): Point => ({ id: t.id, label: `#${t.number} ${t.title}`, href: `/tasks?team=${team.id}&task=${t.number}`, kind: "task" })),
+    ...notes.map((n): Point => ({ id: n.id, label: n.title, href: `/notes/${n.id}`, kind: "note", group: groupOf.get(n.id), at: bornAt.get(n.id) ?? 0 })),
+    ...[...tasks.values()].map((t): Point => ({ id: t.id, label: `#${t.number} ${t.title}`, href: `/tasks?team=${team.id}&task=${t.number}`, kind: "task", at: t.createdAt.getTime() })),
   ];
   const known = new Set(points.map((p) => p.id));
   const directed = links.flatMap((l) => {
@@ -88,7 +91,7 @@ export default async function NotesGraphPage({ searchParams }: PageProps<"/notes
               <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] bg-neutral" />{tr("งาน")}</span>
               <span>{tr("สีและชื่อกลุ่ม = โฟลเดอร์หลัก · จุดที่อยู่ลึกจะเล็กและจางกว่า")}</span>
               <span>{tr("หัวลูกศรชี้ไปหาสิ่งที่ถูกอ้างถึง — สองหัวคือลิงก์หากันทั้งสองทาง")}</span>
-              <span>{tr("ลากพื้นหลังเพื่อหมุน · กด Shift ค้างแล้วลาก (หรือใช้สองนิ้ว) เพื่อเลื่อน · หมุนล้อเมาส์เพื่อซูม · ลากจุดเพื่อจัดวาง · คลิกที่จุดเพื่อเปิด")}</span>
+              <span>{tr("ลากพื้นหลังเพื่อหมุนหรือเลื่อนตามโหมดที่เลือก · คลิกขวาค้างแล้วลากเพื่อเลื่อนได้เสมอ · หมุนล้อเมาส์เพื่อซูม · ลากจุดเพื่อจัดวาง · คลิกที่จุดเพื่อเปิด")}</span>
             </p>
           </div>
         )}
