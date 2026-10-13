@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from "@/components/bottom-nav";
+import { CommandPalette, PaletteButton } from "@/components/command-palette";
 import { NavGlyph, type NavIcon } from "@/components/nav-icons";
 import { NavLink } from "@/components/nav-link";
 import { requireUser } from "@/lib/auth";
@@ -74,6 +75,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
           {/* พื้นที่ที่กำลังใช้ — เลือกที่นี่ที่เดียว ทุกหน้าใช้ตาม */}
           <SpaceSwitcher spaces={spaces} saved={saved} className="min-w-0 flex-1 lg:mt-4 lg:flex-none" />
+          {/* ค้นหารวมและคำสั่งลัด (Cmd+K) */}
+          <PaletteButton full />
           {/* จอใหญ่: เมนูใน sidebar — มือถือใช้ BottomNav ด้านล่างแทน */}
           <nav aria-label={tr("เมนูหลัก")} className="mt-4 hidden flex-col gap-4 lg:flex">
             {groups.map((group, i) => {
@@ -97,6 +100,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             })}
           </nav>
           <div className="flex shrink-0 items-center gap-1 lg:mt-auto lg:block lg:pt-4">
+          <PaletteButton />
           {/* มือถือ: กระดิ่งอยู่บนแถบหัว (จอใหญ่อยู่ในเมนูด้านข้าง) */}
           <Tooltip label={tr("แจ้งเตือน")} side="bottom">
           <Link href="/notifications" aria-label={unread > 0 ? tr("แจ้งเตือน ยังไม่ได้อ่าน {0} รายการ", [unread]) : tr("แจ้งเตือน")} className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-surface-sunken lg:hidden">
@@ -114,6 +118,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       {/* เว้นที่ด้านล่างให้แถบเมนูมือถือ (รวม safe area ของ iPhone) */}
       <main className="min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-10"><div className="mx-auto max-w-7xl"><SectionTabs canOverview={overview} />{children}</div></main>
       <BottomNav items={bottom} />
+      <CommandPalette
+        spaces={spaces.map((s) => ({ id: s.id, name: s.personal ? tr("พื้นที่ส่วนตัว") : s.name }))}
+        saved={saved}
+        pages={[...groups.flatMap((g) => g.items.filter((item) => item.show !== false).map((item) => ({ href: item.href, label: item.label }))), { href: "/files", label: tr("ไฟล์สำคัญ") }, { href: "/account", label: tr("บัญชีและการตั้งค่า") }]}
+      />
     </div>
   );
 }
