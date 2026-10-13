@@ -74,6 +74,15 @@ export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; save
   const [running, start] = useTransition();
   const list = useRef<HTMLUListElement>(null);
   const query = text.trim();
+  // มือถือ: เลื่อนจอจนแถบหัว (ที่มีปุ่มค้นหา) พ้นจอไปแล้ว = แสดงปุ่มค้นหาลอยแทน
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const header = document.querySelector("header");
+    if (!header) return;
+    const watch = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting));
+    watch.observe(header);
+    return () => watch.disconnect();
+  }, []);
 
   useEffect(() => {
     const show = () => {
@@ -192,7 +201,21 @@ export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; save
     }
   };
 
-  if (!open) return null;
+  if (!open) {
+    // ลอยมุมขวาล่างเหนือแถบเมนู — หน้าที่มีปุ่ม + ของโน้ตอยู่แล้ว ปุ่มนี้ขยับขึ้นไปอยู่เหนือปุ่มนั้น (จอใหญ่มีช่องค้นหาใน sidebar ตลอด จึงไม่ต้องมี)
+    return scrolled ? (
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(OPEN))}
+        aria-label={tr("ค้นหาและคำสั่ง")}
+        className="tooltip-pop fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 flex size-12 items-center justify-center rounded-full border border-border bg-surface text-foreground shadow-raised transition hover:bg-surface-sunken lg:hidden [body:has([data-tour=note-add])_&]:bottom-[calc(9.25rem+env(safe-area-inset-bottom))] [body:has([data-tour=note-add])_&]:right-5"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-5" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d={SEARCH} />
+        </svg>
+      </button>
+    ) : null;
+  }
   const examples = [tr("สร้างงาน เขียนรายงาน ส่ง พรุ่งนี้"), "#12 80%", tr("เลื่อน #12 ไปวันศุกร์"), tr("โน้ตใหม่ สรุปประชุม"), tr("ธีมมืด")];
   let index = -1;
   return createPortal(
