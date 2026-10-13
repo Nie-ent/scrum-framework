@@ -97,7 +97,7 @@ export function AiConnect({ endpoint, tokens }: { endpoint: string; tokens: Toke
           <p>{tr("ในโปรแกรมผู้ช่วย AI ให้เพิ่มเซิร์ฟเวอร์ MCP แบบ HTTP ด้วยที่อยู่ด้านบน และใส่ส่วนหัว Authorization เป็น Bearer ตามด้วยโทเคน")}</p>
           <p>{tr("ตัวอย่างสำหรับ Claude Code:")}</p>
           <div className="flex items-start gap-2">
-            <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs leading-5 text-slate-100"><code>{command}</code></pre>
+            <pre className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-tooltip p-3 text-xs leading-5 text-tooltip-foreground"><code>{command}</code></pre>
             <CopyButton text={command} label={tr("คัดลอก")} />
           </div>
           <p>{tr("จากนั้นลองถามผู้ช่วย เช่น \"งานค้างของฉันใน Pace มีอะไรบ้าง\" หรือ \"เพิ่มงาน เตรียมสไลด์ประชุม กำหนดส่งวันศุกร์\"")}</p>

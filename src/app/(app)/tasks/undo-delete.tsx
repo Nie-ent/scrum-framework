@@ -64,7 +64,7 @@ export function UndoDeleteProvider({ children }: { children: React.ReactNode }) 
           role="status"
           aria-live="polite"
           // มือถือ: ลอยเหนือแถบเมนูล่าง
-          className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg lg:bottom-6"
+          className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-tooltip px-4 py-3 text-sm text-tooltip-foreground shadow-lg lg:bottom-6"
         >
           {deleted ? (
             <>
@@ -73,7 +73,7 @@ export function UndoDeleteProvider({ children }: { children: React.ReactNode }) 
                 type="button"
                 onClick={undo}
                 disabled={restoring}
-                className="shrink-0 rounded-lg px-2 py-1 font-semibold text-indigo-300 transition hover:bg-white/10 hover:text-indigo-200"
+                className="shrink-0 rounded-lg px-2 py-1 font-semibold text-tooltip-foreground underline underline-offset-4 transition hover:bg-tooltip-foreground/10"
               >
                 {restoring ? tr("กำลังกู้คืน…") : tr("เลิกทำ")}
               </button>
@@ -81,14 +81,14 @@ export function UndoDeleteProvider({ children }: { children: React.ReactNode }) 
               <span
                 key={deleted.key}
                 aria-hidden="true"
-                className="absolute inset-x-4 bottom-1 h-0.5 origin-left rounded-full bg-white/30"
+                className="absolute inset-x-4 bottom-1 h-0.5 origin-left rounded-full bg-tooltip-foreground/30"
                 style={{ animation: `undo-countdown ${UNDO_SECONDS}s linear forwards` }}
               />
             </>
           ) : (
             <>
-              <span className="flex-1 text-rose-200">{error}</span>
-              <button type="button" onClick={() => setError(null)} className="shrink-0 px-2 text-white/70">{tr("ปิด")}</button>
+              <span className="flex-1 text-tooltip-foreground">{error}</span>
+              <button type="button" onClick={() => setError(null)} className="shrink-0 px-2 text-tooltip-foreground/70">{tr("ปิด")}</button>
             </>
           )}
         </div>

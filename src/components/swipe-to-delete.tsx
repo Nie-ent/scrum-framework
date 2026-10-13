@@ -84,7 +84,7 @@ export function SwipeToDelete({
     <div ref={box} className="relative overflow-hidden rounded-xl" style={{ touchAction: "pan-y" }}>
       <div
         aria-hidden="true"
-        className={`absolute inset-0 flex items-center gap-1.5 pl-4 text-sm font-semibold text-white transition-colors ${
+        className={`absolute inset-0 flex items-center gap-1.5 pl-4 text-sm font-semibold text-primary-foreground transition-colors ${
           armed || removing ? "bg-rose-600" : "bg-rose-400"
         } ${offset > 0 ? "" : "invisible"}`}
       >

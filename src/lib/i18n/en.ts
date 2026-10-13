@@ -1025,4 +1025,9 @@ export const en: Record<string, string> = {
   "เสร็จ {0} งาน · ยังเปิดอยู่ {1} · เลยกำหนด {2} · ครบกำหนดใน 7 วัน {3}": "{0} done · {1} still open · {2} overdue · {3} due within 7 days",
   "สรุปสัปดาห์ทีม {0}": "Week in review: team {0}",
   "มีงานเลยกำหนด: {0}": "overdue tasks with: {0}",
+  "ธีม": "Theme",
+  "โหมดสว่างหรือมืดบนอุปกรณ์เครื่องนี้ — \"ตามระบบ\" จะเปลี่ยนตามการตั้งค่าของเครื่อง": "Light or dark mode on this device — \"System\" follows your device setting",
+  "สว่าง": "Light",
+  "มืด": "Dark",
+  "ตามระบบ": "System",
 };

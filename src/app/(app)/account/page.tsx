@@ -17,6 +17,9 @@ import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 import { ensureLang, tr } from "@/lib/i18n/server";
 import { LanguageSwitch } from "@/components/language-switch";
+import { cookies } from "next/headers";
+import { ThemeSwitch } from "@/components/theme";
+import { isTheme, THEME_COOKIE } from "@/lib/theme";
 
 export async function generateMetadata(): Promise<Metadata> {
   await ensureLang();
@@ -25,6 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AccountPage({ searchParams }: PageProps<"/account">) {
   const user = await requireUser();
+  const savedTheme = (await cookies()).get(THEME_COOKIE)?.value;
   const { sso } = await searchParams;
   const identities = await prisma.userIdentity.findMany({ where: { userId: user.id }, select: { provider: true, email: true } });
   const tokens = await prisma.apiToken.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
@@ -62,6 +66,13 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
           <p className="text-sm text-slate-500">{tr("ภาษาที่ใช้แสดงเมนูและข้อความในแอปบนอุปกรณ์เครื่องนี้")}</p>
         </div>
         <LanguageSwitch />
+      </section>
+      <section className="card flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-slate-900">{tr("ธีม")}</h2>
+          <p className="text-sm text-slate-500">{tr("โหมดสว่างหรือมืดบนอุปกรณ์เครื่องนี้ — \"ตามระบบ\" จะเปลี่ยนตามการตั้งค่าของเครื่อง")}</p>
+        </div>
+        <ThemeSwitch current={isTheme(savedTheme) ? savedTheme : "light"} />
       </section>
       <NotificationSettings publicKey={pushPublicKey()} />
       <EmailSettings email={user.email} verified={Boolean(user.emailVerifiedAt)} enabled={user.emailNotifications} canSend={isEmailConfigured()} />

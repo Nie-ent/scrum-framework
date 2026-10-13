@@ -32,9 +32,9 @@
   --color-tooltip: var(--tooltip);
   --color-tooltip-foreground: var(--tooltip-foreground);
 
-  --shadow-soft: 0 1px 2px oklch(0.3 0.04 270 / 0.04), 0 1px 1px oklch(0.3 0.04 270 / 0.03);
-  --shadow-raised: 0 8px 24px -8px oklch(0.3 0.06 270 / 0.14), 0 2px 6px oklch(0.3 0.04 270 / 0.05);
-  --shadow-overlay: 0 24px 48px -12px oklch(0.25 0.06 270 / 0.22);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-overlay: var(--shadow-overlay);
 
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1.5;
@@ -66,6 +66,109 @@
 
   --tooltip: oklch(0.26 0.03 268);
   --tooltip-foreground: oklch(0.98 0 0);
+
+  --shadow-soft: 0 1px 2px oklch(0.3 0.04 270 / 0.04), 0 1px 1px oklch(0.3 0.04 270 / 0.03);
+  --shadow-raised: 0 8px 24px -8px oklch(0.3 0.06 270 / 0.14), 0 2px 6px oklch(0.3 0.04 270 / 0.05);
+  --shadow-overlay: 0 24px 48px -12px oklch(0.25 0.06 270 / 0.22);
+}
+
+/*
+ * โหมดมืด — เปิดเมื่อ <html data-theme="dark"> (ตั้งจากหน้าบัญชี: สว่าง / มืด / ตามระบบ — ดู src/components/theme.tsx)
+ * นอกจาก token ของ Pace แล้ว ยังกลับค่าชุดสี slate/indigo/rose/emerald/amber ของ Tailwind ด้วย
+ * เพราะโค้ดเดิมจำนวนมากยังใช้ class อย่าง text-slate-500 / bg-white ตรง ๆ: เลขน้อย (50–200) = พื้นและเส้นขอบ จึงเป็นสีเข้ม
+ * เลขมาก (600–950) = ตัวอักษร จึงเป็นสีอ่อน — สีพื้นเข้มที่ต้องคู่กับตัวอักษรสว่างให้ใช้ token (bg-primary, bg-tooltip) ไม่ใช้เลขสีตรง ๆ
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: oklch(0.185 0.012 270);
+  --foreground: oklch(0.95 0.008 268);
+  --surface: oklch(0.228 0.014 270);
+  --surface-sunken: oklch(0.268 0.016 270);
+  --muted-foreground: oklch(0.73 0.02 262);
+  --subtle: oklch(0.57 0.02 262);
+  --border: oklch(0.32 0.016 268);
+  --border-strong: oklch(0.38 0.02 268);
+
+  --primary: oklch(0.72 0.15 277);
+  --primary-strong: oklch(0.78 0.13 277);
+  --primary-soft: oklch(0.29 0.07 277);
+  --primary-foreground: oklch(0.19 0.05 277);
+
+  --success: oklch(0.76 0.13 163);
+  --success-soft: oklch(0.27 0.04 165);
+  --warning: oklch(0.81 0.13 78);
+  --warning-soft: oklch(0.28 0.04 80);
+  --danger: oklch(0.74 0.15 17);
+  --danger-soft: oklch(0.27 0.05 15);
+  --neutral: oklch(0.72 0.02 257);
+  --neutral-soft: oklch(0.26 0.012 255);
+
+  --tooltip: oklch(0.31 0.02 268);
+  --tooltip-foreground: oklch(0.97 0 0);
+
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-raised: 0 8px 24px -8px oklch(0 0 0 / 0.55), 0 2px 6px oklch(0 0 0 / 0.3);
+  --shadow-overlay: 0 24px 48px -12px oklch(0 0 0 / 0.7);
+
+  --color-white: var(--surface);
+
+  --color-slate-50: oklch(0.258 0.015 268);
+  --color-slate-100: oklch(0.288 0.016 268);
+  --color-slate-200: oklch(0.33 0.018 268);
+  --color-slate-300: oklch(0.42 0.02 266);
+  --color-slate-400: oklch(0.57 0.02 262);
+  --color-slate-500: oklch(0.68 0.02 262);
+  --color-slate-600: oklch(0.76 0.018 262);
+  --color-slate-700: oklch(0.83 0.015 262);
+  --color-slate-800: oklch(0.89 0.012 265);
+  --color-slate-900: oklch(0.93 0.01 268);
+  --color-slate-950: oklch(0.97 0.006 268);
+
+  --color-indigo-50: oklch(0.27 0.06 277);
+  --color-indigo-100: oklch(0.32 0.08 277);
+  --color-indigo-200: oklch(0.4 0.11 277);
+  --color-indigo-300: oklch(0.5 0.14 277);
+  --color-indigo-400: oklch(0.6 0.17 277);
+  --color-indigo-500: oklch(0.66 0.17 277);
+  --color-indigo-600: oklch(0.74 0.14 277);
+  --color-indigo-700: oklch(0.8 0.12 277);
+  --color-indigo-800: oklch(0.86 0.09 277);
+  --color-indigo-900: oklch(0.9 0.07 277);
+
+  --color-rose-50: oklch(0.27 0.05 15);
+  --color-rose-100: oklch(0.32 0.07 15);
+  --color-rose-200: oklch(0.42 0.1 15);
+  --color-rose-300: oklch(0.5 0.13 15);
+  --color-rose-400: oklch(0.62 0.16 15);
+  --color-rose-500: oklch(0.69 0.16 15);
+  --color-rose-600: oklch(0.75 0.14 15);
+  --color-rose-700: oklch(0.81 0.11 15);
+  --color-rose-950: oklch(0.93 0.04 15);
+  --color-red-600: oklch(0.74 0.15 25);
+
+  --color-emerald-50: oklch(0.27 0.04 165);
+  --color-emerald-200: oklch(0.42 0.07 165);
+  --color-emerald-300: oklch(0.52 0.1 165);
+  --color-emerald-400: oklch(0.62 0.13 165);
+  --color-emerald-500: oklch(0.7 0.14 163);
+  --color-emerald-600: oklch(0.76 0.13 163);
+  --color-emerald-700: oklch(0.82 0.11 163);
+  --color-emerald-800: oklch(0.87 0.09 163);
+
+  --color-amber-50: oklch(0.28 0.04 80);
+  --color-amber-400: oklch(0.78 0.14 80);
+  --color-amber-500: oklch(0.8 0.14 78);
+  --color-amber-600: oklch(0.81 0.13 78);
+  --color-amber-700: oklch(0.84 0.12 80);
+  --color-amber-800: oklch(0.88 0.1 82);
+  --color-amber-900: oklch(0.91 0.08 84);
+
+  --color-sky-600: oklch(0.76 0.12 235);
+}
+/* เครื่องหมายถูกในช่องติ๊ก: โหมดมืดพื้นเป็นสีอ่อน จึงใช้เส้นสีเข้ม */
+:root[data-theme="dark"] input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23151a33' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3.5 8.4 3 3 6-6.6'/%3E%3C/svg%3E");
 }
 
 @layer base {
@@ -85,7 +188,7 @@
     @apply rounded-(--radius-card) border border-border bg-surface p-4 shadow-soft sm:p-5;
   }
   .btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-200 disabled:pointer-events-none disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary-strong active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-200 disabled:pointer-events-none disabled:opacity-60;
   }
   .btn-ghost {
     @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-100;
@@ -134,7 +237,7 @@
 .markdown input[type="checkbox"] { @apply mr-2 align-middle; }
 .markdown blockquote { @apply my-4 border-l-4 border-indigo-200 bg-indigo-50/40 py-1 pl-4 pr-2 text-slate-600; }
 .markdown code { @apply rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.85em] text-slate-800; }
-.markdown pre { @apply my-4 overflow-x-auto rounded-xl bg-slate-900 p-4 text-sm leading-6 text-slate-100; }
+.markdown pre { @apply my-4 overflow-x-auto rounded-xl bg-tooltip p-4 text-sm leading-6 text-tooltip-foreground; }
 .markdown pre code { @apply bg-transparent p-0 text-inherit; }
 .markdown hr { @apply my-6 border-slate-200; }
 .markdown table { @apply my-4 block w-full overflow-x-auto text-sm; }
@@ -190,7 +293,7 @@
     @apply inline-grid size-[1.125rem] shrink-0 cursor-pointer appearance-none place-content-center rounded-md border-[1.5px] border-slate-300 bg-white align-middle shadow-sm transition hover:border-indigo-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-100 disabled:cursor-not-allowed disabled:opacity-50;
   }
   input[type="checkbox"]:checked {
-    @apply border-indigo-600 bg-indigo-600;
+    @apply border-primary bg-primary;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3.5 8.4 3 3 6-6.6'/%3E%3C/svg%3E");
     background-position: center;
     background-repeat: no-repeat;

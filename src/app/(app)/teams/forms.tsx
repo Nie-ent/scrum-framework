@@ -180,7 +180,7 @@ export function DeleteTeamForm({ teamId, teamName }: { teamId: string; teamName:
       </div>
       <FormMessage state={state} />
       <SubmitButton
-        className="inline-flex min-h-10 items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-200 disabled:pointer-events-none disabled:opacity-40"
+        className="inline-flex min-h-10 items-center justify-center rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-200 disabled:pointer-events-none disabled:opacity-40"
         pendingText={tr("กำลังลบ...")}
         disabled={typed.trim() !== teamName}
       >
