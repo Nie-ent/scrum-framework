@@ -203,7 +203,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
           <EmptyState title={tr("ไม่มีงานค้าง")} description={shared ? tr("เพิ่มงานจากช่องด้านบน งานของคุณจะไปขึ้นในหน้าเช็กอินด้วย") : tr("พิมพ์ชื่องานในช่องด้านบนแล้วกด Enter เพื่อเริ่มรายการของคุณ")} />
         ) : (
           groups.map((g) => (
-            <section key={g.id} className="card">
+            <section key={g.id} data-tour="task-group" className="card">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2.5 text-sm font-semibold text-foreground">{shared && <Avatar user={g.person} size={24} />}{g.name}</h2>
                 <span className="badge badge-neutral">{tr("{0} งาน", [g.tasks.length])}</span>

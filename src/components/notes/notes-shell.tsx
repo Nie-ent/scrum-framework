@@ -64,7 +64,7 @@ export async function NotesShell({
   return (
     <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
       <aside className="hidden lg:sticky lg:top-6 lg:block lg:max-h-[calc(100vh-3rem)] lg:self-start lg:overflow-y-auto">
-        <div className="rounded-2xl border border-border bg-surface p-2.5 shadow-soft">
+        <div data-tour="note-tree" className="rounded-2xl border border-border bg-surface p-2.5 shadow-soft">
           <div className="flex items-center justify-between gap-2 pb-1">
             <p className={`min-w-0 truncate ${heading}`}>{team.personalOfId ? tr("พื้นที่ส่วนตัว") : team.name}</p>
             <SideCreateButton />

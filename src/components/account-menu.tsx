@@ -6,6 +6,7 @@ import * as P from "@radix-ui/react-popover";
 import { logout } from "@/app/actions/auth";
 import { NavGlyph } from "./nav-icons";
 import { useT } from "@/components/i18n";
+import { openHelp } from "@/components/tour";
 
 const item = "flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-foreground transition hover:bg-surface-sunken";
 
@@ -17,6 +18,7 @@ export function AccountMenu({ name, email, admin, children }: { name: string; em
   return (
     <P.Root open={open} onOpenChange={setOpen}>
       <P.Trigger
+        data-tour="account"
         aria-label={tr("เมนูบัญชีของ {0}", [name])}
         className="flex min-w-0 items-center gap-2.5 rounded-full text-left leading-tight transition hover:bg-surface-sunken data-[state=open]:bg-surface-sunken lg:w-full lg:rounded-2xl lg:bg-surface-sunken lg:p-3"
       >
@@ -48,6 +50,19 @@ export function AccountMenu({ name, email, admin, children }: { name: string; em
               <NavGlyph icon="files" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
               {tr("ไฟล์สำคัญ")}
             </Link>
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                openHelp();
+              }}
+              className={item}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="h-[1.15rem] w-[1.15rem] text-muted-foreground" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+              </svg>
+              {tr("ช่วยเหลือ")}
+            </button>
             {admin && (
               <Link href="/admin" onClick={close} className={item}>
                 <NavGlyph icon="admin" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />

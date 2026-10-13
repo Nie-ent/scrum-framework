@@ -101,6 +101,7 @@ export function SpaceSwitcher({ spaces, saved, className = "" }: { spaces: Space
   return (
     <P.Root open={open} onOpenChange={setOpen}>
       <P.Trigger
+        data-tour="space"
         aria-label={tr("พื้นที่ที่กำลังใช้: {0} — กดเพื่อเปลี่ยน", [tr(label(current))])}
         className={`flex items-center gap-2.5 rounded-xl border border-border bg-surface px-2 py-1.5 text-left shadow-soft transition hover:bg-surface-sunken data-[state=open]:border-border-strong data-[state=open]:bg-surface-sunken ${className}`}
       >

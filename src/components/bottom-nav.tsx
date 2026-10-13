@@ -11,6 +11,7 @@ export function BottomNav({ items }: { items: { href: string; label: string; ico
   const pathname = usePathname();
   return (
     <nav
+      data-tour="nav"
       aria-label={tr("เมนูหลัก")}
       className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
     >

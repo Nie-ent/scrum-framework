@@ -10,6 +10,7 @@ import { useLocale, useT } from "@/components/i18n";
 import { todayKey } from "@/lib/dates";
 import { parseCommand, type Command } from "@/lib/quick-command";
 import type { Theme } from "@/lib/theme";
+import { openHelp } from "@/components/tour";
 
 const OPEN = "pace:palette";
 type Space = { id: string; name: string };
@@ -41,13 +42,13 @@ export function PaletteButton({ full = false }: { full?: boolean }) {
   );
   if (!full) {
     return (
-      <button type="button" onClick={open} aria-label={tr("ค้นหาและคำสั่ง")} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-surface-sunken lg:hidden">
+      <button type="button" data-tour="palette" onClick={open} aria-label={tr("ค้นหาและคำสั่ง")} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-surface-sunken lg:hidden">
         {glyph}
       </button>
     );
   }
   return (
-    <button type="button" onClick={open} className="mt-4 hidden min-h-10 w-full items-center gap-2 rounded-xl border border-border bg-surface-sunken/60 px-3 text-left text-sm text-muted-foreground transition hover:bg-surface-sunken hover:text-foreground lg:flex">
+    <button type="button" data-tour="palette" onClick={open} className="mt-4 hidden min-h-10 w-full items-center gap-2 rounded-xl border border-border bg-surface-sunken/60 px-3 text-left text-sm text-muted-foreground transition hover:bg-surface-sunken hover:text-foreground lg:flex">
       {glyph}
       <span className="min-w-0 flex-1 truncate">{tr("ค้นหาหรือสั่งงาน")}</span>
       <kbd className="shrink-0 rounded-md border border-border bg-surface px-1.5 py-0.5 font-sans text-2xs text-subtle">⌘K</kbd>
@@ -157,6 +158,10 @@ export function CommandPalette({ spaces, saved, pages }: { spaces: Space[]; save
       start(() => setTheme(form));
     },
   }));
+  // ช่วยเหลือ: เปิดทัวร์แนะนำทีละขั้น
+  if (words.length > 0 && words.every((w) => `${tr("ช่วยเหลือ")} ช่วยเหลือ วิธีใช้ แนะนำ สอน ทัวร์ help guide tour how`.toLowerCase().includes(w))) {
+    settingRows.push({ key: "help", icon: "go", title: tr("ช่วยเหลือ"), sub: tr("พาทำทีละขั้นในหน้าที่ต้องการ"), act: () => (close(), openHelp()) });
+  }
   if (settingRows.length > 0) sections.push({ title: tr("การตั้งค่า"), rows: settingRows });
   const pageRows = pages.filter((p) => !query || p.label.toLowerCase().includes(lower)).map((p): Row => ({ key: p.href, icon: "go", title: p.label, act: () => go(p.href) }));
   const group = (title: string, types: PaletteItem["type"][]) => {

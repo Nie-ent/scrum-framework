@@ -37,7 +37,7 @@ export function NoteFab({ teamId, folders, parentId, buttons = true }: { teamId:
     <>
       {buttons && <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 flex items-center gap-3 lg:bottom-8 lg:right-8">
         <Tooltip label={tr("สร้างโน้ตหรือโฟลเดอร์")} side="top">
-          <button type="button" aria-label={tr("สร้างโน้ตหรือโฟลเดอร์")} onClick={() => { setInto(null); setSheet("add"); }} className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-overlay transition hover:bg-primary-strong">
+          <button type="button" data-tour="note-add" aria-label={tr("สร้างโน้ตหรือโฟลเดอร์")} onClick={() => { setInto(null); setSheet("add"); }} className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-overlay transition hover:bg-primary-strong">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-7" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>

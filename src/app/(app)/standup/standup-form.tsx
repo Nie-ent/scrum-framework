@@ -171,7 +171,7 @@ export function StandupForm({
       <FormMessage state={state} />
       <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
         <p className="text-xs text-slate-400">{tr("* จำเป็นต้องกรอก")}</p>
-        <SubmitButton>{submitted ? tr("บันทึกการอัปเดต") : tr("ส่งเช็กอิน")}</SubmitButton>
+        <span data-tour="checkin-submit" className="inline-flex"><SubmitButton>{submitted ? tr("บันทึกการอัปเดต") : tr("ส่งเช็กอิน")}</SubmitButton></span>
       </div>
     </form>
   );

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from "@/components/bottom-nav";
 import { CommandPalette, PaletteButton } from "@/components/command-palette";
+import { TourHost } from "@/components/tour";
 import { NavGlyph, type NavIcon } from "@/components/nav-icons";
 import { NavLink } from "@/components/nav-link";
 import { requireUser } from "@/lib/auth";
@@ -17,6 +18,9 @@ import { Tooltip } from "@/components/tooltip";
 import { currentSpaceId } from "@/lib/space";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { tr } from "@/lib/i18n/server";
+
+/** บัญชีที่เพิ่งสร้าง (ไม่เกิน 3 วัน) */
+const isFresh = (createdAt: Date) => Date.now() - createdAt.getTime() < 3 * 24 * 60 * 60 * 1000;
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -78,7 +82,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           {/* ค้นหารวมและคำสั่งลัด (Cmd+K) */}
           <PaletteButton full />
           {/* จอใหญ่: เมนูใน sidebar — มือถือใช้ BottomNav ด้านล่างแทน */}
-          <nav aria-label={tr("เมนูหลัก")} className="mt-4 hidden flex-col gap-4 lg:flex">
+          <nav data-tour="nav" aria-label={tr("เมนูหลัก")} className="mt-4 hidden flex-col gap-4 lg:flex">
             {groups.map((group, i) => {
               const items = group.items.filter((item) => item.show !== false);
               if (items.length === 0) return null;
@@ -118,6 +122,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       {/* เว้นที่ด้านล่างให้แถบเมนูมือถือ (รวม safe area ของ iPhone) */}
       <main className="min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-10"><div className="mx-auto max-w-7xl"><SectionTabs canOverview={overview} />{children}</div></main>
       <BottomNav items={bottom} />
+      {/* บัญชีที่สร้างไม่เกิน 3 วัน: เริ่มทัวร์แนะนำให้เองหนึ่งครั้ง */}
+      <TourHost fresh={isFresh(user.createdAt)} />
       <CommandPalette
         spaces={spaces.map((s) => ({ id: s.id, name: s.personal ? tr("พื้นที่ส่วนตัว") : s.name }))}
         saved={saved}

@@ -141,11 +141,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           <h1 className="page-title">{tr("ปฏิทินงาน")}</h1>
           <p className="page-subtitle">{team.name} · {rangeLabel} · {tr("{0} งานที่มีกำหนดส่งใน{1}นี้", [inRange.length, unit])}</p>
         </div>
-        <Link className="btn" href={`/tasks?team=${team.id}${view === "day" && anchor >= today ? `&due=${anchor}` : ""}#new`}>{tr("+ เพิ่มงาน")}</Link>
+        <Link data-tour="cal-add" className="btn" href={`/tasks?team=${team.id}${view === "day" && anchor >= today ? `&due=${anchor}` : ""}#new`}>{tr("+ เพิ่มงาน")}</Link>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <nav aria-label={tr("มุมมอง")} className="flex rounded-full bg-surface-sunken p-1">
+        <nav data-tour="cal-views" aria-label={tr("มุมมอง")} className="flex rounded-full bg-surface-sunken p-1">
           {VIEWS.map(([v, viewLabel]) => (
             <Link key={v} href={href(v, anchor)} aria-current={v === view ? "true" : undefined} className={`inline-flex min-h-8 items-center rounded-full px-3.5 text-sm transition ${v === view ? "bg-surface font-semibold text-primary shadow-soft" : "text-muted-foreground hover:text-foreground"}`}>{tr(viewLabel)}</Link>
           ))}
@@ -161,7 +161,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       </div>
 
       {/* ปฏิทินย่อ (มือถือ): เดือน = ทั้งเดือน · สัปดาห์/วัน = แถบ 7 วัน — จุดสี = งานของวันนั้น กดวันเพื่อลงไปชั้นถัดไป */}
-      <section className="overflow-hidden rounded-2xl border border-border bg-surface p-2 shadow-soft md:hidden" aria-label={tr("ปฏิทิน {0}", [rangeLabel])}>
+      <section data-tour="cal-grid" className="overflow-hidden rounded-2xl border border-border bg-surface p-2 shadow-soft md:hidden" aria-label={tr("ปฏิทิน {0}", [rangeLabel])}>
         <div className="grid grid-cols-7 text-center text-2xs font-semibold text-muted-foreground">
           {WEEKDAYS.map((d, i) => <div key={d} className={`pb-1 ${i === 0 || i === 6 ? "text-danger" : ""}`}>{tr(d)}</div>)}
         </div>
@@ -191,7 +191,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
       {/* ตาราง (จอใหญ่): เดือน = ช่องเตี้ย เห็นได้ 3 งานต่อวัน · สัปดาห์ = ช่องสูง เห็นทุกงาน */}
       {view !== "day" && (
-        <section className="hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-soft md:block" aria-label={tr("ปฏิทิน {0}", [rangeLabel])}>
+        <section data-tour="cal-grid" className="hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-soft md:block" aria-label={tr("ปฏิทิน {0}", [rangeLabel])}>
           <div className="grid grid-cols-7 border-b border-border bg-surface-sunken text-center text-xs font-semibold text-muted-foreground">
             {WEEKDAYS.map((d, i) => <div key={d} className={`py-2 ${i === 0 || i === 6 ? "text-danger" : ""}`}>{tr(d)}</div>)}
           </div>

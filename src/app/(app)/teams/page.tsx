@@ -82,7 +82,7 @@ export default async function TeamsPage() {
         )}
       </section>
 
-      <section className="card">
+      <section data-tour="team-mine" className="card">
         <h2 className="mb-1 font-semibold text-slate-900">{tr("ทีมของฉัน")}</h2>
         {teamMemberships.length === 0 ? (
           <p className="text-sm text-slate-500">{tr("คุณยังไม่ได้อยู่ในทีมไหน — ใช้พื้นที่ส่วนตัวได้เลย หรือสร้างทีมใหม่ด้านล่างเพื่อทำงานร่วมกับคนอื่น")}</p>
@@ -111,7 +111,7 @@ export default async function TeamsPage() {
         )}
       </section>
 
-      <section className="card">
+      <section data-tour="team-new" className="card">
         <div className="mb-4">
           <p className="eyebrow">{tr("ทีมใหม่")}</p>
           <h2 className="font-semibold text-slate-900">{tr("สร้างทีมใหม่")}</h2>
