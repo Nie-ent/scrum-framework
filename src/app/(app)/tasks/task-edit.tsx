@@ -7,6 +7,7 @@ import { FormMessage, SubmitButton } from "@/components/form";
 import { Select } from "@/components/select";
 import { Icon } from "@/components/icons";
 import { useT } from "@/components/i18n";
+import { RefTextarea } from "@/components/ref-textarea";
 
 /**
  * หัวแผงรายละเอียดงาน: แสดงชื่อ/รายละเอียด (view จากเซิร์ฟเวอร์) และกด "แก้ไข" เพื่อแก้ในที่เดิม
@@ -17,7 +18,9 @@ export function TaskEdit({
   members,
   selfId,
   view,
+  teamId,
 }: {
+  teamId: string;
   task: { id: string; title: string; description: string | null; assigneeId: string };
   members: { id: string; name: string }[] | null;
   selfId: string;
@@ -51,7 +54,7 @@ export function TaskEdit({
       </div>
       <div>
         <label className="label" htmlFor="edit-description">{tr("รายละเอียด")}</label>
-        <textarea id="edit-description" name="description" rows={4} className="input resize-y" maxLength={2000} defaultValue={task.description ?? ""} placeholder={tr("พิมพ์ได้หลายบรรทัด วางลิงก์ได้")} />
+        <RefTextarea teamId={teamId} id="edit-description" name="description" rows={4} className="input w-full resize-y" maxLength={2000} defaultValue={task.description ?? ""} placeholder={tr("หลายบรรทัดได้ · @ แท็กคน · # อ้างถึงงาน")} />
       </div>
       {members && (
         <div>

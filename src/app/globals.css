@@ -263,6 +263,11 @@
 .markdown.ProseMirror .note-chip-new { @apply bg-slate-50 text-slate-600 ring-slate-300; border-bottom: 1px dashed var(--color-slate-400); }
 .markdown.ProseMirror .note-chip-editing { @apply px-0.5; }
 .markdown.ProseMirror .note-chip-hidden { font-size: 0; letter-spacing: 0; }
+.markdown.ProseMirror .mention-chip, .markdown .mention-chip { @apply rounded-md bg-warning-soft px-1 py-px font-medium text-foreground; }
+
+/* ความคิดเห็นในโน้ต: ข้อความที่มีความคิดเห็นอยู่ (CSS Custom Highlight API — ไม่แตะ DOM ของเนื้อหา) */
+::highlight(pace-comment) { background-color: color-mix(in oklab, var(--color-warning) 28%, transparent); }
+::highlight(pace-comment-active) { background-color: color-mix(in oklab, var(--color-warning) 55%, transparent); }
 .markdown.ProseMirror .task-chip { @apply rounded-md bg-emerald-50 px-1 py-0.5 font-medium tabular-nums text-emerald-700 ring-1 ring-emerald-200; }
 
 /* อ่านโน้ตบนจอสัมผัส: ไม่ให้การเลื่อนจอกลายเป็นการเลือกข้อความ (ดู reading-surface.tsx) */

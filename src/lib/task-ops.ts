@@ -8,6 +8,8 @@ import { nextTaskNumbers } from "./task-store";
 import { toTasks } from "./tasks";
 import { getManageableTeamIds } from "./teams";
 import { trFor } from "./i18n/server";
+import { syncRefs } from "./refs";
+import { alertDueMoved, alertUnblocked, checkNewParent } from "./task-structure";
 
 /**
  * การเปลี่ยนแปลงงานที่ใช้ร่วมกันทั้งจากหน้าเว็บ (server action) และจากผู้ช่วย AI (MCP)
@@ -26,7 +28,7 @@ export function revalidateTasks() {
 /** หัวหน้าทีมมอบหมายให้สมาชิกในทีมได้ทุกคน — สมาชิกทั่วไปสร้างได้เฉพาะงานของตัวเอง */
 export async function createTaskFor(
   user: CurrentUser,
-  data: { teamId: string; assigneeId: string; title: string; description: string | null; dueDate: Date | null },
+  data: { teamId: string; assigneeId: string; title: string; description: string | null; dueDate: Date | null; parentId?: string | null },
 ): Promise<OpResult<{ task: { id: string; number: number }; self: boolean }>> {
   const canManage = (await getManageableTeamIds(user)).has(data.teamId);
   const isMember = user.memberships.some((m) => m.teamId === data.teamId);
@@ -38,9 +40,14 @@ export async function createTaskFor(
     include: { team: { select: { name: true } }, user: { select: { active: true } } },
   });
   if (!assignee || !assignee.participates || !assignee.user.active) return { ok: false, error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
+  if (data.parentId) {
+    const problem = await checkNewParent(data.teamId, data.parentId);
+    if (problem) return { ok: false, error: problem };
+  }
 
   const [number] = await nextTaskNumbers(data.teamId);
-  const task = await prisma.task.create({ data: { ...data, number, createdById: user.id } });
+  const task = await prisma.task.create({ data: { ...data, parentId: data.parentId ?? null, number, createdById: user.id } });
+  if (data.description) await syncTaskRefs(user, task);
 
   if (data.assigneeId !== user.id) {
     await notify([{ userId: data.assigneeId }], (tr) => ({
@@ -55,7 +62,7 @@ export async function createTaskFor(
 }
 
 export const MAX_BATCH = 50;
-type NewTask = { assigneeId: string; title: string; description: string | null; dueDate: Date | null };
+type NewTask = { assigneeId: string; title: string; description: string | null; dueDate: Date | null; parentId?: string | null };
 
 /**
  * สร้างหลายงานในพื้นที่เดียวครั้งเดียว (ใช้จาก MCP) — ตรวจทุกงานก่อน ผิดข้อเดียว = ไม่สร้างเลยทั้งชุด
@@ -72,9 +79,14 @@ export async function createTasksFor(user: CurrentUser, teamId: string, items: N
     select: { userId: true, team: { select: { name: true } } },
   });
   if (members.length !== ids.length) return { ok: false, error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
+  for (const parentId of new Set(items.flatMap((t) => t.parentId ?? []))) {
+    const problem = await checkNewParent(teamId, parentId);
+    if (problem) return { ok: false, error: problem };
+  }
 
   const numbers = await nextTaskNumbers(teamId, items.length);
-  await prisma.$transaction(items.map((t, i) => prisma.task.create({ data: { ...t, teamId, number: numbers[i], createdById: user.id } })));
+  const created = await prisma.$transaction(items.map((t, i) => prisma.task.create({ data: { ...t, parentId: t.parentId ?? null, teamId, number: numbers[i], createdById: user.id } })));
+  for (const task of created) if (task.description) await syncTaskRefs(user, task);
 
   const teamName = members[0].team.name;
   const others = ids.filter((id) => id !== user.id);
@@ -149,6 +161,7 @@ export async function editTaskFor(
       : []),
     ...(inCheckin ? [prisma.standup.update({ where: { id: checkin.id }, data: { yesterdayTasks: renamed(checkin.yesterdayTasks), todayTasks: renamed(checkin.todayTasks) } })] : []),
   ]);
+  if (description !== undefined && description !== task.description) await syncTaskRefs(user, { ...task, description });
 
   if (target) {
     const url = `/tasks?team=${task.teamId}${task.number === null ? "" : `&task=${task.number}`}`;
@@ -210,6 +223,7 @@ export async function setProgressFor(user: CurrentUser, taskId: string, progress
       : []),
   ]);
   await notifyProgress(user, task, progress, reason);
+  if (progress >= 100 && task.progress < 100) await alertUnblocked(user, task);
   revalidateTasks();
   return { ok: true };
 }
@@ -247,7 +261,19 @@ export async function setDueFor(user: CurrentUser, taskId: string, raw: string):
   const found = await loadTask(user, taskId);
   if (!found || !(found.canManage || found.isAssignee)) return { ok: false, error: "คุณไม่มีสิทธิ์แก้งานนี้" };
   if (raw !== "" && !isDateKey(raw)) return { ok: false, error: "วันที่ไม่ถูกต้อง" };
-  await prisma.task.update({ where: { id: found.task.id }, data: { dueDate: raw ? keyToDate(raw) : null } });
+  const due = raw ? keyToDate(raw) : null;
+  await prisma.task.update({ where: { id: found.task.id }, data: { dueDate: due } });
+  // เลื่อนออกไป = งานที่รองานนี้อาจส่งไม่ทัน
+  if (due && (!found.task.dueDate || due > found.task.dueDate)) await alertDueMoved(user, found.task, due);
   revalidateTasks();
   return { ok: true };
+}
+
+/** อ่าน #งาน [[โน้ต]] @คน จากรายละเอียดงาน — คนที่ถูกแท็กใหม่ได้แจ้งเตือน */
+async function syncTaskRefs(user: CurrentUser, task: { id: string; teamId: string; number: number | null; title: string; description: string | null }) {
+  await syncRefs(task.teamId, { taskId: task.id }, task.description ?? "", {
+    actor: user,
+    where: (tr) => tr("งาน {0}", [task.number === null ? task.title : `#${task.number} ${task.title}`]),
+    url: `/tasks?team=${task.teamId}${task.number === null ? "" : `&task=${task.number}`}`,
+  });
 }

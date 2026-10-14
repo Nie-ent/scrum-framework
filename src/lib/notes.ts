@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { prisma } from "./db";
 import { extractLinks, linkResolver } from "./note-links";
+import { syncRefs } from "./refs";
 
 export type NoteNode = { id: string; parentId: string | null; kind: "FOLDER" | "NOTE"; title: string };
 export type NoteTreeNode = NoteNode & { children: NoteTreeNode[] };
@@ -86,3 +87,9 @@ export const favoriteIds = cache(async (userId: string, teamId: string): Promise
   const rows = await prisma.noteFavorite.findMany({ where: { userId, note: { teamId, deletedAt: null } }, select: { noteId: true }, orderBy: { createdAt: "asc" } });
   return rows.map((r) => r.noteId);
 });
+
+/** @คน ในเนื้อโน้ต (ข้อความในโค้ดไม่นับ) — คนที่ถูกแท็กใหม่ได้แจ้งเตือน */
+export async function syncNoteMentions(actor: { id: string; name: string }, note: { id: string; teamId: string; title: string }, content: string) {
+  const text = content.split(/(```[\s\S]*?```|`[^`\n]*`)/).filter((_, i) => i % 2 === 0).join("");
+  await syncRefs(note.teamId, { noteId: note.id }, text, { actor, where: (tr) => tr("โน้ต {0}", [note.title]), url: `/notes/${note.id}` });
+}

@@ -102,6 +102,26 @@
   - จันทร์–ศุกร์ → เตือนคนที่ยังไม่เช็กอิน (ของเดิม)
 - iPhone รับแจ้งเตือนได้เมื่อติดตั้ง Pace ลงหน้าจอโฮมแล้ว (iOS 16.4+)
 
+## ทำงานร่วมกัน: แท็กคน ความคิดเห็นในโน้ต และโครงสร้างงาน
+
+- **อ้างถึงกันทั้งระบบ** — พิมพ์ `#12` (งาน) `[[ชื่อโน้ต]]` (โน้ต) `@ชื่อ` (คน) ได้ในรายละเอียดงาน ความคิดเห็น เช็กอิน และเนื้อโน้ต มีรายการให้เลือกตอนพิมพ์ แสดงเป็นป้ายที่กดได้ คนที่ถูกแท็กได้แจ้งเตือน และงาน/โน้ตแสดง "ถูกอ้างถึงใน" (ตาราง `Ref`; ลิงก์ในเนื้อโน้ตยังอยู่ใน `NoteLink` ที่แผนผังใช้)
+- **ความคิดเห็นในโน้ตแบบ Google Docs** — เลือกข้อความแล้วกด "แสดงความคิดเห็น" ข้อความถูกไฮไลต์ (CSS Custom Highlight API ไม่แตะเนื้อโน้ต) จุดยึดเก็บเป็นข้อความที่เลือก + คำรอบข้าง แล้วหาตำแหน่งใหม่ทุกครั้งที่เปิด (`src/lib/anchor.ts`) มอบหมายเธรดให้คน อ่าน / ตรวจ / แก้ ได้ (ตรวจผ่านแล้วหัวโน้ตแสดง "ตรวจแล้วโดย…" และเตือนเมื่อโน้ตถูกแก้หลังตรวจ) ดึงความคิดเห็นใหม่ทุก 30 วินาที
+- **รอฉัน** (`/inbox`) — คำขอในโน้ต งานที่ได้รับมอบ งานที่เพิ่งเริ่มได้ และที่ที่ถูกแท็ก
+- **ตอบเป็นเธรด** ใต้ความคิดเห็นของงานและเช็กอิน (ชั้นเดียว)
+- **งานย่อย** (ชั้นเดียว) **ป้ายกำกับ** (ต่อทีม ทีมย่อยใช้ของทีมแม่ได้ ชื่อห้ามซ้ำกันในกลุ่มทีมแม่–ทีมย่อย หัวหน้าจัดการที่หน้าทีม) และ **งานที่ต้องรอ** (blocked-by ห้ามวน — เตือนผู้รับงานเมื่องานที่รออยู่ถูกเลื่อนไปหลังกำหนดส่ง และเมื่อเริ่มได้)
+
+## ทดสอบ
+
+```bash
+npm test                      # ฟังก์ชันล้วน (ไม่ต้องมีฐานข้อมูล) — ชุดฐานข้อมูลจะถูกข้าม
+# ชุดฐานข้อมูล: ใช้ฐานข้อมูลแยกเท่านั้น (ข้อมูลทดสอบถูกสร้างและลบเอง)
+docker compose up -d db
+psql postgresql://scrum:scrum@localhost:5433/scrum -c "CREATE DATABASE scrum_test"
+export TEST_DATABASE_URL="postgresql://scrum:scrum@localhost:5433/scrum_test?schema=public"
+DATABASE_URL=$TEST_DATABASE_URL DIRECT_URL=$TEST_DATABASE_URL npx prisma migrate deploy && DATABASE_URL=$TEST_DATABASE_URL node prisma/seed.mjs
+TEST_DATABASE_URL=$TEST_DATABASE_URL npm test
+```
+
 ## รันด้วย Docker (แนะนำ)
 
 ```bash
@@ -212,7 +232,7 @@ Pace เป็นเซิร์ฟเวอร์ [MCP](https://modelcontextpro
 - ที่อยู่: `POST /api/mcp` (Streamable HTTP แบบไม่เก็บสถานะ — ตอบเป็น JSON ไม่มี SSE)
 - ยืนยันตัว: `Authorization: Bearer <โทเคน>` — ผู้ใช้สร้างโทเคนเองที่ บัญชี → เชื่อมต่อผู้ช่วย AI (ตาราง `ApiToken` เก็บเฉพาะ hash) เลือกแบบอ่านอย่างเดียวได้
 - สิทธิ์: ทุกเครื่องมือทำงานในนามเจ้าของโทเคน ใช้กฎชุดเดียวกับหน้าเว็บ (`src/lib/task-ops.ts`) จำกัด 120 คำขอต่อนาทีต่อคน
-- เครื่องมือ (`src/lib/mcp.ts`): `list_spaces` `list_members` `list_tasks` `get_task` `create_task` `create_tasks` (สูงสุด 50 งาน ผิดข้อเดียวไม่สร้างเลย) `update_task` (แก้ชื่อ รายละเอียด โอนงานได้) `list_notes` `read_note` `create_note` `create_folder` (รับ path หลายชั้นได้) `update_note` `get_checkins`
+- เครื่องมือ (`src/lib/mcp.ts`): `list_spaces` `list_members` `list_tasks` (กรองตามป้าย/งานแม่ได้) `get_task` (งานย่อย งานที่ต้องรอ ที่ที่อ้างถึง) `create_task` `create_tasks` (สูงสุด 50 งาน ผิดข้อเดียวไม่สร้างเลย) `update_task` (แก้ชื่อ รายละเอียด โอนงาน งานแม่ ป้าย งานที่ต้องรอ) `list_labels` `comment_on_task` `list_notes` `read_note` `create_note` `create_folder` (รับ path หลายชั้นได้) `update_note` `list_note_comments` `comment_on_note` (ยึดข้อความ + ขอให้อ่าน/ตรวจ/แก้) `resolve_note_comment` `waiting_on_me` `get_checkins`
 
 ```bash
 claude mcp add --transport http pace https://<โดเมน>/api/mcp --header "Authorization: Bearer <โทเคน>"

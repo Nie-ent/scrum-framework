@@ -23,6 +23,7 @@ export function RichEditor({
   onDirty,
   noteTitles,
   tasks,
+  people = [],
 }: {
   name: string;
   defaultValue: string;
@@ -31,6 +32,7 @@ export function RichEditor({
   onDirty?: () => void;
   noteTitles: string[];
   tasks: { number: number; title: string }[];
+  people?: { id: string; name: string }[];
 }) {
   const tr = useT();
   const [markdown, setMarkdown] = useState(defaultValue);
@@ -44,7 +46,7 @@ export function RichEditor({
       TaskItem.configure({ nested: true }),
       TableKit,
       Markdown,
-      LinkChips.configure({ noteTitles, taskNumbers: tasks.map((t) => t.number), tr }),
+      LinkChips.configure({ noteTitles, taskNumbers: tasks.map((t) => t.number), people, tr }),
     ],
     content: defaultValue,
     contentType: "markdown",
@@ -71,8 +73,8 @@ export function RichEditor({
         <div className="h-11 border-b border-slate-200 bg-slate-50" />
       )}
       {editor ? <EditorContent editor={editor} /> : <div className="markdown min-h-80 whitespace-pre-wrap px-4 py-3 text-slate-400">{tr("กำลังเปิดตัวแก้ไข…")}</div>}
-      {editor && <EditorMenus editor={editor} noteTitles={noteTitles} tasks={tasks} keyHandler={menuKeys} />}
-      <p className="border-t border-slate-100 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-500">{tr("พิมพ์")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">/</kbd> {tr("เพื่อแทรกหัวข้อ รายการ หรือตาราง ·")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">[[</kbd> {tr("เชื่อมไปโน้ต ·")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">#</kbd> {tr("เชื่อมไปงาน")}</p>
+      {editor && <EditorMenus editor={editor} noteTitles={noteTitles} tasks={tasks} people={people} keyHandler={menuKeys} />}
+      <p className="border-t border-slate-100 bg-slate-50/60 px-3 py-1.5 text-xs text-slate-500">{tr("พิมพ์")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">/</kbd> {tr("เพื่อแทรกหัวข้อ รายการ หรือตาราง ·")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">[[</kbd> {tr("เชื่อมไปโน้ต ·")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">#</kbd> {tr("เชื่อมไปงาน ·")}{" "}<kbd className="rounded bg-white px-1 font-sans ring-1 ring-slate-200">@</kbd> {tr("แท็กคน")}</p>
     </div>
   );
 }

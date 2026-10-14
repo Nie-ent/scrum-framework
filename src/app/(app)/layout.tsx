@@ -18,6 +18,7 @@ import { Tooltip } from "@/components/tooltip";
 import { currentSpaceId } from "@/lib/space";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { tr } from "@/lib/i18n/server";
+import { waitingCount } from "@/lib/inbox";
 
 /** บัญชีที่เพิ่งสร้าง (ไม่เกิน 3 วัน) */
 const isFresh = (createdAt: Date) => Date.now() - createdAt.getTime() < 3 * 24 * 60 * 60 * 1000;
@@ -25,9 +26,10 @@ const isFresh = (createdAt: Date) => Date.now() - createdAt.getTime() < 3 * 24 *
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const level = user.role.level;
-  const [unread, latest] = await Promise.all([
+  const [unread, latest, waiting] = await Promise.all([
     prisma.notification.count({ where: { userId: user.id, readAt: null } }),
     prisma.notification.findMany({ where: { userId: user.id }, orderBy: { id: "desc" }, take: 6 }),
+    waitingCount(user),
   ]);
   const previews = latest.map((n) => ({ id: String(n.id), title: n.title, body: n.body, time: formatDateTime(n.createdAt), unread: !n.readAt }));
   const overview = canViewOverview(user);
@@ -37,7 +39,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // เมนูจัดเป็นหมวด: สิ่งที่ทำทุกวัน · งาน (รายการ/ปฏิทิน/ไฟล์ = มุมมองของงานชุดเดียวกัน) · โน้ต · ทีม (ทุกอย่างเกี่ยวกับคนอื่น)
   type Item = { href: string; label: string; icon: NavIcon; show?: boolean; badge?: number };
   const groups: { title?: string; items: Item[] }[] = [
-    { items: [{ href: "/standup", label: tr("วันนี้"), icon: "checkin" }] },
+    {
+      items: [
+        { href: "/standup", label: tr("วันนี้"), icon: "checkin" },
+        { href: "/inbox", label: tr("รอฉัน"), icon: "inbox", badge: waiting },
+      ],
+    },
     {
       title: tr("งาน"),
       items: [
@@ -113,8 +120,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </Link>
           </Tooltip>
           {/* รูปโปรไฟล์ = เมนูบัญชี (ตั้งค่า · ออกจากระบบ) */}
-          <AccountMenu name={user.name} email={user.email} admin={canAdmin(level)}>
-            <Avatar user={user} size={32} />
+          <AccountMenu name={user.name} email={user.email} admin={canAdmin(level)} waiting={waiting}>
+            <span className="relative shrink-0">
+              <Avatar user={user} size={32} />
+              {/* มีเรื่องรอฉัน — มือถือเห็นจุดที่รูปโปรไฟล์ (เมนู "รอฉัน" อยู่ในเมนูบัญชี) */}
+              {waiting > 0 && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-warning ring-2 ring-surface lg:hidden" />}
+            </span>
           </AccountMenu>
           </div>
         </div>

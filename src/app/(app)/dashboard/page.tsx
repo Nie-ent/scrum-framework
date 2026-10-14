@@ -229,8 +229,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 </header>
                 {entry ? (
                   <>
-                    <StandupSections standup={entry} only={["yesterdayTasks", "todayTasks", "blockers"]} />
-                    <CommentThread canAttach={canAttach} target={{ standupId: entry.id }} comments={entry.comments} viewerId={viewer.id} canModerate subject={tr("เช็กอินของ {0}", [member.name])} />
+                    <StandupSections teamId={team.id} standup={entry} only={["yesterdayTasks", "todayTasks", "blockers"]} />
+                    <CommentThread teamId={team.id} canAttach={canAttach} target={{ standupId: entry.id }} comments={entry.comments} viewerId={viewer.id} canModerate subject={tr("เช็กอินของ {0}", [member.name])} />
                   </>
                 ) : (
                   <p className="text-sm text-slate-400">{tr("ยังไม่ได้เช็กอินของวันนี้")}</p>

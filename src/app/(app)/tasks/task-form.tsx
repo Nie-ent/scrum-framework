@@ -11,6 +11,7 @@ import { FieldError, useZodForm } from "@/components/zod-form";
 import { Select } from "@/components/select";
 import { DatePicker } from "@/components/date-picker";
 import { useT } from "@/components/i18n";
+import { RefTextarea } from "@/components/ref-textarea";
 
 export function TaskForm({
   teamId,
@@ -68,7 +69,7 @@ export function TaskForm({
           <div>
             <label className="label" htmlFor="task-description">{tr("รายละเอียด")}</label>
             {/* หลายบรรทัดได้: Enter ในช่องนี้ = ขึ้นบรรทัดใหม่ (ไม่ใช่การเพิ่มงาน) */}
-            <textarea id="task-description" rows={2} className="input resize-y" maxLength={2000} placeholder={tr("พิมพ์ได้หลายบรรทัด วางลิงก์ได้")} {...field("description")} />
+            <RefTextarea teamId={teamId} id="task-description" rows={2} className="input w-full resize-y" maxLength={2000} placeholder={tr("หลายบรรทัดได้ · @ แท็กคน · # อ้างถึงงาน")} {...field("description")} />
             <FieldError name="description" message={error("description")} />
           </div>
           {members ? (

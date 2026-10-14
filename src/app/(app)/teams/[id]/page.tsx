@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LabelAdmin } from "./label-admin";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { revokeInvite } from "@/app/actions/teams";
@@ -44,6 +45,9 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
   const contacts = [...new Map([...sent.flatMap((s) => (s.acceptedBy ? [s.acceptedBy] : [])), ...teammates].map((c) => [c.email, c])).values()]
     .filter((c) => !inTeam.has(c.email))
     .sort((a, b) => a.name.localeCompare(b.name, "th"));
+  const labels = await prisma.label
+    .findMany({ where: { teamId: team.id }, select: { id: true, name: true, color: true, _count: { select: { tasks: true } } }, orderBy: { name: "asc" } })
+    .then((rows) => rows.map((l) => ({ id: l.id, name: l.name, color: l.color, tasks: l._count.tasks })));
   const titles = [...new Set(members.flatMap((m) => (m.title ? [m.title] : [])))].sort();
 
   return (
@@ -124,6 +128,12 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
           <MeetingUrlForm teamId={team.id} meetingUrl={team.meetingUrl} />
         </section>
       )}
+
+      <section className="card">
+        <h2 className="mb-1 font-semibold text-foreground">{tr("ป้ายกำกับงาน")}</h2>
+        <p className="mb-3 text-sm text-muted-foreground">{tr("ใช้จัดกลุ่มและกรองงาน สมาชิกสร้างป้ายจากหน้างานได้ หัวหน้าแก้ชื่อ สี หรือลบได้ที่นี่")}{!team.parentId && tr(" · ทีมย่อยใช้ป้ายของทีมนี้ได้ด้วย")}</p>
+        <LabelAdmin teamId={team.id} labels={labels} />
+      </section>
 
       {!team.parentId && (
         <section className="card">

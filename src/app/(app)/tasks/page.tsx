@@ -14,6 +14,11 @@ import { TaskSearch } from "./task-search";
 import { ProgressSlider } from "./progress-slider";
 import { DueForm } from "../calendar/due-form";
 import { TaskEdit } from "./task-edit";
+import { AddSubtask, LabelPicker, ParentPicker, WaitingEditor } from "./task-structure";
+import { availableLabels } from "@/lib/task-structure";
+import { labelClass } from "@/lib/labels";
+import { refContext } from "@/lib/ref-context";
+import { taskBacklinks } from "@/lib/backlinks";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
 import { CommentThread, LinkedText } from "@/components/comments";
@@ -69,10 +74,20 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         attachments: withAttachments,
         // โน้ตที่อ้างถึงงานนี้ด้วย #เลขงาน
         noteLinks: { where: { from: { deletedAt: null } }, select: { from: { select: { id: true, title: true } } } },
+        labels: { select: { labelId: true } },
+        blockedBy: { select: { blockedById: true } },
       },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
   ]);
+
+  const [labels, ctx] = await Promise.all([availableLabels(team.id), refContext(team.id)]);
+  const labelById = new Map(labels.map((l) => [l.id, l]));
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const childrenOf = (id: string) => tasks.filter((t) => t.parentId === id);
+  // งานที่ต้องรอและยังไม่เสร็จ
+  const waitingOn = (t: (typeof tasks)[number]) => t.blockedBy.flatMap((b) => { const x = byId.get(b.blockedById); return x && x.progress < 100 ? [x] : []; });
+  const labelFilter = typeof params.label === "string" && labelById.has(params.label) ? labelById.get(params.label)! : undefined;
 
   const open = tasks.filter((t) => t.progress < 100);
   const finished = tasks.filter((t) => t.progress >= 100).sort((a, b) => (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0));
@@ -89,9 +104,9 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
     const texts = [t.title, t.description ?? "", t.assignee.name, t.createdBy?.name ?? ""].map((text) => text.toLowerCase());
     return words.every((word) => texts.some((text) => text.includes(word)) || (t.number !== null && String(t.number) === word.replace(/^#/, "")));
   };
-  const scoped = onlyOverdue || Boolean(who);
+  const scoped = onlyOverdue || Boolean(who) || Boolean(labelFilter);
   const filtered = scoped || Boolean(q);
-  const shown = open.filter((t) => (!onlyOverdue || (t.dueDate && dateToKey(t.dueDate) < today)) && (!who || t.assignee.id === who.id) && matches(t));
+  const shown = open.filter((t) => (!onlyOverdue || (t.dueDate && dateToKey(t.dueDate) < today)) && (!who || t.assignee.id === who.id) && (!labelFilter || t.labels.some((l) => l.labelId === labelFilter.id)) && matches(t));
   // งานที่เสร็จแล้วค้นเจอได้ด้วย (ตัวกรองเลยกำหนด/รายคน ดูเฉพาะงานค้าง)
   const finishedShown = scoped ? [] : finished.filter(matches);
 
@@ -113,10 +128,12 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const canEditText = (t: TaskRow) => canUpdate(t) || t.createdBy?.id === user.id;
   const canReassign = (t: TaskRow) => shared && (canManage || (t.createdBy?.id === user.id && t.createdBy.id !== t.assignee.id));
   const all = `/tasks?team=${team.id}`;
-  const scope = `${all}${onlyOverdue ? "&overdue=1" : ""}${who ? `&who=${who.id}` : ""}`;
+  const scope = `${all}${onlyOverdue ? "&overdue=1" : ""}${who ? `&who=${who.id}` : ""}${labelFilter ? `&label=${labelFilter.id}` : ""}`;
   const base = `${scope}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
   const detailHref = (t: TaskRow) => (t.number === null ? base : `${base}&task=${t.number}`);
   const selected = typeof params.task === "string" ? tasks.find((t) => String(t.number) === params.task) : undefined;
+  // ที่อื่นที่อ้างถึงงานนี้ (#เลขงาน ในงานอื่น ความคิดเห็น และเช็กอิน) — โน้ตอยู่ใน noteLinks แล้ว
+  const backlinks = selected ? await taskBacklinks(selected.id, tr) : [];
 
   const row = (t: TaskRow) => {
     const dueKey = t.dueDate ? dateToKey(t.dueDate) : null;
@@ -146,6 +163,18 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
             </span>
             {t.createdBy && t.createdBy.id !== t.assignee.id && (
               <span className="block truncate text-xs text-subtle">{t.createdBy.id === user.id ? tr("มอบหมายโดยคุณ") : tr("มอบหมายโดย {0}", [t.createdBy.name])}</span>
+            )}
+            {(t.labels.length > 0 || t.parentId || childrenOf(t.id).length > 0 || waitingOn(t).length > 0) && (
+              <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                {t.parentId && byId.get(t.parentId) && <span className="text-2xs text-subtle">↳ #{byId.get(t.parentId)!.number}</span>}
+                {childrenOf(t.id).length > 0 && (
+                  <span className="badge badge-neutral text-2xs">{tr("งานย่อย {0}/{1}", [childrenOf(t.id).filter((c) => c.progress >= 100).length, childrenOf(t.id).length])}</span>
+                )}
+                {waitingOn(t).length > 0 && <span className="badge badge-warning text-2xs">{tr("รอ {0}", [waitingOn(t).map((w) => `#${w.number}`).join(", ")])}</span>}
+                {t.labels.map((l) => labelById.get(l.labelId)).filter(Boolean).map((l) => (
+                  <span key={l!.id} className={`badge text-2xs ring-1 ${labelClass(l!.color)}`}>{l!.name}</span>
+                ))}
+              </span>
             )}
           </span>
           {dueKey && !done && (
@@ -192,11 +221,20 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
         </section>
 
         {tasks.length > 0 && <TaskSearch key={scope} base={scope} q={q} />}
+        {labels.length > 0 && (
+          <nav aria-label={tr("กรองตามป้าย")} className="-mt-3 flex flex-wrap items-center gap-1.5">
+            {labels.map((l) => (
+              <Link key={l.id} href={labelFilter?.id === l.id ? all : `${all}&label=${l.id}`} aria-current={labelFilter?.id === l.id ? "true" : undefined} className={`badge ring-1 transition ${labelClass(l.color)} ${labelFilter?.id === l.id ? "ring-2 ring-primary" : "opacity-80 hover:opacity-100"}`}>
+                {l.name}
+              </Link>
+            ))}
+          </nav>
+        )}
 
         {filtered && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-sunken px-4 py-2.5 text-sm">
             <span className="text-foreground">
-              {tr("กำลังแสดงเฉพาะ")}{onlyOverdue ? tr("งานที่เลยกำหนด") : tr("งานที่ยังค้าง")}{who && <>{tr("ของ")}{" "}<b className="font-semibold">{who.name}</b></>}{q && <>{" "}{tr("ที่ตรงกับ")}{" "}<b className="font-semibold">&quot;{q}&quot;</b></>} · {tr("{0} งาน", [shown.length])}
+              {tr("กำลังแสดงเฉพาะ")}{onlyOverdue ? tr("งานที่เลยกำหนด") : tr("งานที่ยังค้าง")}{who && <>{tr("ของ")}{" "}<b className="font-semibold">{who.name}</b></>}{labelFilter && <>{" "}{tr("ป้าย")}{" "}<b className="font-semibold">{labelFilter.name}</b></>}{q && <>{" "}{tr("ที่ตรงกับ")}{" "}<b className="font-semibold">&quot;{q}&quot;</b></>} · {tr("{0} งาน", [shown.length])}
             </span>
             <Link href={all} className="font-medium text-primary hover:text-primary-strong">{tr("ดูงานทั้งหมด")}</Link>
           </div>
@@ -241,11 +279,12 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                 const view = (
                   <div>
                     <h2 className={`text-xl font-semibold leading-snug ${selected.progress >= 100 ? "text-muted-foreground line-through" : "text-foreground"}`}>{selected.title}</h2>
-                    {selected.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground"><LinkedText text={selected.description} /></p>}
+                    {selected.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground"><LinkedText text={selected.description} ctx={ctx} /></p>}
                   </div>
                 );
                 return canEditText(selected) ? (
                   <TaskEdit
+                    teamId={team.id}
                     key={`${selected.id}:${selected.updatedAt.getTime()}`}
                     task={{ id: selected.id, title: selected.title, description: selected.description, assigneeId: selected.assignee.id }}
                     members={canReassign(selected) ? members.map((m) => m.user) : null}
@@ -280,7 +319,92 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                     <span className="text-subtle">{tr("ยังไม่กำหนด")}</span>
                   )}
                 </dd>
+                <dt className="text-muted-foreground">{tr("ป้าย")}</dt>
+                <dd><LabelPicker taskId={selected.id} teamId={team.id} labels={labels} selected={selected.labels.map((l) => l.labelId)} canEdit={canEditText(selected)} /></dd>
+                {(selected.parentId || (canEditText(selected) && childrenOf(selected.id).length === 0)) && (
+                  <>
+                    <dt className="text-muted-foreground">{tr("งานแม่")}</dt>
+                    <dd className="space-y-1">
+                      {selected.parentId && byId.get(selected.parentId) && (
+                        <Link href={`${base}&task=${byId.get(selected.parentId)!.number}`} scroll={false} className="block font-medium text-primary hover:text-primary-strong">#{byId.get(selected.parentId)!.number} {byId.get(selected.parentId)!.title}</Link>
+                      )}
+                      {canEditText(selected) && (
+                        <ParentPicker
+                          taskId={selected.id}
+                          parent={selected.parentId ? { id: selected.parentId, number: byId.get(selected.parentId)?.number ?? null, title: byId.get(selected.parentId)?.title ?? "" } : null}
+                          candidates={tasks.filter((t) => t.id !== selected.id && !t.parentId).map((t) => ({ id: t.id, number: t.number, title: t.title }))}
+                        />
+                      )}
+                    </dd>
+                  </>
+                )}
               </dl>
+
+              {!selected.parentId && (childrenOf(selected.id).length > 0 || canEditText(selected)) && (
+                <section>
+                  <h3 className="mb-2 text-sm font-semibold">{tr("งานย่อย")}{childrenOf(selected.id).length > 0 && ` ${childrenOf(selected.id).filter((c) => c.progress >= 100).length}/${childrenOf(selected.id).length}`}</h3>
+                  {childrenOf(selected.id).length > 0 && (
+                    <ul className="mb-2 space-y-1">
+                      {childrenOf(selected.id).map((c) => (
+                        <li key={c.id}>
+                          <Link href={`${base}&task=${c.number}`} scroll={false} className="flex items-center gap-2 py-1 text-sm hover:text-primary">
+                            <ProgressRing value={c.progress} size={18} />
+                            <span className="tabular-nums text-subtle">#{c.number}</span>
+                            <span className={`min-w-0 flex-1 truncate ${c.progress >= 100 ? "text-subtle line-through" : "text-foreground"}`}>{c.title}</span>
+                            {shared && <span className="shrink-0 text-xs text-muted-foreground">{c.assignee.name}</span>}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {canEditText(selected) && <AddSubtask parentId={selected.id} members={canManage && shared ? members.map((m) => m.user) : null} selfId={user.id} />}
+                </section>
+              )}
+
+              {(() => {
+                const blockers = selected.blockedBy.flatMap((b) => byId.get(b.blockedById) ?? []);
+                const blocks = tasks.filter((t) => t.blockedBy.some((b) => b.blockedById === selected.id));
+                if (blockers.length === 0 && blocks.length === 0 && !canEditText(selected)) return null;
+                const taken = new Set([selected.id, ...blockers.map((b) => b.id)]);
+                return (
+                  <section>
+                    <h3 className="mb-2 text-sm font-semibold">{tr("ต้องรองาน")}</h3>
+                    {blockers.length > 0 ? (
+                      <ul className="mb-2 space-y-1">
+                        {blockers.map((b) => (
+                          <li key={b.id}>
+                            <Link href={`${base}&task=${b.number}`} scroll={false} className="flex items-center gap-2 py-1 text-sm hover:text-primary">
+                              <ProgressRing value={b.progress} size={18} />
+                              <span className="tabular-nums text-subtle">#{b.number}</span>
+                              <span className={`min-w-0 flex-1 truncate ${b.progress >= 100 ? "text-subtle line-through" : "text-foreground"}`}>{b.title}</span>
+                              <span className={`badge shrink-0 text-2xs ${b.progress >= 100 ? "badge-success" : "badge-warning"}`}>{b.progress >= 100 ? tr("เสร็จแล้ว") : tr("ยังไม่เสร็จ")}</span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mb-2 text-sm text-subtle">{tr("ไม่ต้องรองานไหน")}</p>
+                    )}
+                    {canEditText(selected) && (
+                      <WaitingEditor
+                        taskId={selected.id}
+                        blockers={blockers.map((b) => ({ id: b.id, number: b.number, title: b.title }))}
+                        candidates={tasks.filter((t) => !taken.has(t.id) && t.progress < 100).map((t) => ({ id: t.id, number: t.number, title: t.title }))}
+                      />
+                    )}
+                    {blocks.length > 0 && (
+                      <>
+                        <h4 className="mb-1 mt-3 text-xs font-semibold text-muted-foreground">{tr("งานที่รองานนี้อยู่")}</h4>
+                        <ul className="space-y-1">
+                          {blocks.map((b) => (
+                            <li key={b.id}><Link href={`${base}&task=${b.number}`} scroll={false} className="flex gap-2 text-sm hover:text-primary"><span className="tabular-nums text-subtle">#{b.number}</span><span className="min-w-0 truncate">{b.title}</span><span className="ml-auto shrink-0 text-xs text-muted-foreground">{b.assignee.name}</span></Link></li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </section>
+                );
+              })()}
 
               <section>
                 <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><ProgressRing value={selected.progress} size={22} />{tr("ความคืบหน้า")}{" "}{selected.progress}%</h3>
@@ -306,12 +430,20 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                 {canAttach && (canUpdate(selected) || selected.createdBy?.id === user.id) && <AttachButton target={{ taskId: selected.id }} />}
               </section>
 
-              {selected.noteLinks.length > 0 && (
+              {(selected.noteLinks.length > 0 || backlinks.length > 0) && (
                 <section>
-                  <h3 className="mb-2 text-sm font-semibold">{tr("โน้ตที่อ้างถึงงานนี้")}</h3>
+                  <h3 className="mb-2 text-sm font-semibold">{tr("ถูกอ้างถึงใน")}</h3>
                   <ul className="space-y-1">
                     {selected.noteLinks.map((l) => (
                       <li key={l.from.id}><Link href={`/notes/${l.from.id}`} className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-strong"><Icon name="note" className="h-4 w-4 text-subtle" />{l.from.title}</Link></li>
+                    ))}
+                    {backlinks.map((b) => (
+                      <li key={b.key}>
+                        <Link href={b.href} scroll={false} className="inline-flex items-center gap-2 text-sm text-foreground hover:text-primary">
+                          <Icon name={b.icon} className="h-4 w-4 shrink-0 text-subtle" />
+                          <span className="min-w-0 truncate">{b.label}</span>
+                        </Link>
+                      </li>
                     ))}
                   </ul>
                 </section>
@@ -319,7 +451,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
               <section>
                 <h3 className="mb-1 text-sm font-semibold">{tr("ความคิดเห็นและประวัติ")}</h3>
-                <CommentThread canAttach={canAttach} target={{ taskId: selected.id }} comments={selected.comments} viewerId={user.id} canModerate={canManage} subject={selected.title} open />
+                <CommentThread teamId={team.id} canAttach={canAttach} target={{ taskId: selected.id }} comments={selected.comments} viewerId={user.id} canModerate={canManage} subject={selected.title} open />
               </section>
             </div>
           </aside>

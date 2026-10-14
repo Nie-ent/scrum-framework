@@ -4,9 +4,13 @@ import { prisma } from "./db";
 import type { CurrentUser } from "./auth";
 import { dateToKey, isDateKey, keyToDate, todayKey } from "./dates";
 import { noteKey } from "./note-links";
-import { relinkMentions, syncLinks } from "./notes";
+import { relinkMentions, syncLinks, syncNoteMentions } from "./notes";
 import { NoteFields, TaskFields, noteTitle } from "./schemas";
 import { MAX_BATCH, createTaskFor, createTasksFor, editTaskFor, setDueFor, setProgressFor } from "./task-ops";
+import { addBlockerFor, availableLabels, createLabelFor, removeBlockerFor, setLabelsFor, setParentFor } from "./task-structure";
+import { addCommentFor, completeAssignmentFor, noteThreadsFor, resolveThreadFor } from "./comment-ops";
+import { waitingOn } from "./inbox";
+import { CONTEXT } from "./anchor";
 import { toTasks } from "./tasks";
 import { getWorkspaceTeams } from "./teams";
 import { trFor } from "./i18n/server";
@@ -45,7 +49,20 @@ async function pickSpace(user: CurrentUser, value: unknown) {
   return found;
 }
 
-const taskView = (t: { number: number | null; title: string; description: string | null; progress: number; dueDate: Date | null; doneAt: Date | null; assignee: { name: string }; createdBy: { name: string } | null }, teamId: string, appUrl: string) => ({
+type TaskShape = {
+  number: number | null;
+  title: string;
+  description: string | null;
+  progress: number;
+  dueDate: Date | null;
+  doneAt: Date | null;
+  assignee: { name: string };
+  createdBy: { name: string } | null;
+  parent: { number: number | null } | null;
+  labels: { label: { name: string } }[];
+  blockedBy: { blockedBy: { number: number | null; progress: number; deletedAt: Date | null } }[];
+};
+const taskView = (t: TaskShape, teamId: string, appUrl: string) => ({
   number: t.number,
   title: t.title,
   description: t.description,
@@ -55,9 +72,19 @@ const taskView = (t: { number: number | null; title: string; description: string
   overdue: Boolean(t.dueDate && t.progress < 100 && dateToKey(t.dueDate) < todayKey()),
   assignee: t.assignee.name,
   assigned_by: t.createdBy?.name ?? null,
+  parent_number: t.parent?.number ?? null,
+  labels: t.labels.map((l) => l.label.name),
+  // งานที่ต้องรอและยังไม่เสร็จ
+  waiting_on: t.blockedBy.filter((b) => b.blockedBy.progress < 100 && !b.blockedBy.deletedAt).map((b) => b.blockedBy.number),
   url: t.number === null ? `${appUrl}/tasks?team=${teamId}` : `${appUrl}/tasks?team=${teamId}&task=${t.number}`,
 });
-const withPeople = { assignee: { select: { id: true, name: true } }, createdBy: { select: { name: true } } } as const;
+const withPeople = {
+  assignee: { select: { id: true, name: true } },
+  createdBy: { select: { name: true } },
+  parent: { select: { number: true } },
+  labels: { select: { label: { select: { name: true } } } },
+  blockedBy: { select: { blockedBy: { select: { number: true, progress: true, deletedAt: true } } } },
+} as const;
 
 async function findTask(user: CurrentUser, args: Args) {
   const space = await pickSpace(user, args.space);
@@ -110,8 +137,35 @@ async function newTask(user: CurrentUser, space: Space, args: Args) {
   const parsed = TaskFields.safeParse({ assigneeId, title: str(args.title), description: str(args.description), dueDate: str(args.due_date) });
   if (!parsed.success) fail(user, parsed.error.issues[0].message);
   const { title, description, dueDate } = parsed.data;
-  return { assigneeId, title, description: description || null, dueDate: dueDate ? keyToDate(dueDate) : null };
+  const parentId = args.parent_number === undefined || args.parent_number === null ? null : await taskIdByNumber(space, args.parent_number, "parent_number");
+  return { assigneeId, title, description: description || null, dueDate: dueDate ? keyToDate(dueDate) : null, parentId };
 }
+
+/** เลขงานในพื้นที่นี้ → id */
+async function taskIdByNumber(space: Space, value: unknown, field: string) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number <= 0) throw new ToolError(`"${field}" must be a task number`);
+  const task = await prisma.task.findFirst({ where: { teamId: space.id, number, deletedAt: null }, select: { id: true } });
+  if (!task) throw new ToolError(`No task #${number} in ${space.name}`);
+  return task.id;
+}
+
+/** ชื่อป้าย → id (ป้ายที่ยังไม่มีจะถูกสร้างในพื้นที่นี้) */
+async function labelIds(user: CurrentUser, space: Space, value: unknown) {
+  if (!Array.isArray(value)) throw new ToolError('"labels" must be a list of label names');
+  const ids: string[] = [];
+  for (const name of value.map(str).filter(Boolean).slice(0, 20)) {
+    const result = await createLabelFor(user, space.id, name);
+    if (!result.ok) fail(user, result.error);
+    ids.push(result.label.id);
+  }
+  return ids;
+}
+
+const numbers = (value: unknown, field: string) => {
+  if (!Array.isArray(value)) throw new ToolError(`"${field}" must be a list of task numbers`);
+  return value;
+};
 
 export const TOOLS: Tool[] = [
   {
@@ -160,6 +214,8 @@ export const TOOLS: Tool[] = [
       mine: { type: "boolean", description: "Only tasks assigned to the token owner" },
       overdue: { type: "boolean", description: "Only open tasks past their due date" },
       query: { type: "string", description: "Text to find in the title or details" },
+      label: { type: "string", description: "Only tasks with this label name" },
+      parent_number: { type: "integer", description: "Only the subtasks of this task" },
     }),
     write: false,
     run: async (args, { user, appUrl }) => {
@@ -174,6 +230,8 @@ export const TOOLS: Tool[] = [
           ...(args.mine === true ? { assigneeId: user.id } : {}),
           ...(args.overdue === true ? { progress: { lt: 100 }, dueDate: { lt: keyToDate(todayKey()) } } : {}),
           ...(query ? { OR: [{ title: { contains: query, mode: "insensitive" } }, { description: { contains: query, mode: "insensitive" } }] } : {}),
+          ...(str(args.label) ? { labels: { some: { label: { name: { equals: str(args.label), mode: "insensitive" } } } } } : {}),
+          ...(args.parent_number !== undefined ? { parentId: await taskIdByNumber(space, args.parent_number, "parent_number") } : {}),
         },
         include: withPeople,
         orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
@@ -190,11 +248,27 @@ export const TOOLS: Tool[] = [
     write: false,
     run: async (args, { user, appUrl }) => {
       const { space, task } = await findTask(user, args);
-      const comments = await prisma.comment.findMany({ where: { taskId: task.id }, include: { author: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 20 });
+      const [comments, subtasks, blocks, notes, refs] = await Promise.all([
+        prisma.comment.findMany({ where: { taskId: task.id }, include: { author: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 30 }),
+        prisma.task.findMany({ where: { parentId: task.id, deletedAt: null }, select: { number: true, title: true, progress: true }, orderBy: { number: "asc" } }),
+        prisma.taskDependency.findMany({ where: { blockedById: task.id, task: { deletedAt: null } }, select: { task: { select: { number: true, title: true } } } }),
+        prisma.noteLink.findMany({ where: { toTaskId: task.id, from: { deletedAt: null } }, select: { from: { select: { id: true, title: true } } } }),
+        prisma.ref.findMany({ where: { toTaskId: task.id }, select: { fromTask: { select: { number: true, deletedAt: true } }, fromComment: { select: { task: { select: { number: true } }, note: { select: { id: true, title: true } } } } } }),
+      ]);
       return {
         space: space.name,
         ...taskView(task, space.id, appUrl),
+        subtasks: subtasks.map((t) => ({ number: t.number, title: t.title, progress: t.progress })),
+        blocks: blocks.map((b) => ({ number: b.task.number, title: b.task.title })),
+        referenced_in: [
+          ...notes.map((n) => ({ note_id: n.from.id, note: n.from.title })),
+          ...refs.flatMap((r): Record<string, unknown>[] =>
+            r.fromTask && !r.fromTask.deletedAt ? [{ task_number: r.fromTask.number }] : r.fromComment?.task ? [{ comment_on_task: r.fromComment.task.number }] : r.fromComment?.note ? [{ comment_in_note: r.fromComment.note.title, note_id: r.fromComment.note.id }] : [],
+          ),
+        ],
         comments: comments.reverse().map((c) => ({
+          id: c.id,
+          ...(c.parentId ? { reply_to: c.parentId } : {}),
           at: c.createdAt.toISOString(),
           by: c.author?.name ?? null,
           text: c.body,
@@ -214,6 +288,8 @@ export const TOOLS: Tool[] = [
         description: { type: "string", description: "Optional details; may contain line breaks and links" },
         due_date: { type: "string", description: "Optional due date, YYYY-MM-DD" },
         assignee_email: { type: "string", description: "Email of the member to assign to. Default: the token owner" },
+        parent_number: { type: "integer", description: "Make it a subtask of this task number (one level only)" },
+        labels: { type: "array", items: { type: "string" }, description: "Label names; missing labels are created" },
       },
       ["title"],
     ),
@@ -221,8 +297,10 @@ export const TOOLS: Tool[] = [
     run: async (args, { user, appUrl }) => {
       const space = await pickSpace(user, args.space);
       const item = await newTask(user, space, args);
+      const labels = args.labels === undefined ? [] : await labelIds(user, space, args.labels);
       const result = await createTaskFor(user, { teamId: space.id, ...item });
       if (!result.ok) fail(user, result.error);
+      if (labels.length) await setLabelsFor(user, result.task.id, labels);
       return { created: true, number: result.task.number, url: `${appUrl}/tasks?team=${space.id}&task=${result.task.number}` };
     },
   },
@@ -243,6 +321,8 @@ export const TOOLS: Tool[] = [
               description: { type: "string", description: "Optional details" },
               due_date: { type: "string", description: "Optional due date, YYYY-MM-DD" },
               assignee_email: { type: "string", description: "Email of the member to assign to. Default: the token owner" },
+              parent_number: { type: "integer", description: "Existing task number to make this a subtask of" },
+              labels: { type: "array", items: { type: "string" }, description: "Label names; missing labels are created" },
             },
             ["title"],
           ),
@@ -264,8 +344,15 @@ export const TOOLS: Tool[] = [
           throw error;
         }
       }
+      const labelSets = [];
+      for (const task of list) labelSets.push(task?.labels === undefined ? [] : await labelIds(user, space, task.labels));
       const result = await createTasksFor(user, space.id, items);
       if (!result.ok) fail(user, result.error);
+      for (const [i, t] of result.tasks.entries()) {
+        if (labelSets[i].length === 0) continue;
+        const row = await prisma.task.findFirst({ where: { teamId: space.id, number: t.number }, select: { id: true } });
+        if (row) await setLabelsFor(user, row.id, labelSets[i]);
+      }
       return {
         created: result.tasks.length,
         tasks: result.tasks.map((t) => ({ number: t.number, title: t.title, url: `${appUrl}/tasks?team=${space.id}&task=${t.number}` })),
@@ -288,6 +375,10 @@ export const TOOLS: Tool[] = [
         title: { type: "string", description: "New title (max 200 characters)" },
         description: { type: "string", description: 'New details (replaces the old ones), or "" to clear' },
         assignee_email: { type: "string", description: "Email of the member to hand the task to" },
+        parent_number: { type: "integer", description: "Make it a subtask of this task number; 0 to make it a normal task again" },
+        labels: { type: "array", items: { type: "string" }, description: "Replace the labels with these names (missing ones are created); [] removes all" },
+        add_waiting_on: { type: "array", items: { type: "integer" }, description: "Task numbers this task must wait for (blocked by)" },
+        remove_waiting_on: { type: "array", items: { type: "integer" }, description: "Task numbers to stop waiting for" },
       },
       ["number"],
     ),
@@ -295,7 +386,10 @@ export const TOOLS: Tool[] = [
     run: async (args, { user, appUrl }) => {
       const { space, task } = await findTask(user, args);
       const editing = args.title !== undefined || args.description !== undefined || args.assignee_email !== undefined;
-      if (args.progress === undefined && args.due_date === undefined && !editing) throw new ToolError("Give at least one of progress, due_date, title, description, assignee_email");
+      const structure = ["parent_number", "labels", "add_waiting_on", "remove_waiting_on"].some((k) => args[k] !== undefined);
+      if (args.progress === undefined && args.due_date === undefined && !editing && !structure) {
+        throw new ToolError("Give at least one change: progress, due_date, title, description, assignee_email, parent_number, labels, add_waiting_on, remove_waiting_on");
+      }
       // แก้ข้อความ/โอนก่อน — ถ้าไม่มีสิทธิ์จะหยุดก่อนเปลี่ยนอย่างอื่น
       if (editing) {
         const assigneeId = args.assignee_email === undefined ? undefined : await memberByEmail(user, space, args.assignee_email);
@@ -304,6 +398,23 @@ export const TOOLS: Tool[] = [
           description: args.description === undefined ? undefined : str(args.description),
           assigneeId,
         });
+        if (!result.ok) fail(user, result.error);
+      }
+      if (args.parent_number !== undefined) {
+        const parentId = Number(args.parent_number) === 0 || args.parent_number === null ? null : await taskIdByNumber(space, args.parent_number, "parent_number");
+        const result = await setParentFor(user, task.id, parentId);
+        if (!result.ok) fail(user, result.error);
+      }
+      if (args.labels !== undefined) {
+        const result = await setLabelsFor(user, task.id, await labelIds(user, space, args.labels));
+        if (!result.ok) fail(user, result.error);
+      }
+      for (const n of args.add_waiting_on === undefined ? [] : numbers(args.add_waiting_on, "add_waiting_on")) {
+        const result = await addBlockerFor(user, task.id, await taskIdByNumber(space, n, "add_waiting_on"));
+        if (!result.ok) fail(user, result.error);
+      }
+      for (const n of args.remove_waiting_on === undefined ? [] : numbers(args.remove_waiting_on, "remove_waiting_on")) {
+        const result = await removeBlockerFor(user, task.id, await taskIdByNumber(space, n, "remove_waiting_on"));
         if (!result.ok) fail(user, result.error);
       }
       if (args.due_date !== undefined) {
@@ -381,6 +492,7 @@ export const TOOLS: Tool[] = [
       if (await titleTaken(space.id, parentId, title)) fail(user, "มีชื่อนี้อยู่แล้วในโฟลเดอร์นี้");
       const note = await prisma.note.create({ data: { teamId: space.id, parentId, kind: "NOTE", title, content, createdById: user.id, updatedById: user.id } });
       await syncLinks({ id: note.id, teamId: space.id, parentId, content });
+      await syncNoteMentions(user, { id: note.id, teamId: space.id, title }, content);
       await relinkMentions(space.id, title);
       revalidatePath("/notes", "layout");
       revalidatePath("/tasks");
@@ -455,9 +567,154 @@ export const TOOLS: Tool[] = [
       if (!parsed.success) fail(user, parsed.error.issues[0].message);
       await prisma.note.update({ where: { id: note.id }, data: { content: parsed.data.content, updatedById: user.id } });
       await syncLinks({ id: note.id, teamId: note.teamId, parentId: note.parentId, content: parsed.data.content });
+      await syncNoteMentions(user, note, parsed.data.content);
       revalidatePath("/notes", "layout");
       revalidatePath("/tasks");
       return { updated: true, id: note.id, url: `${appUrl}/notes/${note.id}` };
+    },
+  },
+  {
+    name: "list_labels",
+    title: "List labels",
+    description: "List the labels that tasks in a space can use (the space's own labels and its parent team's).",
+    inputSchema: object({ space: SPACE }),
+    write: false,
+    run: async (args, { user }) => {
+      const space = await pickSpace(user, args.space);
+      const labels = await availableLabels(space.id);
+      const counts = await prisma.taskLabel.groupBy({ by: ["labelId"], where: { labelId: { in: labels.map((l) => l.id) }, task: { teamId: space.id, deletedAt: null } }, _count: true });
+      return { space: space.name, labels: labels.map((l) => ({ name: l.name, color: l.color, from_parent_team: l.teamId !== space.id, tasks: counts.find((c) => c.labelId === l.id)?._count ?? 0 })) };
+    },
+  },
+  {
+    name: "comment_on_task",
+    title: "Comment on a task",
+    description: "Add a comment under a task, or reply in a thread with reply_to (a comment id from get_task). Write @Name to tag a member (see list_members); they are notified.",
+    inputSchema: object({ space: SPACE, number: { type: "integer", description: "Task number" }, text: { type: "string", description: "Comment text (max 2000 characters)" }, reply_to: { type: "string", description: "Comment id to reply to" } }, ["number", "text"]),
+    write: true,
+    run: async (args, { user }) => {
+      const { task } = await findTask(user, args);
+      const result = await addCommentFor(user, str(args.reply_to) ? { parentId: str(args.reply_to), body: str(args.text) } : { target: { taskId: task.id }, body: str(args.text) });
+      if (!result.ok) fail(user, result.error);
+      return { added: true, id: result.id };
+    },
+  },
+  {
+    name: "list_note_comments",
+    title: "List comments in a note",
+    description: "List the comment threads of a note: the quoted text each thread is attached to, replies, whether it is resolved, and who it is assigned to (read / review / edit).",
+    inputSchema: object({ id: { type: "string", description: "Note id" }, include_resolved: { type: "boolean", description: "Also return resolved threads. Default false" } }, ["id"]),
+    write: false,
+    run: async (args, { user, appUrl }) => {
+      const note = await findNote(user, args.id);
+      const threads = (await noteThreadsFor(user, note.id)) ?? [];
+      return {
+        note: note.title,
+        threads: threads
+          .filter((t) => args.include_resolved === true || !t.resolvedAt)
+          .map((t) => ({
+            id: t.id,
+            quote: t.anchor?.quote ?? null,
+            by: t.author.name,
+            text: t.body,
+            at: t.createdAt,
+            resolved: Boolean(t.resolvedAt),
+            approved: Boolean(t.approvedAt),
+            assigned_to: t.assignee?.name ?? null,
+            asks_to: t.assignKind?.toLowerCase() ?? null,
+            replies: t.replies.map((r) => ({ by: r.author.name, text: r.body, at: r.createdAt })),
+            url: `${appUrl}/notes/${note.id}?c=${t.id}`,
+          })),
+      };
+    },
+  },
+  {
+    name: "comment_on_note",
+    title: "Comment on a note",
+    description:
+      "Start a comment thread in a note, optionally attached to a passage (quote: exact text from the note) and assigned to a member to read, review or edit. " +
+      "Or reply to a thread with reply_to. Write @Name to tag a member; they are notified.",
+    inputSchema: object(
+      {
+        id: { type: "string", description: "Note id (not needed with reply_to)" },
+        text: { type: "string", description: "Comment text (max 2000 characters)" },
+        quote: { type: "string", description: "Exact text in the note to attach the comment to (max 500 characters)" },
+        assignee_email: { type: "string", description: "Member to ask (see list_members)" },
+        ask: { type: "string", enum: ["read", "review", "edit"], description: "What to ask the assignee. Default: review" },
+        reply_to: { type: "string", description: "Thread id to reply to (from list_note_comments)" },
+      },
+      ["text"],
+    ),
+    write: true,
+    run: async (args, { user, appUrl }) => {
+      if (str(args.reply_to)) {
+        const result = await addCommentFor(user, { parentId: str(args.reply_to), body: str(args.text) });
+        if (!result.ok) fail(user, result.error);
+        return { added: true, id: result.id };
+      }
+      const note = await findNote(user, args.id);
+      if (note.kind !== "NOTE") throw new ToolError("That id is a folder");
+      let anchor = null;
+      const quote = str(args.quote);
+      if (quote) {
+        const at = note.content.indexOf(quote);
+        if (at < 0) throw new ToolError("quote was not found in the note. Copy the exact text from read_note.");
+        anchor = { quote, prefix: note.content.slice(Math.max(0, at - CONTEXT), at), suffix: note.content.slice(at + quote.length, at + quote.length + CONTEXT) };
+      }
+      let assign = null;
+      if (str(args.assignee_email)) {
+        const space = await pickSpace(user, note.teamId);
+        const kind = ({ read: "READ", review: "REVIEW", edit: "EDIT" } as const)[(str(args.ask) || "review") as "read" | "review" | "edit"];
+        if (!kind) throw new ToolError('ask must be "read", "review" or "edit"');
+        assign = { userId: await memberByEmail(user, space, args.assignee_email), kind };
+      }
+      const result = await addCommentFor(user, { target: { noteId: note.id }, body: str(args.text), anchor, assign });
+      if (!result.ok) fail(user, result.error);
+      return { added: true, id: result.id, url: `${appUrl}/notes/${note.id}?c=${result.id}` };
+    },
+  },
+  {
+    name: "resolve_note_comment",
+    title: "Resolve or answer a note comment",
+    description:
+      'Close a thread ("resolve") or reopen it ("reopen"). When a thread is assigned to you, answer it instead: "read" (done reading), "approve" (review passed), ' +
+      '"changes" (review needs changes; give reason), "edited" (you made the requested edits; it goes back for review).',
+    inputSchema: object(
+      {
+        id: { type: "string", description: "Thread id from list_note_comments" },
+        action: { type: "string", enum: ["resolve", "reopen", "read", "approve", "changes", "edited"] },
+        reason: { type: "string", description: "Required for changes; optional note for edited" },
+      },
+      ["id", "action"],
+    ),
+    write: true,
+    run: async (args, { user }) => {
+      const action = str(args.action);
+      const result =
+        action === "resolve" || action === "reopen"
+          ? await resolveThreadFor(user, str(args.id), action === "resolve")
+          : ["read", "approve", "changes", "edited"].includes(action)
+            ? await completeAssignmentFor(user, str(args.id), action as "read", str(args.reason))
+            : null;
+      if (!result) throw new ToolError("Unknown action");
+      if (!result.ok) fail(user, result.error);
+      return { done: true };
+    },
+  },
+  {
+    name: "waiting_on_me",
+    title: "What is waiting on me",
+    description: "Everything waiting on the token owner across spaces: note threads assigned to them (read / review / edit), their open tasks assigned by others, tasks that just became unblocked, and recent mentions.",
+    inputSchema: object({}),
+    write: false,
+    run: async (_, { user, appUrl }) => {
+      const box = await waitingOn(user);
+      return {
+        requests: box.requests.map((r) => ({ thread_id: r.id, note: r.note.title, note_id: r.note.id, asks_to: r.kind.toLowerCase(), from: r.from, quote: r.quote, text: r.body, url: `${appUrl}/notes/${r.note.id}?c=${r.id}` })),
+        assigned_tasks: box.assigned.map((t) => ({ space: t.space, number: t.number, title: t.title, from: t.from, due_date: t.due, progress: t.progress, waiting_on: t.waitingOn })),
+        unblocked_tasks: box.unblocked.map((t) => ({ space: t.space, number: t.number, title: t.title })),
+        mentions: box.mentions.map((m) => ({ where: m.where, by: m.by, text: m.text, at: m.at, url: `${appUrl}${m.url}` })),
+      };
     },
   },
   {

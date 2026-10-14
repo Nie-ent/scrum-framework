@@ -169,7 +169,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
 
         {current && (
           <div className="mt-3">
-            <CommentThread canAttach={canAttach} target={{ standupId: current.id }} comments={current.comments} viewerId={user.id} canModerate={canModerate} subject={tr("เช็กอินวันนี้ของฉัน")} open={current.comments.length > 0} />
+            <CommentThread teamId={team.id} canAttach={canAttach} target={{ standupId: current.id }} comments={current.comments} viewerId={user.id} canModerate={canModerate} subject={tr("เช็กอินวันนี้ของฉัน")} open={current.comments.length > 0} />
           </div>
         )}
 
@@ -195,8 +195,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
                     {s.blockers && <span className="badge badge-danger shrink-0">{tr("ต้องการความช่วยเหลือ")}</span>}
                   </header>
                   {/* เพื่อนร่วมทีมเห็นงานและ blocker — ส่วน reflection เห็นเฉพาะหัวหน้าในหน้าภาพรวม */}
-                  <StandupSections standup={s} only={["yesterdayTasks", "todayTasks", "blockers"]} />
-                  <CommentThread canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={canModerate} subject={tr("เช็กอินของ {0}", [s.user.name])} />
+                  <StandupSections teamId={team.id} standup={s} only={["yesterdayTasks", "todayTasks", "blockers"]} />
+                  <CommentThread teamId={team.id} canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={canModerate} subject={tr("เช็กอินของ {0}", [s.user.name])} />
                 </article>
               ))}
             </div>

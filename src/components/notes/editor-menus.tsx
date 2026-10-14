@@ -12,11 +12,12 @@ import type { Translate } from "@/lib/i18n/core";
  * - พิมพ์ /  → รายการคำสั่งจัดรูปแบบ (กรองได้ด้วยการพิมพ์ต่อ)
  * - พิมพ์ [[ → รายชื่อโน้ตให้เลือกเชื่อม (ชื่อที่ยังไม่มี = เสนอให้สร้าง)
  * - พิมพ์ #  → รายการงานให้เลือกเชื่อม
+ * - พิมพ์ @  → รายชื่อคนในพื้นที่ให้แท็ก (คนที่ถูกแท็กได้แจ้งเตือนเมื่อบันทึก)
  * ↑ ↓ เลือก · Enter/Tab ยืนยัน · Esc ปิด
  * และแถบเครื่องมือลอยเมื่อเลือกข้อความ (เฉพาะอุปกรณ์ที่ใช้เมาส์ — จอสัมผัสมีเมนูของระบบอยู่แล้ว)
  */
 
-type Trigger = { kind: "slash" | "note" | "task"; query: string; from: number; to: number };
+type Trigger = { kind: "slash" | "note" | "task" | "person"; query: string; from: number; to: number };
 type Item = { key: string; label: string; hint?: string; run: (editor: Editor, range: { from: number; to: number }) => void };
 
 /** ข้อความก่อนเคอร์เซอร์ในบรรทัดนี้บอกว่ากำลังพิมพ์คำสั่งแบบไหนอยู่ */
@@ -30,6 +31,7 @@ export function detectTrigger(editor: Editor): Trigger | null {
   if ((m = /\[\[([^\[\]|\n]{0,60})$/.exec(before))) return { kind: "note", query: m[1], from: $from.pos - m[0].length, to: $from.pos };
   if ((m = /(?:^|\s)\/([^\s/]{0,20})$/.exec(before))) return { kind: "slash", query: m[1], from: $from.pos - m[1].length - 1, to: $from.pos };
   if ((m = /(?:^|\s)#([^\s#]{0,30})$/.exec(before))) return { kind: "task", query: m[1], from: $from.pos - m[1].length - 1, to: $from.pos };
+  if ((m = /(?:^|[\s(])@([^\n@]{0,30})$/.exec(before))) return { kind: "person", query: m[1], from: $from.pos - m[1].length - 1, to: $from.pos };
   return null;
 }
 
@@ -46,10 +48,14 @@ const COMMANDS: (Item & { words: string })[] = [
   { key: "hr", label: "เส้นคั่น", hint: "---", words: "เส้น คั่น แบ่ง divider line", run: (e, r) => e.chain().focus().deleteRange(r).setHorizontalRule().run() },
   { key: "note", label: "เชื่อมไปโน้ต", hint: "[[", words: "เชื่อม ลิงก์ โน้ต link note", run: (e, r) => e.chain().focus().deleteRange(r).insertContent("[[").run() },
   { key: "task", label: "เชื่อมไปงาน", hint: "#", words: "เชื่อม ลิงก์ งาน link task", run: (e, r) => e.chain().focus().deleteRange(r).insertContent("#").run() },
+  { key: "person", label: "แท็กคน", hint: "@", words: "แท็ก คน กล่าวถึง mention person tag", run: (e, r) => e.chain().focus().deleteRange(r).insertContent("@").run() },
 ];
 
-function itemsFor(trigger: Trigger, noteTitles: string[], tasks: { number: number; title: string }[], tr: Translate): Item[] {
+function itemsFor(trigger: Trigger, noteTitles: string[], tasks: { number: number; title: string }[], people: { id: string; name: string }[], tr: Translate): Item[] {
   const q = trigger.query.trim().toLowerCase();
+  if (trigger.kind === "person") {
+    return people.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8).map((p) => ({ key: p.id, label: p.name, run: (e, r) => e.chain().focus().deleteRange(r).insertContent(`@${p.name} `).run() }));
+  }
   if (trigger.kind === "slash") {
     // ค้นได้ทั้งชื่อคำสั่งในภาษาที่ใช้อยู่และคำค้นสำรอง (ไทย/อังกฤษ)
     return COMMANDS.map((c) => ({ ...c, label: tr(c.label), hint: c.hint && tr(c.hint) })).filter((c) => !q || c.label.toLowerCase().includes(q) || c.words.includes(q));
@@ -71,7 +77,7 @@ function itemsFor(trigger: Trigger, noteTitles: string[], tasks: { number: numbe
     .map((t) => ({ key: String(t.number), label: `#${t.number} ${t.title}`, run: (e, r) => e.chain().focus().deleteRange(r).insertContent(`#${t.number} `).run() }));
 }
 
-const TITLES = { slash: "แทรกหรือจัดรูปแบบ", note: "เชื่อมไปโน้ต", task: "เชื่อมไปงาน" };
+const TITLES = { slash: "แทรกหรือจัดรูปแบบ", note: "เชื่อมไปโน้ต", task: "เชื่อมไปงาน", person: "แท็กคน" };
 
 /** ตำแหน่งบนจอของตำแหน่งในเอกสาร — null ถ้าคำนวณไม่ได้ (เช่น ตัวแก้ไขยังไม่พร้อม) */
 function coords(editor: Editor, pos: number) {
@@ -88,11 +94,13 @@ export function EditorMenus({
   editor,
   noteTitles,
   tasks,
+  people,
   keyHandler: keyHandlerRef,
 }: {
   editor: Editor;
   noteTitles: string[];
   tasks: { number: number; title: string }[];
+  people: { id: string; name: string }[];
   /** ตัวแก้ไขเรียกก่อนจัดการปุ่มเอง — คืน true = เมนูรับปุ่มนี้ไปแล้ว */
   keyHandler: React.RefObject<MenuKeyHandler | null>;
 }) {
@@ -105,7 +113,7 @@ export function EditorMenus({
   // เคอร์เซอร์อยู่ในตัวแก้ไขจริง ๆ (กดไปที่อื่นแล้วเมนูต้องหาย)
   const focused = typeof document !== "undefined" && document.activeElement === editor.view.dom;
   const trigger = focused ? detectTrigger(editor) : null;
-  const items = trigger && trigger.from !== dismissed ? itemsFor(trigger, noteTitles, tasks, tr) : [];
+  const items = trigger && trigger.from !== dismissed ? itemsFor(trigger, noteTitles, tasks, people, tr) : [];
   const open = Boolean(trigger) && items.length > 0;
   const signature = trigger ? `${trigger.kind}:${trigger.from}:${trigger.query}` : "";
   const active = pick.signature === signature ? Math.min(pick.index, items.length - 1) : 0;

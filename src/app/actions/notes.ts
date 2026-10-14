@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { teamAccess } from "@/lib/access";
 import { linkResolver, noteKey, renameLinks } from "@/lib/note-links";
-import { descendantIds, listNotes, relinkMentions, syncLinks } from "@/lib/notes";
+import { descendantIds, listNotes, relinkMentions, syncLinks, syncNoteMentions } from "@/lib/notes";
 import { NoteFields, noteTitle } from "@/lib/schemas";
 import type { FormState } from "./auth";
 
@@ -87,6 +87,7 @@ export async function saveNote(_: FormState, formData: FormData): Promise<FormSt
   const before = renamed ? await listNotes(note.teamId) : [];
   await prisma.note.update({ where: { id: note.id }, data: { title, content, updatedById: user.id } });
   await syncLinks({ id: note.id, teamId: note.teamId, parentId: note.parentId, content });
+  await syncNoteMentions(user, { id: note.id, teamId: note.teamId, title }, content);
   if (renamed) {
     // โน้ตที่ลิงก์มาหาเรา: แก้ชื่อในเนื้อหาให้ตรงกับชื่อใหม่
     const backlinks = await prisma.note.findMany({ where: { linksOut: { some: { toNoteId: note.id } }, deletedAt: null }, select: { id: true, parentId: true, content: true } });

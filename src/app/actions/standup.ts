@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { keyToDate, todayKey } from "@/lib/dates";
+import { dateToKey, keyToDate, todayKey } from "@/lib/dates";
+import { syncRefs } from "@/lib/refs";
+import { alertUnblocked } from "@/lib/task-structure";
 import { nextTaskNumbers } from "@/lib/task-store";
 import { TaskListSchema, toTasks, type Task } from "@/lib/tasks";
 import type { FormState } from "./auth";
@@ -134,7 +136,7 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
     t.taskId && untouched.has(t.taskId) ? { ...t, progress: untouched.get(t.taskId)! } : t,
   );
 
-  await prisma.$transaction([
+  const [saved] = await prisma.$transaction([
     prisma.standup.upsert({
       where: { userId_teamId_date: { userId: user.id, teamId, date } },
       create: { userId: user.id, teamId, date, ...data, yesterdayTasks, todayTasks },
@@ -151,6 +153,20 @@ export async function saveStandup(_: FormState, formData: FormData): Promise<For
       prisma.comment.create({ data: { taskId: c.taskId, authorId: user.id, body: "อัปเดตจากเช็กอิน", progressFrom: c.from, progressTo: c.to } }),
     ]),
   ]);
+
+  // #งาน [[โน้ต]] @คน ที่เขียนในเช็กอิน — คนที่ถูกแท็กได้แจ้งเตือน
+  const text = [...yesterdayTasks, ...todayTasks].map((t) => t.text).concat(data.blockers ?? "", data.notWorking ?? "", data.workingWell ?? "").join("\n");
+  await syncRefs(teamId, { standupId: saved.id }, text, {
+    actor: user,
+    where: (tr) => tr("เช็กอินของ {0}", [user.name]),
+    url: `/dashboard?date=${dateToKey(date)}&team=${teamId}`,
+  });
+  // งานที่เช็กอินทำให้เสร็จ: งานที่รองานนั้นอยู่เริ่มได้แล้ว
+  for (const c of changed) {
+    if (c.to < 100 || c.from >= 100) continue;
+    const task = await prisma.task.findUnique({ where: { id: c.taskId }, select: { id: true, number: true, title: true } });
+    if (task) await alertUnblocked(user, task);
+  }
 
   revalidatePath("/standup");
   revalidatePath("/dashboard");

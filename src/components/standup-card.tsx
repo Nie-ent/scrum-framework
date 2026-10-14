@@ -1,6 +1,8 @@
 import type { Standup } from "@prisma/client";
 import { averageProgress, isDone, toTasks } from "@/lib/tasks";
 import { tr } from "@/lib/i18n/server";
+import { refContext } from "@/lib/ref-context";
+import { RefText } from "@/components/ref-text";
 
 import { TASK_SECTIONS, TEXT_SECTIONS, type TaskSectionKey, type TextSectionKey } from "@/lib/standup-sections";
 
@@ -90,13 +92,17 @@ export function ProgressSummary({ value, className = "w-20" }: { value: unknown;
   );
 }
 
-export function StandupSections({
+export async function StandupSections({
   standup,
   only,
+  teamId,
 }: {
   standup: Pick<Standup, SectionKey>;
   only?: readonly SectionKey[];
+  /** มีค่า = #งาน [[โน้ต]] @คน ในข้อความเป็นป้ายที่กดได้ */
+  teamId?: string | null;
 }) {
+  const ctx = teamId ? await refContext(teamId) : null;
   const show = (key: SectionKey) => !only || only.includes(key);
   return (
     <div className="space-y-2">
@@ -116,7 +122,7 @@ export function StandupSections({
           <div className="text-xs font-medium text-slate-500">
             {tr(s.label)} <span className="text-slate-400">· {tr(s.hint)}</span>
           </div>
-          <p className="whitespace-pre-wrap text-sm">{standup[s.key]}</p>
+          <p className="whitespace-pre-wrap text-sm"><RefText text={standup[s.key] ?? ""} ctx={ctx} /></p>
         </div>
       ))}
     </div>

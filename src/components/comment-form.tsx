@@ -8,8 +8,27 @@ import { uploadFiles, type UploadProgress } from "@/lib/upload-client";
 import { FilePicker, PickedFiles, UploadProgressBar } from "@/components/attachments";
 import { SubmitButton } from "@/components/form";
 import { useT } from "@/components/i18n";
+import { RefTextarea } from "@/components/ref-textarea";
 
-export function CommentForm({ target, label, canAttach }: { target: CommentTarget; label: string; canAttach: boolean }) {
+export function CommentForm({
+  target,
+  label,
+  canAttach,
+  teamId,
+  parentId,
+  autoFocus = false,
+  onDone,
+}: {
+  target: CommentTarget;
+  label: string;
+  canAttach: boolean;
+  /** มีค่า = พิมพ์ @ # [[ แล้วมีรายการให้เลือก */
+  teamId?: string | null;
+  /** ตอบในเธรดนี้ */
+  parentId?: string;
+  autoFocus?: boolean;
+  onDone?: () => void;
+}) {
   const tr = useT();
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -19,6 +38,7 @@ export function CommentForm({ target, label, canAttach }: { target: CommentTarge
   const submit = async (prev: FormState, formData: FormData): Promise<FormState> => {
     if (files.length > 0) formData.set("hasFiles", "1");
     const result = await addComment(prev, formData);
+    if (result?.id && files.length === 0) onDone?.();
     if (!result?.id || files.length === 0) return result;
     const { uploaded, errors } = await uploadFiles({ commentId: result.id }, files, setProgress, tr);
     setProgress(null);
@@ -40,16 +60,33 @@ export function CommentForm({ target, label, canAttach }: { target: CommentTarge
   return (
     <form action={action} className="space-y-1.5">
       <input type="hidden" name={name} value={id} />
+      {parentId && <input type="hidden" name="parentId" value={parentId} />}
       <div className="flex items-end gap-2">
-        <textarea
-          name="body"
-          rows={1}
-          maxLength={2000}
-          required={files.length === 0}
-          aria-label={label}
-          placeholder={tr("เขียนความคิดเห็น… (วางลิงก์ได้)")}
-          className="input min-h-10 flex-1 resize-y py-2 text-sm"
-        />
+        {teamId ? (
+          <div className="min-w-0 flex-1">
+            <RefTextarea
+              teamId={teamId}
+              name="body"
+              rows={1}
+              maxLength={2000}
+              required={files.length === 0}
+              aria-label={label}
+              autoFocus={autoFocus}
+              placeholder={parentId ? tr("ตอบ… (@ แท็กคน)") : tr("เขียนความคิดเห็น… (@ แท็กคน · # งาน)")}
+              className="input min-h-10 w-full resize-y py-2 text-sm"
+            />
+          </div>
+        ) : (
+          <textarea
+            name="body"
+            rows={1}
+            maxLength={2000}
+            required={files.length === 0}
+            aria-label={label}
+            placeholder={tr("เขียนความคิดเห็น… (วางลิงก์ได้)")}
+            className="input min-h-10 flex-1 resize-y py-2 text-sm"
+          />
+        )}
         {canAttach && (
           <FilePicker
             files={files}

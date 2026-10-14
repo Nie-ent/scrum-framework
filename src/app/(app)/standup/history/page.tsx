@@ -52,9 +52,9 @@ export default async function StandupHistoryPage({ searchParams }: PageProps<"/s
           {history.map((s) => (
             <article key={s.id} className="card">
               <h2 className="mb-3 text-sm font-semibold text-muted-foreground">{formatDateKey(dateToKey(s.date))}</h2>
-              <StandupSections standup={s} />
+              <StandupSections teamId={team.id} standup={s} />
               <div className="mt-2">
-                <CommentThread canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={manageableIds.has(team.id)} subject={tr("เช็กอิน {0}", [formatDateKey(dateToKey(s.date))])} />
+                <CommentThread teamId={team.id} canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={manageableIds.has(team.id)} subject={tr("เช็กอิน {0}", [formatDateKey(dateToKey(s.date))])} />
               </div>
             </article>
           ))}

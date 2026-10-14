@@ -6,6 +6,7 @@ export const withComments = {
   orderBy: { createdAt: "asc" },
   select: {
     id: true,
+    parentId: true,
     body: true,
     progressFrom: true,
     progressTo: true,

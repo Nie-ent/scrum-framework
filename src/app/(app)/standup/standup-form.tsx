@@ -8,6 +8,7 @@ import { TEXT_SECTIONS, type TextSectionKey } from "@/lib/standup-sections";
 import { TaskListEditor, serializeTasks } from "@/components/task-list-editor";
 import { isDone, type Task } from "@/lib/tasks";
 import { useT } from "@/components/i18n";
+import { RefTextarea } from "@/components/ref-textarea";
 
 const PLACEHOLDERS: Record<TextSectionKey, string> = {
   blockers: "มีอะไรที่ต้องให้คนอื่นช่วยไหม (ไม่มีเว้นว่างได้)",
@@ -162,7 +163,7 @@ export function StandupForm({
               <label className="label" htmlFor={section.key}>
                 {tr(section.label)}
               </label>
-              <textarea id={section.key} name={section.key} rows={2} className="input resize-y" placeholder={tr(PLACEHOLDERS[section.key])} defaultValue={initial[section.key]} />
+              <RefTextarea teamId={teamId} id={section.key} name={section.key} rows={2} className="input w-full resize-y" placeholder={tr(PLACEHOLDERS[section.key])} defaultValue={initial[section.key]} />
             </div>
           ))}
         </div>

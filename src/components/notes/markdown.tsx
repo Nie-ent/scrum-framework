@@ -30,6 +30,8 @@ export function Markdown({ content }: { content: string }) {
         components={{
           ...HEADINGS,
           a({ href = "", children }) {
+            // @คน ที่ถูกแท็ก (ดู mentionify)
+            if (href.startsWith("#mention-")) return <span className="mention-chip">{children}</span>;
             // ลิงก์ไปหัวข้อในโน้ตนี้เอง
             if (href.startsWith("#")) {
               return <a href={href} className="font-medium text-indigo-600 underline decoration-indigo-200 underline-offset-2 hover:text-indigo-800 hover:decoration-indigo-500">{children}</a>;

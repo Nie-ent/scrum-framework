@@ -11,7 +11,7 @@ import { openHelp } from "@/components/tour";
 const item = "flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-foreground transition hover:bg-surface-sunken";
 
 /** เมนูบัญชีที่รูปโปรไฟล์: ตั้งค่าบัญชี · จัดการระบบ (ผู้ดูแล) · ออกจากระบบ */
-export function AccountMenu({ name, email, admin, children }: { name: string; email: string; admin: boolean; children: React.ReactNode }) {
+export function AccountMenu({ name, email, admin, waiting = 0, children }: { name: string; email: string; admin: boolean; waiting?: number; children: React.ReactNode }) {
   const tr = useT();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -38,6 +38,12 @@ export function AccountMenu({ name, email, admin, children }: { name: string; em
             <p className="truncate text-xs text-muted-foreground">{email}</p>
           </div>
           <div className="pt-1.5">
+            {/* มือถือไม่มีเมนูด้านข้าง — "รอฉัน" อยู่ที่นี่ */}
+            <Link href="/inbox" onClick={close} className={`${item} lg:hidden`}>
+              <NavGlyph icon="inbox" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
+              {tr("รอฉัน")}
+              {waiting > 0 && <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[11px] font-semibold leading-none text-primary-foreground">{waiting}</span>}
+            </Link>
             <Link href="/account" onClick={close} className={item}>
               <NavGlyph icon="account" className="h-[1.15rem] w-[1.15rem] text-muted-foreground" />
               {tr("บัญชีและการตั้งค่า")}

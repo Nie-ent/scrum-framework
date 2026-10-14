@@ -1,103 +1,113 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import * as z from "zod";
+import type { AssignKind } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { dateToKey } from "@/lib/dates";
-import { notify } from "@/lib/notify";
-import { teamAccess } from "@/lib/access";
 import { purgeAttachments } from "@/lib/attachment-store";
+import {
+  addCommentFor,
+  assignThreadFor,
+  canDeleteComment,
+  completeAssignmentFor,
+  editCommentFor,
+  noteThreadsFor,
+  resolveThreadFor,
+  type CommentTargetInput,
+} from "@/lib/comment-ops";
+import type { Anchor } from "@/lib/anchor";
 import type { FormState } from "./auth";
-
-const CommentSchema = z.object({
-  taskId: z.string().max(40),
-  standupId: z.string().max(40),
-  body: z.string().trim().max(2000, { error: "ความคิดเห็นยาวเกิน 2,000 ตัวอักษร" }),
-  /** มีไฟล์แนบตามมา — ข้อความว่างได้ */
-  hasFiles: z.boolean(),
-});
 
 function done() {
   revalidatePath("/tasks");
   revalidatePath("/standup");
   revalidatePath("/dashboard", "layout");
+  revalidatePath("/notes", "layout");
+  revalidatePath("/inbox");
 }
 
-/** สิ่งที่ถูกคอมเมนต์: ทีม, เจ้าของ (คนรับงาน / คนเขียนเช็กอิน) และข้อมูลสำหรับแจ้งเตือน */
-async function loadTarget(taskId: string, standupId: string) {
-  if (taskId) {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task || task.deletedAt) return null;
-    return {
-      where: { taskId },
-      teamId: task.teamId,
-      ownerId: task.assigneeId,
-      label: task.title,
-      url: () => `/tasks?team=${task.teamId}${task.number === null ? "" : `&task=${task.number}`}`,
-    };
-  }
-  if (standupId) {
-    const standup = await prisma.standup.findUnique({ where: { id: standupId } });
-    if (!standup) return null;
-    const team = standup.teamId ? `team=${standup.teamId}` : "";
-    return {
-      where: { standupId },
-      teamId: standup.teamId,
-      ownerId: standup.userId,
-      label: "เช็กอินของคุณ",
-      // เจ้าของเปิดที่หน้าเช็กอินของตัวเอง — คนอื่นในเธรดเปิดที่ภาพรวมของวันนั้น
-      url: (recipientId: string) =>
-        recipientId === standup.userId ? `/standup?${team}` : `/dashboard?date=${dateToKey(standup.date)}&${team}`,
-    };
-  }
-  return null;
+const KINDS: AssignKind[] = ["READ", "REVIEW", "EDIT"];
+const field = (formData: FormData, name: string) => String(formData.get(name) ?? "").slice(0, 100);
+
+function targetOf(formData: FormData): CommentTargetInput | undefined {
+  const [taskId, standupId, noteId] = [field(formData, "taskId"), field(formData, "standupId"), field(formData, "noteId")];
+  return taskId ? { taskId } : standupId ? { standupId } : noteId ? { noteId } : undefined;
 }
 
+/** ฟอร์มความคิดเห็นใต้งาน / เช็กอิน (และคำตอบในเธรดด้วย parentId) */
 export async function addComment(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const parsed = CommentSchema.safeParse({
-    taskId: formData.get("taskId") ?? "",
-    standupId: formData.get("standupId") ?? "",
-    body: formData.get("body") ?? "",
+  const result = await addCommentFor(user, {
+    target: targetOf(formData),
+    parentId: field(formData, "parentId") || undefined,
+    body: String(formData.get("body") ?? ""),
     hasFiles: formData.get("hasFiles") === "1",
   });
-  if (!parsed.success) return { error: parsed.error.issues[0].message };
-  if (!parsed.data.body && !parsed.data.hasFiles) return { error: "กรุณาพิมพ์ความคิดเห็น" };
-
-  const target = await loadTarget(parsed.data.taskId, parsed.data.standupId);
-  if (!target || !(await teamAccess(user, target)).read) return { error: "ไม่พบรายการนี้ หรือคุณไม่มีสิทธิ์แสดงความคิดเห็น" };
-
-  const comment = await prisma.comment.create({ data: { ...target.where, authorId: user.id, body: parsed.data.body } });
-
-  // แจ้งเจ้าของและคนที่เคยคอมเมนต์ในเธรดนี้
-  const earlier = await prisma.comment.findMany({ where: target.where, select: { authorId: true }, distinct: ["authorId"] });
-  const recipientIds = [...new Set([target.ownerId, ...earlier.map((c) => c.authorId)])].filter((id) => id !== user.id);
-  const clip = (text: string) => (text.length > 120 ? `${text.slice(0, 120)}…` : text);
-  await notify(
-    recipientIds.map((id) => ({ userId: id, url: target.url(id) })),
-    (tr) => ({ title: tr("{0} แสดงความคิดเห็น", [user.name]), body: `${parsed.data.taskId ? `${target.label}: ` : ""}${clip(parsed.data.body || tr("📎 แนบไฟล์"))}`, url: target.url(target.ownerId) }),
-  );
+  if (!result.ok) return { error: result.error };
   done();
-  return { ok: "ส่งแล้ว", id: comment.id };
+  return { ok: "ส่งแล้ว", id: result.id };
 }
 
-/** ลบได้: คนเขียนเอง หรือคนที่ดูแลทีมนั้น */
-export async function deleteComment(formData: FormData) {
+type Result = { ok: true; id?: string } | { ok: false; error: string };
+
+/** ความคิดเห็นในโน้ต (เรียกจากแผงความคิดเห็น) — ยึดข้อความและมอบหมายได้ */
+export async function addNoteComment(input: { noteId: string; parentId?: string; body: string; anchor?: Anchor | null; assign?: { userId: string; kind: AssignKind } | null }): Promise<Result> {
   const user = await requireUser();
-  const comment = await prisma.comment.findUnique({
-    where: { id: String(formData.get("id")) },
-    include: { task: { select: { teamId: true, assigneeId: true } }, standup: { select: { teamId: true, userId: true } } },
+  const assign = input.assign && KINDS.includes(input.assign.kind) ? input.assign : null;
+  const result = await addCommentFor(user, {
+    target: input.parentId ? undefined : { noteId: String(input.noteId) },
+    parentId: input.parentId ? String(input.parentId) : undefined,
+    body: String(input.body ?? ""),
+    anchor: input.anchor ? { quote: String(input.anchor.quote), prefix: String(input.anchor.prefix ?? ""), suffix: String(input.anchor.suffix ?? "") } : null,
+    assign,
   });
-  if (!comment) return;
-  if (comment.authorId !== user.id) {
-    const target = comment.task
-      ? { teamId: comment.task.teamId, ownerId: comment.task.assigneeId }
-      : { teamId: comment.standup?.teamId ?? null, ownerId: comment.standup?.userId ?? "" };
-    if (!(await teamAccess(user, target)).manage) return;
-  }
-  // ลบไฟล์แนบใน Storage ไปด้วย — ถ้า Storage มีปัญหา แถวที่เหลือจะถูก cron เก็บกวาดทีหลัง
-  await purgeAttachments({ commentId: comment.id }).catch((e) => console.error(e));
+  if (result.ok) done();
+  return result.ok ? { ok: true, id: result.id } : result;
+}
+
+export async function editComment(id: string, body: string): Promise<Result> {
+  const result = await editCommentFor(await requireUser(), String(id), String(body ?? ""));
+  if (result.ok) done();
+  return result;
+}
+
+export async function resolveThread(id: string, resolved: boolean): Promise<Result> {
+  const result = await resolveThreadFor(await requireUser(), String(id), Boolean(resolved));
+  if (result.ok) done();
+  return result;
+}
+
+export async function assignThread(id: string, assign: { userId: string; kind: AssignKind } | null): Promise<Result> {
+  const result = await assignThreadFor(await requireUser(), String(id), assign && KINDS.includes(assign.kind) ? { userId: String(assign.userId), kind: assign.kind } : null);
+  if (result.ok) done();
+  return result;
+}
+
+export async function completeAssignment(id: string, action: "read" | "approve" | "changes" | "edited", reason = ""): Promise<Result> {
+  if (!["read", "approve", "changes", "edited"].includes(action)) return { ok: false, error: "คำสั่งไม่ถูกต้อง" };
+  const result = await completeAssignmentFor(await requireUser(), String(id), action, String(reason ?? "").slice(0, 2000));
+  if (result.ok) done();
+  return result;
+}
+
+/** เธรดของโน้ตสำหรับแผงความคิดเห็น (ดึงซ้ำเป็นระยะ) */
+export async function noteThreads(noteId: string) {
+  return noteThreadsFor(await requireUser(), String(noteId));
+}
+
+/** ลบได้: คนเขียนเอง หรือคนที่ดูแลทีมนั้น — ความคิดเห็นแรกของเธรด = ลบทั้งเธรด */
+export async function deleteComment(formData: FormData) {
+  await removeComment(String(formData.get("id")));
+}
+
+export async function removeComment(id: string): Promise<Result> {
+  const user = await requireUser();
+  const comment = await canDeleteComment(user, String(id));
+  if (!comment) return { ok: false, error: "ลบได้เฉพาะความคิดเห็นของคุณ" };
+  // ลบไฟล์แนบใน Storage ไปด้วย (รวมของคำตอบในเธรด) — ถ้า Storage มีปัญหา แถวที่เหลือจะถูก cron เก็บกวาดทีหลัง
+  const ids = [comment.id, ...(await prisma.comment.findMany({ where: { parentId: comment.id }, select: { id: true } })).map((c) => c.id)];
+  for (const commentId of ids) await purgeAttachments({ commentId }).catch((e) => console.error(e));
   await prisma.comment.delete({ where: { id: comment.id } });
   done();
+  return { ok: true };
 }

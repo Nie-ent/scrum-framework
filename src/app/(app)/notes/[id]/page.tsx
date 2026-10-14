@@ -4,7 +4,11 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format-dates";
-import { linkResolver, linkify, noteSnippet } from "@/lib/note-links";
+import { linkResolver, linkify, mentionify, noteSnippet } from "@/lib/note-links";
+import { refContext } from "@/lib/ref-context";
+import { noteThreadsFor } from "@/lib/comment-ops";
+import { noteBacklinks } from "@/lib/backlinks";
+import { NoteComments } from "@/components/notes/note-comments";
 import { favoriteIds, listNotes, pathTo } from "@/lib/notes";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { Icon } from "@/components/icons";
@@ -25,7 +29,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function NotePage({ params, searchParams }: PageProps<"/notes/[id]">) {
   const user = await requireUser();
   const { id } = await params;
-  const editing = (await searchParams).edit === "1";
+  const query = await searchParams;
+  const editing = query.edit === "1";
+  const focusId = typeof query.c === "string" ? query.c : undefined;
 
   const note = await prisma.note
     .findUnique({ where: { id }, include: { createdBy: { select: { name: true } }, updatedBy: { select: { name: true } } } })
@@ -100,6 +106,7 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
               note={{ id: note.id, title: note.title, content: note.content, version: note.updatedAt.toISOString() }}
               noteTitles={[...new Set(others.map((n) => n.title))].sort((a, b) => a.localeCompare(b, "th"))}
               tasks={tasks.map((t) => ({ number: t.number!, title: t.title }))}
+              people={(await refContext(team.id)).people}
             />
           </div>
         </div>
@@ -109,7 +116,8 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
 
   // ลิงก์ในเนื้อหา: ชื่อโน้ต → โน้ตที่ชื่อตรง (ชื่อซ้ำเลือกตัวที่ใกล้โน้ตนี้ที่สุด), เลขงาน → งานของทีม
   const taskNumbers = new Set(tasks.map((t) => t.number));
-  const rendered = linkify(note.content, {
+  const [ctx, threads, backlinkRefs] = await Promise.all([refContext(team.id), noteThreadsFor(user, note.id), noteBacklinks(note.id, tr)]);
+  const rendered = linkify(mentionify(note.content, ctx.people), {
     self: note.id,
     note: linkResolver(nodes, note),
     taskUrl: (number) => (taskNumbers.has(number) ? `/tasks?team=${team.id}&task=${number}` : undefined),
@@ -120,13 +128,23 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
   for (const l of outlinks) if (l.toNote) related.set(l.toNote.id, { ...l.toNote, out: true, in: false });
   for (const b of backlinks) related.set(b.from.id, { ...b.from, out: related.has(b.from.id), in: true });
   const relatedNotes = [...related.values()].sort((a, b) => a.title.localeCompare(b.title, "th"));
+  // การตรวจล่าสุดที่ผ่าน — โน้ตถูกแก้หลังจากนั้น (เกิน 1 นาที) = ควรตรวจใหม่
+  const approved = (threads ?? []).filter((t) => t.approvedAt).sort((a, b) => b.approvedAt!.localeCompare(a.approvedAt!))[0];
+  const review = approved ? { by: approved.resolvedBy?.name ?? approved.assignee?.name ?? "—", at: new Date(approved.approvedAt!), stale: note.updatedAt.getTime() - new Date(approved.approvedAt!).getTime() > 60_000 } : null;
   const linkedTasks = taskLinks.flatMap((l) => (l.toTask && !l.toTask.deletedAt ? [l.toTask] : []));
 
   return (
     <NotesShell {...shell}>
       <div className="space-y-5">
         {Breadcrumb}
-        <article className="card">
+        <NoteComments
+          noteId={note.id}
+          initial={threads ?? []}
+          viewerId={user.id}
+          canModerate={canManage}
+          ctx={ctx}
+          focusId={focusId}
+          header={
           <header className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{note.title}</h1>
@@ -136,9 +154,16 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2"><Link href={`/notes/${note.id}?edit=1`} className="btn">{tr("แก้ไข")}</Link><ItemMenuButton id={note.id} title={note.title} kind="NOTE" /></div>
+            {review && (
+              <p className={`basis-full text-xs font-medium ${review.stale ? "text-warning" : "text-success"}`}>
+                {review.stale ? tr("✎ แก้ไขหลังตรวจโดย {0} — ควรขอให้ตรวจใหม่", [review.by]) : tr("✓ ตรวจแล้วโดย {0} · {1}", [review.by, formatDateTime(review.at)])}
+              </p>
+            )}
           </header>
+          }
+        >
           {note.content.trim() ? <ReadingSurface><Markdown content={rendered} /></ReadingSurface> : <p className="text-sm text-slate-400">{tr("โน้ตนี้ยังว่าง — กด แก้ไข เพื่อเริ่มเขียน")}</p>}
-        </article>
+        </NoteComments>
 
         <div className="grid gap-4 md:grid-cols-2">
           <section className="card">
@@ -159,6 +184,16 @@ export default async function NotePage({ params, searchParams }: PageProps<"/not
               </ul>
             )}
           </section>
+          {backlinkRefs.length > 0 && (
+            <section className="card md:col-span-2">
+              <h2 className="mb-2 text-sm font-semibold text-foreground">{tr("ถูกอ้างถึงใน")}</h2>
+              <ul className="space-y-1">
+                {backlinkRefs.map((b) => (
+                  <li key={b.key}><Link href={b.href} className="inline-flex items-center gap-2 text-sm text-foreground hover:text-primary"><Icon name={b.icon} className="h-4 w-4 shrink-0 text-subtle" /><span className="min-w-0 truncate">{b.label}</span></Link></li>
+                ))}
+              </ul>
+            </section>
+          )}
           <section className="card">
             <h2 className="mb-2 text-sm font-semibold text-slate-900">{tr("งานที่โน้ตนี้อ้างถึง (")}{linkedTasks.length})</h2>
             {linkedTasks.length === 0 ? (

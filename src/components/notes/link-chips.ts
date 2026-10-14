@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { noteKey, targetExists } from "@/lib/note-links";
 import type { Translate } from "@/lib/i18n/core";
+import { findMentions, type Person } from "@/lib/mentions";
 
 const PATTERN = /\[\[([^\[\]|\n]+?)(?:\\?\|([^\[\]\n]+?))?\]\]|(^|[^\p{L}\p{N}_/#&=\\\[])#(\d{1,6})(?![\w-])/gu;
 
@@ -11,13 +12,14 @@ const PATTERN = /\[\[([^\[\]|\n]+?)(?:\\?\|([^\[\]\n]+?))?\]\]|(^|[^\p{L}\p{N}_/
  * — เป็นการตกแต่งการแสดงผลอย่างเดียว เนื้อหาที่บันทึกยังเป็นข้อความเดิม
  * เมื่อเคอร์เซอร์อยู่ในป้าย วงเล็บจะกลับมาให้เห็นเพื่อแก้ไขได้ตามปกติ
  */
-export const LinkChips = Extension.create<{ noteTitles: string[]; taskNumbers: number[]; tr: Translate }>({
+export const LinkChips = Extension.create<{ noteTitles: string[]; taskNumbers: number[]; people: Person[]; tr: Translate }>({
   name: "linkChips",
-  addOptions: () => ({ noteTitles: [], taskNumbers: [], tr: (text: string) => text }),
+  addOptions: () => ({ noteTitles: [], taskNumbers: [], people: [], tr: (text: string) => text }),
   addProseMirrorPlugins() {
     const known = new Set(this.options.noteTitles.map(noteKey));
     const tasks = new Set(this.options.taskNumbers);
     const tr = this.options.tr;
+    const people = this.options.people;
     return [
       new Plugin({
         key: new PluginKey("linkChips"),
@@ -49,6 +51,9 @@ export const LinkChips = Extension.create<{ noteTitles: string[]; taskNumbers: n
                   const start = pos + match.index + match[3].length;
                   decorations.push(Decoration.inline(start, start + 1 + match[4].length, { class: "task-chip", title: tr("งานเลข {0}", [match[4]]) }));
                 }
+              }
+              for (const m of findMentions(node.text, people)) {
+                decorations.push(Decoration.inline(pos + m.start, pos + m.end, { class: "mention-chip", title: tr("แท็ก {0}", [m.name]) }));
               }
             });
             return DecorationSet.create(state.doc, decorations);

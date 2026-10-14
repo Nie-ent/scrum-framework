@@ -6,6 +6,8 @@
  * - #12 → ลิงก์ไปงานเลข 12 ของทีม
  * ข้อความใน code (`...` และ ```...```) ไม่ถูกตีความเป็นลิงก์
  */
+import { findMentions, type Person } from "./mentions";
+
 const CODE = /(```[\s\S]*?```|`[^`\n]*`)/;
 // กลุ่ม: 1 = เป้าหมาย, 2 = ตัวคั่น (| หรือ \|), 3 = ข้อความที่แสดง
 const WIKI = /\[\[([^\[\]|\n]+?)(?:(\\?\|)([^\[\]\n]+?))?\]\]/g;
@@ -160,4 +162,18 @@ export function noteSnippet(content: string, q = ""): string {
   const at = q ? plain.toLowerCase().indexOf(q.toLowerCase()) : -1;
   const start = at > 60 ? at - 60 : 0;
   return (start > 0 ? "…" : "") + plain.slice(start, start + 160) + (plain.length > start + 160 ? "…" : "");
+}
+
+/** @ชื่อ ของคนในพื้นที่ → ลิงก์พิเศษ #mention-id ที่ตัวแสดงผลวาดเป็นป้าย (ข้อความในโค้ดไม่แตะ) */
+export function mentionify(content: string, people: Person[]): string {
+  if (!content.includes("@")) return content;
+  return content
+    .split(CODE)
+    .map((part, i) => {
+      if (i % 2 === 1) return part;
+      let out = part;
+      for (const m of findMentions(part, people).reverse()) out = `${out.slice(0, m.start)}[@${escapeLabel(m.name)}](#mention-${m.userId})${out.slice(m.end)}`;
+      return out;
+    })
+    .join("");
 }

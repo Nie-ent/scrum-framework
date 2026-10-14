@@ -1,37 +1,26 @@
 import { deleteComment } from "@/app/actions/comments";
 import type { CommentRow, CommentTarget } from "@/lib/comments";
 import { formatDateTime } from "@/lib/format-dates";
+import { refContext } from "@/lib/ref-context";
 import { Avatar } from "@/components/avatar";
 import { CommentForm } from "@/components/comment-form";
+import { ReplyBox } from "@/components/reply-box";
 import { Icon } from "@/components/icons";
 import { AttachmentList } from "@/components/attachments";
+import { RefText, type RefContext } from "@/components/ref-text";
 import { toFileItems } from "@/lib/attachments";
 import { tr } from "@/lib/i18n/server";
 
-const URL_PATTERN = /(https?:\/\/[^\s<>"]+)/g;
-
-/** ข้อความที่ลิงก์ (http/https) กดได้ — เครื่องหมายวรรคตอนท้ายลิงก์ไม่นับเป็นส่วนของลิงก์ */
-export function LinkedText({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(URL_PATTERN).map((part, i) => {
-        if (i % 2 === 0) return part;
-        const href = part.replace(/[.,;:!?)\]]+$/, "");
-        return (
-          <span key={i}>
-            <a href={href} target="_blank" rel="noopener noreferrer" className="break-all text-indigo-600 underline underline-offset-2 hover:text-indigo-800">
-              {href}
-            </a>
-            {part.slice(href.length)}
-          </span>
-        );
-      })}
-    </>
-  );
+/** ข้อความที่ลิงก์ (http/https) กดได้ — ใช้เมื่อไม่มีข้อมูลพื้นที่ให้แสดง #งาน [[โน้ต]] @คน */
+export function LinkedText({ text, ctx }: { text: string; ctx?: RefContext | null }) {
+  return <RefText text={text} ctx={ctx} />;
 }
 
-/** เธรดความคิดเห็นใต้งานหรือเช็กอิน — พับไว้ก่อน แสดงจำนวนที่หัวข้อ */
-export function CommentThread({
+/**
+ * เธรดความคิดเห็นใต้งานหรือเช็กอิน — พับไว้ก่อน แสดงจำนวนที่หัวข้อ
+ * ตอบเป็นเธรดได้ชั้นเดียว · teamId มีค่า = @ แท็กคน และ #งาน [[โน้ต]] เป็นป้ายที่กดได้
+ */
+export async function CommentThread({
   target,
   comments,
   viewerId,
@@ -39,6 +28,7 @@ export function CommentThread({
   subject,
   open = false,
   canAttach,
+  teamId,
 }: {
   target: CommentTarget;
   comments: CommentRow[];
@@ -50,45 +40,70 @@ export function CommentThread({
   open?: boolean;
   /** ตั้งค่าที่เก็บไฟล์แล้ว — แสดงปุ่มแนบไฟล์ */
   canAttach: boolean;
+  teamId?: string | null;
 }) {
+  const ctx = teamId ? await refContext(teamId) : null;
+  const roots = comments.filter((c) => !c.parentId || !comments.some((p) => p.id === c.parentId));
+  const repliesOf = (id: string) => comments.filter((c) => c.parentId === id);
+
+  const line = (c: CommentRow, small = false) => (
+    <div className="flex gap-2.5">
+      <Avatar user={c.author} size={small ? 20 : 24} className="mt-0.5" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
+          <span className="font-semibold text-foreground">{c.author.name}</span>
+          <time dateTime={c.createdAt.toISOString()} className="text-subtle">{formatDateTime(c.createdAt)}</time>
+          {(canModerate || c.author.id === viewerId) && (
+            <form action={deleteComment} className="ml-auto">
+              <input type="hidden" name="id" value={c.id} />
+              <button className="text-subtle transition hover:text-danger" aria-label={tr("ลบความคิดเห็นของ {0}", [c.author.name])}>{tr("ลบ")}</button>
+            </form>
+          )}
+        </div>
+        {c.progressTo !== null && (
+          <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-lg bg-surface px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground ring-1 ring-border">
+            <span className="font-medium text-muted-foreground">{tr("ความคืบหน้า")}</span>
+            {c.progressFrom !== null && c.progressFrom !== c.progressTo && <><span className="text-subtle">{c.progressFrom}%</span><span aria-hidden="true" className="text-subtle">→</span></>}
+            <span className={c.progressTo >= 100 ? "text-success" : "text-primary"}>{c.progressTo}%</span>
+          </p>
+        )}
+        {c.body && <p className="whitespace-pre-wrap break-words text-sm text-foreground"><RefText text={c.body} ctx={ctx} /></p>}
+        <CommentFiles comment={c} viewerId={viewerId} canModerate={canModerate} />
+      </div>
+    </div>
+  );
+
   return (
     <details open={open} className="group/thread">
-      <summary className={`inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg text-xs font-medium transition hover:text-indigo-700 ${comments.length > 0 ? "text-indigo-600" : "text-slate-400"}`}>
+      <summary className={`inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-lg text-xs font-medium transition hover:text-primary-strong ${comments.length > 0 ? "text-primary" : "text-subtle"}`}>
         <Icon name="comment" />
         {comments.length > 0 ? tr("ความคิดเห็น {0}", [comments.length]) : tr("แสดงความคิดเห็น")}
       </summary>
-      <div className="mt-2 space-y-3 rounded-xl bg-slate-50 p-3">
-        {comments.length > 0 && (
+      <div className="mt-2 space-y-3 rounded-xl bg-surface-sunken p-3">
+        {roots.length > 0 && (
           <ul className="space-y-3">
-            {comments.map((c) => (
-              <li key={c.id} className="flex gap-2.5">
-                <Avatar user={c.author} size={24} className="mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
-                    <span className="font-semibold text-slate-800">{c.author.name}</span>
-                    <time dateTime={c.createdAt.toISOString()} className="text-slate-400">{formatDateTime(c.createdAt)}</time>
-                    {(canModerate || c.author.id === viewerId) && (
-                      <form action={deleteComment} className="ml-auto">
-                        <input type="hidden" name="id" value={c.id} />
-                        <button className="text-slate-400 transition hover:text-rose-600" aria-label={tr("ลบความคิดเห็นของ {0}", [c.author.name])}>{tr("ลบ")}</button>
-                      </form>
-                    )}
-                  </div>
-                  {c.progressTo !== null && (
-                    <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-lg bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 ring-1 ring-slate-200">
-                      <span className="font-medium text-slate-500">{tr("ความคืบหน้า")}</span>
-                      {c.progressFrom !== null && c.progressFrom !== c.progressTo && <><span className="text-slate-400">{c.progressFrom}%</span><span aria-hidden="true" className="text-slate-400">→</span></>}
-                      <span className={c.progressTo >= 100 ? "text-emerald-600" : "text-indigo-600"}>{c.progressTo}%</span>
-                    </p>
+            {roots.map((c) => {
+              const replies = repliesOf(c.id);
+              return (
+                <li key={c.id}>
+                  {line(c)}
+                  {replies.length > 0 && (
+                    <ul className="ml-8 mt-2 space-y-2 border-l-2 border-border pl-3">
+                      {replies.map((r) => <li key={r.id}>{line(r, true)}</li>)}
+                    </ul>
                   )}
-                  {c.body && <p className="whitespace-pre-wrap break-words text-sm text-slate-700"><LinkedText text={c.body} /></p>}
-                  <CommentFiles comment={c} viewerId={viewerId} canModerate={canModerate} />
-                </div>
-              </li>
-            ))}
+                  {/* รายการอัปเดตความคืบหน้าไม่ใช่บทสนทนา — ไม่มีปุ่มตอบ */}
+                  {c.progressTo === null && (
+                    <div className="ml-8 mt-1">
+                      <ReplyBox target={target} parentId={c.id} label={tr("ตอบ {0}", [c.author.name])} teamId={teamId ?? null} canAttach={canAttach} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
-        <CommentForm target={target} label={tr("ความคิดเห็นถึง {0}", [subject])} canAttach={canAttach} />
+        <CommentForm target={target} label={tr("ความคิดเห็นถึง {0}", [subject])} canAttach={canAttach} teamId={teamId ?? null} />
       </div>
     </details>
   );
@@ -97,6 +112,6 @@ export function CommentThread({
 function CommentFiles({ comment, viewerId, canModerate }: { comment: CommentRow; viewerId: string; canModerate: boolean }) {
   const files = toFileItems(comment.attachments, viewerId);
   // ความคิดเห็นที่มีแต่ไฟล์ และไฟล์ชั่วคราวนั้นหมดอายุไปแล้ว
-  if (files.length === 0) return comment.body || comment.progressTo !== null ? null : <p className="text-sm italic text-slate-400">{tr("ไฟล์แนบหมดอายุแล้ว")}</p>;
+  if (files.length === 0) return comment.body || comment.progressTo !== null ? null : <p className="text-sm italic text-subtle">{tr("ไฟล์แนบหมดอายุแล้ว")}</p>;
   return <div className="mt-1"><AttachmentList files={files} canModerate={canModerate} /></div>;
 }

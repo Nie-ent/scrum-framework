@@ -12,7 +12,8 @@
     "db:seed": "node prisma/seed.mjs",
     "db:seed-demo": "node prisma/seed-demo.mjs",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && node prisma/seed.mjs && next build"
+    "vercel-build": "prisma generate && prisma migrate deploy && node prisma/seed.mjs && next build",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -50,6 +51,7 @@
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
