@@ -7,6 +7,7 @@ import { ensureLang } from "@/lib/i18n/server";
 import { cookies } from "next/headers";
 import { ThemeSync, THEME_SCRIPT } from "@/components/theme";
 import { isTheme, THEME_COLOR, THEME_COOKIE, type Theme } from "@/lib/theme";
+import { PaceAnalytics } from "@/components/analytics";
 
 const plex = IBM_Plex_Sans_Thai({
   variable: "--font-plex",
@@ -55,7 +56,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         </head>
       )}
-      <body className="min-h-full bg-background text-slate-900 selection:bg-indigo-100"><ThemeSync theme={theme} /><I18nProvider lang={lang}><TooltipProvider>{children}</TooltipProvider></I18nProvider></body>
+      <body className="min-h-full bg-background text-slate-900 selection:bg-indigo-100"><ThemeSync theme={theme} /><I18nProvider lang={lang}><TooltipProvider>{children}</TooltipProvider></I18nProvider><PaceAnalytics /></body>
     </html>
   );
 }
