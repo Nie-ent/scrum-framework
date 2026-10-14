@@ -106,6 +106,26 @@ export async function deleteTeam(formData: FormData) {
   revalidatePath("/admin/teams");
 }
 
+/** ให้แพ็กเกจทีมฟรีแก่ workspace (ลูกค้าทดลอง / พาร์ตเนอร์) — ที่นั่ง 0 หรือเว้นวันที่ = ยกเลิกสิทธิ์ที่ให้ */
+const CompSchema = z.object({
+  teamId: z.string().min(1),
+  seats: z.coerce.number().int().min(0).max(10000),
+  until: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/),
+});
+
+export async function grantPlan(_: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const parsed = CompSchema.safeParse({ teamId: formData.get("teamId"), seats: formData.get("seats") || 0, until: formData.get("until") ?? "" });
+  if (!parsed.success) return { error: "ข้อมูลไม่ถูกต้อง" };
+  const { teamId, seats, until } = parsed.data;
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { parentId: true, personalOfId: true } });
+  if (!team || team.parentId || team.personalOfId) return { error: "ให้แพ็กเกจได้เฉพาะทีมระดับบน" };
+  const comp = seats > 0 && until ? { compSeats: seats, compUntil: new Date(`${until}T23:59:59+07:00`) } : { compSeats: null, compUntil: null };
+  await prisma.subscription.upsert({ where: { teamId }, create: { teamId, ...comp }, update: comp });
+  revalidatePath("/admin/teams");
+  return { ok: comp.compSeats ? "ให้แพ็กเกจแล้ว" : "ยกเลิกสิทธิ์ที่ให้แล้ว" };
+}
+
 /* ---------- Users ---------- */
 
 const UserSchema = z.object({

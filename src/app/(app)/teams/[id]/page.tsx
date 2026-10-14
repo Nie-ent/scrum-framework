@@ -10,6 +10,9 @@ import { isEmailConfigured } from "@/lib/email";
 import { openInvite } from "@/lib/invites";
 import { ACCESS_LABEL } from "@/lib/permissions";
 import { getTeamControl } from "@/lib/teams";
+import { workspaceUsage } from "@/lib/plans";
+import { isBillingConfigured, stripe, syncSubscription } from "@/lib/billing";
+import { PlanCard } from "./plan-card";
 import { Avatar } from "@/components/avatar";
 import { DeleteTeamForm, InviteForm, MeetingUrlForm, MemberForm, SubTeamForm } from "../forms";
 import { ensureLang, tr } from "@/lib/i18n/server";
@@ -20,12 +23,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** จัดการทีม: สมาชิก สิทธิ์ ชื่อบทบาท คำเชิญ และทีมย่อย — เข้าได้เฉพาะหัวหน้า/เจ้าของทีม */
-export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
+export default async function TeamPage({ params, searchParams }: PageProps<"/teams/[id]">) {
   const user = await requireUser();
   const { id } = await params;
+  const { billing, session_id } = await searchParams;
   const control = await getTeamControl(user, id);
   if (!control?.lead) notFound();
   const { team, owner } = control;
+  // กลับจากหน้าชำระเงิน: อัปเดตแพ็กเกจทันทีไม่ต้องรอ webhook (เฉพาะ session ของ customer ทีมนี้)
+  if (billing === "success" && typeof session_id === "string" && owner && !team.parentId && isBillingConfigured()) {
+    await syncFromCheckout(team.id, session_id).catch((e) => console.error("[billing] sync after checkout", e));
+  }
 
   const myTeamIds = user.memberships.map((m) => m.teamId);
   const [members, invites, children, parent, sent, teammates] = await Promise.all([
@@ -49,6 +57,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
     .findMany({ where: { teamId: team.id }, select: { id: true, name: true, color: true, _count: { select: { tasks: true } } }, orderBy: { name: "asc" } })
     .then((rows) => rows.map((l) => ({ id: l.id, name: l.name, color: l.color, tasks: l._count.tasks })));
   const titles = [...new Set(members.flatMap((m) => (m.title ? [m.title] : [])))].sort();
+  const usage = await workspaceUsage(team.parentId ?? team.id);
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -62,6 +71,8 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
           </div>
         </div>
       </div>
+
+      <PlanCard teamId={team.parentId ?? team.id} parentName={parent?.name ?? null} owner={owner} state={usage.state} used={usage.used} pending={usage.pending} notice={billing === "success" || billing === "cancel" ? billing : undefined} />
 
       <section className="card">
         <div className="mb-4">
@@ -166,4 +177,15 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
       )}
     </div>
   );
+}
+
+async function syncFromCheckout(teamId: string, sessionId: string) {
+  const [session, row] = await Promise.all([
+    stripe().checkout.sessions.retrieve(sessionId),
+    prisma.subscription.findUnique({ where: { teamId }, select: { stripeCustomerId: true } }),
+  ]);
+  const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
+  const subscription = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+  if (!row?.stripeCustomerId || customer !== row.stripeCustomerId || !subscription || session.status !== "complete") return;
+  await syncSubscription(subscription);
 }

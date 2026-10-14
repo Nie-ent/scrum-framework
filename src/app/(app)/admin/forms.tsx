@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveRole, saveTeam, saveUser } from "@/app/actions/admin";
+import { grantPlan, saveRole, saveTeam, saveUser } from "@/app/actions/admin";
+import { DatePicker } from "@/components/date-picker";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Select } from "@/components/select";
 import { useT } from "@/components/i18n";
@@ -57,6 +58,21 @@ export function TeamForm({
         options={[{ value: "", label: tr("ทีมระดับบน") }, ...parents.filter((p) => p.id !== team?.id).map((p) => ({ value: p.id, label: tr("ทีมย่อยของ {0}", [p.name]) }))]}
       />
       <SubmitButton className={team ? "btn-ghost" : "btn"}>{team ? tr("บันทึก") : tr("เพิ่มทีม")}</SubmitButton>
+      <FormMessage state={state} />
+    </form>
+  );
+}
+
+/** ให้แพ็กเกจทีมฟรีถึงวันที่กำหนด (ลูกค้าทดลอง / พาร์ตเนอร์) */
+export function GrantPlanForm({ teamId, seats, until, today }: { teamId: string; seats: number | null; until: string; today: string }) {
+  const tr = useT();
+  const [state, action] = useActionState(grantPlan, undefined);
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="teamId" value={teamId} />
+      <input className="input w-24" name="seats" type="number" min={0} defaultValue={seats ?? ""} placeholder={tr("ที่นั่ง")} aria-label={tr("จำนวนที่นั่งที่ให้")} />
+      <DatePicker name="until" defaultValue={until} today={today} min={today} size="sm" className="w-44" aria-label={tr("ให้ใช้ถึงวันที่")} />
+      <SubmitButton className="btn-ghost">{tr("ให้แพ็กเกจ")}</SubmitButton>
       <FormMessage state={state} />
     </form>
   );

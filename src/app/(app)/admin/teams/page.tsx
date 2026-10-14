@@ -1,7 +1,9 @@
 import { deleteTeam } from "@/app/actions/admin";
 import { prisma } from "@/lib/db";
 import { sortTeamTree } from "@/lib/teams";
-import { TeamForm } from "../forms";
+import { GrantPlanForm, TeamForm } from "../forms";
+import { dateToKey, todayKey } from "@/lib/dates";
+import { planState } from "@/lib/plans";
 import { tr } from "@/lib/i18n/server";
 
 export default async function TeamsPage() {
@@ -12,6 +14,7 @@ export default async function TeamsPage() {
       orderBy: { name: "asc" },
       include: {
         _count: { select: { members: true, children: true } },
+        subscription: true,
         members: { where: { access: { not: "MEMBER" } }, include: { user: { select: { name: true } } } },
       },
     }),
@@ -46,6 +49,12 @@ export default async function TeamsPage() {
                 </form>
               )}
             </div>
+            {!team.parentId && (
+              <div className="flex w-full flex-wrap items-center gap-3 pl-1 text-xs text-muted-foreground">
+                <span>{tr("แพ็กเกจ")}: {planState(team.subscription).plan === "FREE" ? tr("ฟรี") : tr("ทีม")} · {tr("{0} ที่นั่ง", [planState(team.subscription).seats])}{team.subscription?.stripeSubscriptionId && ` · Stripe ${team.subscription.status}`}</span>
+                <GrantPlanForm teamId={team.id} seats={team.subscription?.compSeats ?? null} until={team.subscription?.compUntil ? dateToKey(team.subscription.compUntil) : ""} today={todayKey()} />
+              </div>
+            )}
           </div>
         ))}
         {teams.length === 0 && <p className="text-sm text-slate-500">{tr("ยังไม่มีทีม")}</p>}

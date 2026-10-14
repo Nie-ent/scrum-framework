@@ -14,8 +14,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: tr("ทีม") };
 }
 
-export default async function TeamsPage() {
+export default async function TeamsPage({ searchParams }: PageProps<"/teams">) {
   const user = await requireUser();
+  const { full } = await searchParams;
   // คำเชิญที่ส่งถึงอีเมลนี้ — เห็นรายละเอียดและกดรับในแอปได้เมื่อยืนยันแล้วว่าเป็นเจ้าของอีเมล
   // (ยังไม่ยืนยัน = บอกแค่ว่ามีคำเชิญรออยู่ ไม่เปิดเผยชื่อทีม/คนเชิญให้คนที่อาจไม่ใช่เจ้าของอีเมล)
   const verified = Boolean(user.emailVerifiedAt);
@@ -37,6 +38,10 @@ export default async function TeamsPage() {
           <p className="page-subtitle">{tr("ทีมที่คุณอยู่ คำเชิญที่รอรับ และสร้างทีมใหม่")}</p>
         </div>
       </div>
+
+      {full && (
+        <p role="alert" className="rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-foreground">{tr("ที่นั่งในแพ็กเกจเต็มแล้ว — เจ้าของทีมเพิ่มที่นั่งได้ที่หน้าจัดการทีม")}</p>
+      )}
 
       {pending.length > 0 && (
         <section className="card border-indigo-200 bg-indigo-50/40">

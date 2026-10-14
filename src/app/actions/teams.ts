@@ -11,6 +11,7 @@ import { purgeAttachments } from "@/lib/attachment-store";
 import { INVITE_DAYS, joinFromInvite, openInvite } from "@/lib/invites";
 import { notify } from "@/lib/notify";
 import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
+import { SEATS_FULL, canAddSeat } from "@/lib/plans";
 import { getTeamControl } from "@/lib/teams";
 import { InviteFields, TeamFields, roleTitle as title, teamName } from "@/lib/schemas";
 import { hashToken, inDays, newToken } from "@/lib/tokens";
@@ -80,6 +81,7 @@ export async function inviteMember(_: FormState, formData: FormData): Promise<Fo
   if (await prisma.teamMember.findFirst({ where: { teamId, user: { email } } })) return { error: "คนนี้อยู่ในทีมอยู่แล้ว" };
   // เปิดให้สมัครเองแล้ว — กันใช้คำเชิญยิงอีเมลรัว
   if (!(await rateLimit(`invite:user:${user.id}`, 30, 3600))) return { error: TOO_MANY };
+  if (!(await canAddSeat(teamId, { inviteEmail: email }))) return { error: SEATS_FULL };
   // เชิญซ้ำ = ยกเลิกคำเชิญเดิมที่ค้างอยู่แล้วออกลิงก์ใหม่
   await prisma.invite.updateMany({ where: { teamId, email, ...openInvite() }, data: { revokedAt: new Date() } });
 
@@ -132,7 +134,8 @@ export async function respondToInvite(formData: FormData) {
     .catch(() => null);
   if (!invite) return;
   if (formData.get("decline")) await prisma.invite.update({ where: { id: invite.id }, data: { revokedAt: new Date() } });
-  else await joinFromInvite(invite, user.id);
+  else if (await canAddSeat(invite.teamId, { userId: user.id })) await joinFromInvite(invite, user.id);
+  else redirect("/teams?full=1");
   done(invite.teamId);
 }
 
@@ -141,6 +144,7 @@ export async function acceptInviteLink(_: FormState, formData: FormData): Promis
   const user = await requireUser();
   const invite = await prisma.invite.findFirst({ where: { tokenHash: hashToken(String(formData.get("token") ?? "")), ...openInvite() } });
   if (!invite) return { error: "คำเชิญนี้ใช้ไม่ได้แล้ว (หมดอายุ ถูกยกเลิก หรือถูกใช้ไปแล้ว)" };
+  if (!(await canAddSeat(invite.teamId, { userId: user.id }))) return { error: SEATS_FULL };
   await joinFromInvite(invite, user.id);
   done(invite.teamId);
   redirect(`/standup?team=${invite.teamId}`);
@@ -206,6 +210,9 @@ export async function deleteTeam(_: FormState, formData: FormData): Promise<Form
   if (!control?.owner) return { error: "เฉพาะเจ้าของทีมลบทีมได้" };
   if (String(formData.get("confirm") ?? "").trim() !== control.team.name) return { error: "พิมพ์ชื่อทีมให้ตรงเพื่อยืนยันการลบ" };
   if ((await prisma.team.count({ where: { parentId: teamId } })) > 0) return { error: "ทีมนี้ยังมีทีมย่อย — ลบทีมย่อยก่อน" };
+  // ยังมีแพ็กเกจที่ตัดเงินอยู่ = ต้องยกเลิกก่อน ไม่งั้นจะโดนเก็บเงินต่อทั้งที่ทีมหายไปแล้ว
+  const sub = await prisma.subscription.findUnique({ where: { teamId }, select: { status: true, cancelAtPeriodEnd: true, stripeSubscriptionId: true } });
+  if (sub?.stripeSubscriptionId && ["active", "trialing", "past_due"].includes(sub.status) && !sub.cancelAtPeriodEnd) return { error: "ทีมนี้ยังมีแพ็กเกจที่ชำระเงินอยู่ — ยกเลิกแพ็กเกจในหน้าจัดการทีมก่อน" };
 
   const members = await prisma.teamMember.findMany({ where: { teamId, userId: { not: user.id } }, select: { userId: true } });
   // ไฟล์ใน Storage ลบก่อน (ถ้า Storage มีปัญหา แถวที่เหลือจะถูก cron เก็บกวาดทีหลัง)

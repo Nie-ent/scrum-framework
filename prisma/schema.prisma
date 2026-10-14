@@ -41,6 +41,7 @@ model Team {
   notes        Note[]
   labels       Label[]
   refs         Ref[]
+  subscription Subscription?
   /// มีค่า = "พื้นที่ส่วนตัว" ของผู้ใช้คนนี้ (ทีมที่มีเจ้าของคนเดียว เชิญคนอื่นไม่ได้) — คนละ 1 พื้นที่
   /// ทำให้คนที่ไม่มีทีมใช้ งาน / บันทึกประจำวัน / โน้ต ได้เหมือนกันโดยไม่ต้องมีโค้ดแยก
   personalOfId String?      @unique
@@ -556,4 +557,37 @@ model UserIdentity {
 
   @@id([provider, subject])
   @@unique([userId, provider])
+}
+
+/// แพ็กเกจของ workspace (ทีมระดับบน) — ไม่มีแถว = ฟรี
+enum Plan {
+  FREE
+  TEAM
+}
+
+/// การสมัครแพ็กเกจของ workspace (ทีมระดับบนเท่านั้น ทีมย่อยใช้ของทีมแม่) — ดู src/lib/plans.ts
+model Subscription {
+  teamId               String    @id
+  team                 Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  plan                 Plan      @default(FREE)
+  /// จำนวนที่นั่งที่จ่ายเงินแล้ว (= จำนวนคนสูงสุดใน workspace)
+  seats                Int       @default(0)
+  /// สถานะจาก Stripe: active / trialing / past_due / canceled / unpaid / incomplete …
+  status               String    @default("none")
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  currentPeriodEnd     DateTime? @db.Timestamptz(3)
+  cancelAtPeriodEnd    Boolean   @default(false)
+  /// ผู้ดูแลระบบให้ใช้แพ็กเกจทีมฟรี (ทดลอง / พาร์ตเนอร์) ถึงวันนี้ ด้วยจำนวนที่นั่ง compSeats
+  compUntil            DateTime? @db.Timestamptz(3)
+  compSeats            Int?
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(3)
+}
+
+/// webhook ของผู้ให้บริการชำระเงินที่ประมวลผลแล้ว (กันประมวลผลซ้ำ)
+model BillingEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 }

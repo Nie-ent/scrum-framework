@@ -29,6 +29,7 @@ export async function proxy(request: NextRequest) {
 // - api/cron: ตรวจสิทธิ์ด้วย CRON_SECRET ใน route เอง
 // - api/oauth, .well-known: ปลายทาง OAuth ที่โปรแกรมเรียกโดยไม่มี cookie · api/auth: เข้าสู่ระบบด้วย Google/Microsoft
 // - api/mcp: ผู้ช่วย AI ยืนยันตัวด้วยโทเคนส่วนตัว (Authorization: Bearer) ใน route เอง
+// - api/stripe/webhook: Stripe เรียกเอง ตรวจด้วยลายเซ็น (STRIPE_WEBHOOK_SECRET) ใน route
 export const config = {
-  matcher: ["/((?!api/health|api/cron|api/mcp|api/oauth|api/auth/|\\.well-known|sw.js|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|ico)$).*)"],
+  matcher: ["/((?!api/health|api/cron|api/mcp|api/stripe/webhook|api/oauth|api/auth/|\\.well-known|sw.js|_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|ico)$).*)"],
 };
