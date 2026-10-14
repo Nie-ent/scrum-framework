@@ -212,7 +212,7 @@ Pace เป็นเซิร์ฟเวอร์ [MCP](https://modelcontextpro
 - ที่อยู่: `POST /api/mcp` (Streamable HTTP แบบไม่เก็บสถานะ — ตอบเป็น JSON ไม่มี SSE)
 - ยืนยันตัว: `Authorization: Bearer <โทเคน>` — ผู้ใช้สร้างโทเคนเองที่ บัญชี → เชื่อมต่อผู้ช่วย AI (ตาราง `ApiToken` เก็บเฉพาะ hash) เลือกแบบอ่านอย่างเดียวได้
 - สิทธิ์: ทุกเครื่องมือทำงานในนามเจ้าของโทเคน ใช้กฎชุดเดียวกับหน้าเว็บ (`src/lib/task-ops.ts`) จำกัด 120 คำขอต่อนาทีต่อคน
-- เครื่องมือ (`src/lib/mcp.ts`): `list_spaces` `list_tasks` `get_task` `create_task` `update_task` `list_notes` `read_note` `create_note` `create_folder` `update_note` `get_checkins`
+- เครื่องมือ (`src/lib/mcp.ts`): `list_spaces` `list_members` `list_tasks` `get_task` `create_task` `create_tasks` (สูงสุด 50 งาน ผิดข้อเดียวไม่สร้างเลย) `update_task` (แก้ชื่อ รายละเอียด โอนงานได้) `list_notes` `read_note` `create_note` `create_folder` (รับ path หลายชั้นได้) `update_note` `get_checkins`
 
 ```bash
 claude mcp add --transport http pace https://<โดเมน>/api/mcp --header "Authorization: Bearer <โทเคน>"

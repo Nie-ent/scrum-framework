@@ -13,6 +13,7 @@ import { TaskForm } from "./task-form";
 import { TaskSearch } from "./task-search";
 import { ProgressSlider } from "./progress-slider";
 import { DueForm } from "../calendar/due-form";
+import { TaskEdit } from "./task-edit";
 import { Avatar } from "@/components/avatar";
 import { Icon } from "@/components/icons";
 import { CommentThread, LinkedText } from "@/components/comments";
@@ -50,7 +51,8 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   const defaultDue = isDateKey(params.due) && params.due >= today ? params.due : undefined;
 
   const [members, tasks] = await Promise.all([
-    canManage
+    // ใช้เลือกผู้รับงานตอนสร้าง (หัวหน้า) และตอนโอนงาน (หัวหน้าหรือคนที่มอบหมาย)
+    shared
       ? prisma.teamMember.findMany({
           where: { teamId: team.id, participates: true, user: { active: true } },
           select: { user: { select: { id: true, name: true } } },
@@ -107,6 +109,9 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
   type TaskRow = (typeof tasks)[number];
   const canDelete = (t: TaskRow) => canManage || (t.assignee.id === user.id && t.createdBy?.id === user.id);
   const canUpdate = (t: TaskRow) => canManage || t.assignee.id === user.id;
+  // กฎเดียวกับ editTaskFor ใน lib/task-ops
+  const canEditText = (t: TaskRow) => canUpdate(t) || t.createdBy?.id === user.id;
+  const canReassign = (t: TaskRow) => shared && (canManage || (t.createdBy?.id === user.id && t.createdBy.id !== t.assignee.id));
   const all = `/tasks?team=${team.id}`;
   const scope = `${all}${onlyOverdue ? "&overdue=1" : ""}${who ? `&who=${who.id}` : ""}`;
   const base = `${scope}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
@@ -232,10 +237,25 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
               {canDelete(selected) ? <DeleteTaskButton id={selected.id} title={selected.title} /> : <span className="w-8" />}
             </div>
             <div className="space-y-6 px-4 py-5 pb-28 sm:px-5 lg:pb-8">
-              <div>
-                <h2 className={`text-xl font-semibold leading-snug ${selected.progress >= 100 ? "text-muted-foreground line-through" : "text-foreground"}`}>{selected.title}</h2>
-                {selected.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground"><LinkedText text={selected.description} /></p>}
-              </div>
+              {(() => {
+                const view = (
+                  <div>
+                    <h2 className={`text-xl font-semibold leading-snug ${selected.progress >= 100 ? "text-muted-foreground line-through" : "text-foreground"}`}>{selected.title}</h2>
+                    {selected.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground"><LinkedText text={selected.description} /></p>}
+                  </div>
+                );
+                return canEditText(selected) ? (
+                  <TaskEdit
+                    key={`${selected.id}:${selected.updatedAt.getTime()}`}
+                    task={{ id: selected.id, title: selected.title, description: selected.description, assigneeId: selected.assignee.id }}
+                    members={canReassign(selected) ? members.map((m) => m.user) : null}
+                    selfId={user.id}
+                    view={view}
+                  />
+                ) : (
+                  view
+                );
+              })()}
 
               <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 text-sm">
                 {shared && (

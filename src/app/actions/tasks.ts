@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { keyToDate } from "@/lib/dates";
 import { TaskFields } from "@/lib/schemas";
-import { createTaskFor, loadTask, revalidateTasks, setDueFor, setProgressFor } from "@/lib/task-ops";
+import { createTaskFor, editTaskFor, loadTask, revalidateTasks, setDueFor, setProgressFor } from "@/lib/task-ops";
 import type { FormState } from "./auth";
 
 // กฎของช่องกรอกใช้ร่วมกับฟอร์มฝั่งเบราว์เซอร์ (src/lib/schemas.ts) — ที่นี่แปลงเป็นค่าที่จะบันทึก
@@ -66,6 +66,19 @@ export async function restoreTask(formData: FormData): Promise<{ ok: boolean }> 
   await prisma.task.update({ where: { id: task.id }, data: { deletedAt: null } });
   done();
   return { ok: true };
+}
+
+/** แก้ชื่อ รายละเอียด และ/หรือโอนผู้รับงาน (กฎสิทธิ์อยู่ใน lib/task-ops) — ไม่ส่ง assigneeId = ไม่โอน */
+export async function editTask(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const assigneeId = formData.get("assigneeId");
+  const result = await editTaskFor(user, String(formData.get("id")), {
+    title: String(formData.get("title") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    assigneeId: typeof assigneeId === "string" && assigneeId ? assigneeId : undefined,
+  });
+  if (!result.ok) return { error: result.error };
+  return { ok: "บันทึกแล้ว" };
 }
 
 /** กำหนด/เลื่อน/ล้างวันกำหนดส่งของงาน — คนรับงานหรือคนที่ดูแลทีม (ใช้จากหน้า ปฏิทิน) */

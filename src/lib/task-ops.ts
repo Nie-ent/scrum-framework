@@ -7,6 +7,7 @@ import { notify } from "./notify";
 import { nextTaskNumbers } from "./task-store";
 import { toTasks } from "./tasks";
 import { getManageableTeamIds } from "./teams";
+import { trFor } from "./i18n/server";
 
 /**
  * การเปลี่ยนแปลงงานที่ใช้ร่วมกันทั้งจากหน้าเว็บ (server action) และจากผู้ช่วย AI (MCP)
@@ -51,6 +52,116 @@ export async function createTaskFor(
   }
   revalidateTasks();
   return { ok: true, task: { id: task.id, number }, self: data.assigneeId === user.id };
+}
+
+export const MAX_BATCH = 50;
+type NewTask = { assigneeId: string; title: string; description: string | null; dueDate: Date | null };
+
+/**
+ * สร้างหลายงานในพื้นที่เดียวครั้งเดียว (ใช้จาก MCP) — ตรวจทุกงานก่อน ผิดข้อเดียว = ไม่สร้างเลยทั้งชุด
+ * กฎสิทธิ์เดียวกับ createTaskFor · ผู้รับงานแต่ละคนได้แจ้งเตือนครั้งเดียวรวมทุกงานของตัวเอง
+ */
+export async function createTasksFor(user: CurrentUser, teamId: string, items: NewTask[]): Promise<OpResult<{ tasks: { number: number; title: string }[] }>> {
+  if (items.length === 0 || items.length > MAX_BATCH) return { ok: false, error: "สร้างได้ครั้งละ 1–50 งาน" };
+  const canManage = (await getManageableTeamIds(user)).has(teamId);
+  const isMember = user.memberships.some((m) => m.teamId === teamId);
+  if (!canManage && !(isMember && items.every((t) => t.assigneeId === user.id))) return { ok: false, error: "มอบหมายงานให้คนอื่นได้เฉพาะหัวหน้าทีม" };
+  const ids = [...new Set(items.map((t) => t.assigneeId))];
+  const members = await prisma.teamMember.findMany({
+    where: { teamId, userId: { in: ids }, participates: true, user: { active: true } },
+    select: { userId: true, team: { select: { name: true } } },
+  });
+  if (members.length !== ids.length) return { ok: false, error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
+
+  const numbers = await nextTaskNumbers(teamId, items.length);
+  await prisma.$transaction(items.map((t, i) => prisma.task.create({ data: { ...t, teamId, number: numbers[i], createdById: user.id } })));
+
+  const teamName = members[0].team.name;
+  const others = ids.filter((id) => id !== user.id);
+  for (const assigneeId of others) {
+    const mine = items.map((t, i) => ({ ...t, number: numbers[i] })).filter((t) => t.assigneeId === assigneeId);
+    await notify([{ userId: assigneeId }], (tr) => ({
+      title: mine.length === 1 ? tr("งานใหม่จาก {0}", [user.name]) : tr("งานใหม่ {0} งานจาก {1}", [mine.length, user.name]),
+      body: tr("{0} · ทีม {1}", [mine.map((t) => `#${t.number} ${t.title}`).join(", "), teamName]),
+      url: mine.length === 1 ? `/tasks?team=${teamId}&task=${mine[0].number}` : `/tasks?team=${teamId}&who=${assigneeId}`,
+    }));
+  }
+  revalidateTasks();
+  return { ok: true, tasks: items.map((t, i) => ({ number: numbers[i], title: t.title })) };
+}
+
+/**
+ * แก้ชื่อ/รายละเอียด และโอนผู้รับงาน
+ * - ชื่อและรายละเอียด: หัวหน้าทีม ผู้รับงาน หรือคนสร้างงาน
+ * - โอนงาน: หัวหน้าทีม หรือคนที่มอบหมายงานนี้ให้คนอื่นไว้ — ผู้รับงานโอนเองไม่ได้
+ *   (สมาชิกทั่วไปที่สร้างงานให้ตัวเองโอนไม่ได้ เพราะเท่ากับมอบหมายงานให้คนอื่น ซึ่งทำได้เฉพาะหัวหน้า)
+ * การโอนบันทึกลงเธรดของงาน และแจ้งทั้งคนรับงานใหม่และคนเดิม
+ */
+export async function editTaskFor(
+  user: CurrentUser,
+  taskId: string,
+  changes: { title?: string; description?: string | null; assigneeId?: string },
+): Promise<OpResult> {
+  const found = await loadTask(user, taskId);
+  if (!found) return { ok: false, error: "ไม่พบงานนี้" };
+  const { task, canManage, isAssignee } = found;
+  const isCreator = task.createdById === user.id;
+  const title = changes.title?.trim();
+  const description = changes.description === undefined ? undefined : changes.description?.trim() || null;
+  const textChanged = (title !== undefined && title !== task.title) || (description !== undefined && description !== task.description);
+  const moving = changes.assigneeId !== undefined && changes.assigneeId !== task.assigneeId;
+  if (!textChanged && !moving) return { ok: true };
+
+  if (textChanged && !(canManage || isAssignee || isCreator)) return { ok: false, error: "คุณไม่มีสิทธิ์แก้งานนี้" };
+  if (title !== undefined && !title) return { ok: false, error: "กรุณาระบุชื่องาน" };
+  if (title && title.length > 200) return { ok: false, error: "ชื่องานยาวเกิน 200 ตัวอักษร" };
+  if (description && description.length > 2000) return { ok: false, error: "รายละเอียดยาวเกิน 2,000 ตัวอักษร" };
+
+  let target: { userId: string; user: { name: string }; team: { name: string } } | null = null;
+  if (moving) {
+    if (!(canManage || (isCreator && task.createdById !== task.assigneeId))) return { ok: false, error: "โอนงานได้เฉพาะหัวหน้าทีมหรือคนที่มอบหมายงานนี้" };
+    target = await prisma.teamMember.findFirst({
+      where: { teamId: task.teamId, userId: changes.assigneeId, participates: true, user: { active: true } },
+      select: { userId: true, user: { select: { name: true } }, team: { select: { name: true } } },
+    });
+    if (!target) return { ok: false, error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
+  }
+
+  const newTitle = title ?? task.title;
+  const from = moving ? await prisma.user.findUnique({ where: { id: task.assigneeId }, select: { name: true } }) : null;
+  // ชื่องานในเช็กอินวันนี้ของผู้รับงานเปลี่ยนตาม (เช็กอินวันก่อน ๆ คงไว้เป็นประวัติ)
+  const checkin = title !== undefined && title !== task.title
+    ? await prisma.standup.findUnique({
+        where: { userId_teamId_date: { userId: task.assigneeId, teamId: task.teamId, date: keyToDate(todayKey()) } },
+        select: { id: true, yesterdayTasks: true, todayTasks: true },
+      })
+    : null;
+  const renamed = (value: unknown) => toTasks(value).map((t) => (t.taskId === task.id ? { ...t, text: newTitle } : t));
+  const inCheckin = checkin && [...toTasks(checkin.yesterdayTasks), ...toTasks(checkin.todayTasks)].some((t) => t.taskId === task.id);
+
+  await prisma.$transaction([
+    prisma.task.update({
+      where: { id: task.id },
+      data: { ...(title !== undefined ? { title } : {}), ...(description !== undefined ? { description } : {}), ...(target ? { assigneeId: target.userId } : {}) },
+    }),
+    ...(target
+      ? [prisma.comment.create({ data: { taskId: task.id, authorId: user.id, body: trFor(user.locale)("โอนงานจาก {0} ให้ {1}", [from?.name ?? "—", target.user.name]) } })]
+      : []),
+    ...(inCheckin ? [prisma.standup.update({ where: { id: checkin.id }, data: { yesterdayTasks: renamed(checkin.yesterdayTasks), todayTasks: renamed(checkin.todayTasks) } })] : []),
+  ]);
+
+  if (target) {
+    const url = `/tasks?team=${task.teamId}${task.number === null ? "" : `&task=${task.number}`}`;
+    const t = target;
+    if (t.userId !== user.id) {
+      await notify([{ userId: t.userId }], (tr) => ({ title: tr("งานใหม่จาก {0}", [user.name]), body: tr("{0} · ทีม {1}", [newTitle, t.team.name]), url }));
+    }
+    if (task.assigneeId !== user.id) {
+      await notify([{ userId: task.assigneeId }], (tr) => ({ title: tr("{0} โอนงานของคุณให้ {1}", [user.name, t.user.name]), body: newTitle, url }), { email: false });
+    }
+  }
+  revalidateTasks();
+  return { ok: true };
 }
 
 /** includeDeleted = ใช้ตอนกดเลิกทำ (ปกติงานที่ลบแล้วถือว่าไม่มี) */

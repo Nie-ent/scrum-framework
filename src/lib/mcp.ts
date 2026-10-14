@@ -6,7 +6,7 @@ import { dateToKey, isDateKey, keyToDate, todayKey } from "./dates";
 import { noteKey } from "./note-links";
 import { relinkMentions, syncLinks } from "./notes";
 import { NoteFields, TaskFields, noteTitle } from "./schemas";
-import { createTaskFor, setDueFor, setProgressFor } from "./task-ops";
+import { MAX_BATCH, createTaskFor, createTasksFor, editTaskFor, setDueFor, setProgressFor } from "./task-ops";
 import { toTasks } from "./tasks";
 import { getWorkspaceTeams } from "./teams";
 import { trFor } from "./i18n/server";
@@ -93,6 +93,26 @@ function fail(user: CurrentUser, error: string): never {
   throw new ToolError(trFor(user.locale)(error));
 }
 
+type Space = Awaited<ReturnType<typeof pickSpace>>;
+
+/** อีเมลสมาชิกในพื้นที่ → user id (ว่าง = เจ้าของโทเคน) */
+async function memberByEmail(user: CurrentUser, space: Space, value: unknown) {
+  const email = str(value).toLowerCase();
+  if (!email || email === user.email.toLowerCase()) return user.id;
+  const member = await prisma.teamMember.findFirst({ where: { teamId: space.id, user: { email } }, select: { userId: true } });
+  if (!member) throw new ToolError(`${email} is not a member of ${space.name}. Call list_members to see who is.`);
+  return member.userId;
+}
+
+/** แปลงข้อมูลงานจากโมเดลเป็นค่าที่บันทึกได้ (ตรวจด้วยกฎเดียวกับฟอร์มบนเว็บ) */
+async function newTask(user: CurrentUser, space: Space, args: Args) {
+  const assigneeId = await memberByEmail(user, space, args.assignee_email);
+  const parsed = TaskFields.safeParse({ assigneeId, title: str(args.title), description: str(args.description), dueDate: str(args.due_date) });
+  if (!parsed.success) fail(user, parsed.error.issues[0].message);
+  const { title, description, dueDate } = parsed.data;
+  return { assigneeId, title, description: description || null, dueDate: dueDate ? keyToDate(dueDate) : null };
+}
+
 export const TOOLS: Tool[] = [
   {
     name: "list_spaces",
@@ -101,6 +121,34 @@ export const TOOLS: Tool[] = [
     inputSchema: object({}),
     write: false,
     run: async (_, { user }) => ({ user: { name: user.name, email: user.email }, today: todayKey(), spaces: await spaces(user) }),
+  },
+  {
+    name: "list_members",
+    title: "List members",
+    description: "List the people in a space with their name, email, access (owner, lead or member) and role title. Use the email as assignee_email when creating or reassigning tasks.",
+    inputSchema: object({ space: SPACE }),
+    write: false,
+    run: async (args, { user }) => {
+      const space = await pickSpace(user, args.space);
+      const rows = await prisma.teamMember.findMany({
+        where: { teamId: space.id, user: { active: true } },
+        select: { access: true, title: true, participates: true, user: { select: { name: true, email: true } } },
+        orderBy: { user: { name: "asc" } },
+      });
+      return {
+        space: space.name,
+        count: rows.length,
+        members: rows.map((m) => ({
+          name: m.user.name,
+          email: m.user.email,
+          access: m.access.toLowerCase(),
+          role: m.title,
+          // ไม่ร่วมทำงาน (ดูแล/สังเกตการณ์) = รับงานไม่ได้
+          can_be_assigned: m.participates,
+          you: m.user.email.toLowerCase() === user.email.toLowerCase(),
+        })),
+      };
+    },
   },
   {
     name: "list_tasks",
@@ -172,25 +220,64 @@ export const TOOLS: Tool[] = [
     write: true,
     run: async (args, { user, appUrl }) => {
       const space = await pickSpace(user, args.space);
-      let assigneeId = user.id;
-      const email = str(args.assignee_email).toLowerCase();
-      if (email && email !== user.email.toLowerCase()) {
-        const member = await prisma.teamMember.findFirst({ where: { teamId: space.id, user: { email } }, select: { userId: true } });
-        if (!member) throw new ToolError(`${email} is not a member of ${space.name}`);
-        assigneeId = member.userId;
-      }
-      const parsed = TaskFields.safeParse({ assigneeId, title: str(args.title), description: str(args.description), dueDate: str(args.due_date) });
-      if (!parsed.success) fail(user, parsed.error.issues[0].message);
-      const { title, description, dueDate } = parsed.data;
-      const result = await createTaskFor(user, { teamId: space.id, assigneeId, title, description: description || null, dueDate: dueDate ? keyToDate(dueDate) : null });
+      const item = await newTask(user, space, args);
+      const result = await createTaskFor(user, { teamId: space.id, ...item });
       if (!result.ok) fail(user, result.error);
       return { created: true, number: result.task.number, url: `${appUrl}/tasks?team=${space.id}&task=${result.task.number}` };
     },
   },
   {
+    name: "create_tasks",
+    title: "Create several tasks",
+    description: `Create up to ${MAX_BATCH} tasks in one space at once. All are checked first; if any is invalid, none are created. Each assignee gets one notification for their tasks.`,
+    inputSchema: object(
+      {
+        space: SPACE,
+        tasks: {
+          type: "array",
+          minItems: 1,
+          maxItems: MAX_BATCH,
+          items: object(
+            {
+              title: { type: "string", description: "Short task title (max 200 characters)" },
+              description: { type: "string", description: "Optional details" },
+              due_date: { type: "string", description: "Optional due date, YYYY-MM-DD" },
+              assignee_email: { type: "string", description: "Email of the member to assign to. Default: the token owner" },
+            },
+            ["title"],
+          ),
+        },
+      },
+      ["tasks"],
+    ),
+    write: true,
+    run: async (args, { user, appUrl }) => {
+      const space = await pickSpace(user, args.space);
+      const list = Array.isArray(args.tasks) ? (args.tasks as Args[]) : [];
+      if (list.length === 0 || list.length > MAX_BATCH) throw new ToolError(`"tasks" must hold 1 to ${MAX_BATCH} tasks`);
+      const items = [];
+      for (const [i, task] of list.entries()) {
+        try {
+          items.push(await newTask(user, space, task ?? {}));
+        } catch (error) {
+          if (error instanceof ToolError) throw new ToolError(`Task ${i + 1} ("${str(task?.title)}"): ${error.message.replace(/\.$/, "")}. Nothing was created.`);
+          throw error;
+        }
+      }
+      const result = await createTasksFor(user, space.id, items);
+      if (!result.ok) fail(user, result.error);
+      return {
+        created: result.tasks.length,
+        tasks: result.tasks.map((t) => ({ number: t.number, title: t.title, url: `${appUrl}/tasks?team=${space.id}&task=${t.number}` })),
+      };
+    },
+  },
+  {
     name: "update_task",
     title: "Update a task",
-    description: "Update a task's progress (0-100, 100 = done) and/or due date. A progress change is recorded in the task's history with the optional note, and the people involved are notified.",
+    description:
+      "Change a task: progress (0-100, 100 = done), due date, title, description, or assignee (assignee_email, see list_members). " +
+      "A progress change is recorded in the task's history with the optional note. Reassigning is allowed for team leads and for whoever assigned the task; the new and previous assignee are notified.",
     inputSchema: object(
       {
         space: SPACE,
@@ -198,13 +285,27 @@ export const TOOLS: Tool[] = [
         progress: { type: "integer", minimum: 0, maximum: 100, description: "Percent complete" },
         note: { type: "string", description: "Why the progress changed (shown in the task history)" },
         due_date: { type: "string", description: 'New due date YYYY-MM-DD, or "" to remove it' },
+        title: { type: "string", description: "New title (max 200 characters)" },
+        description: { type: "string", description: 'New details (replaces the old ones), or "" to clear' },
+        assignee_email: { type: "string", description: "Email of the member to hand the task to" },
       },
       ["number"],
     ),
     write: true,
     run: async (args, { user, appUrl }) => {
       const { space, task } = await findTask(user, args);
-      if (args.progress === undefined && args.due_date === undefined) throw new ToolError("Give progress and/or due_date");
+      const editing = args.title !== undefined || args.description !== undefined || args.assignee_email !== undefined;
+      if (args.progress === undefined && args.due_date === undefined && !editing) throw new ToolError("Give at least one of progress, due_date, title, description, assignee_email");
+      // แก้ข้อความ/โอนก่อน — ถ้าไม่มีสิทธิ์จะหยุดก่อนเปลี่ยนอย่างอื่น
+      if (editing) {
+        const assigneeId = args.assignee_email === undefined ? undefined : await memberByEmail(user, space, args.assignee_email);
+        const result = await editTaskFor(user, task.id, {
+          title: args.title === undefined ? undefined : str(args.title),
+          description: args.description === undefined ? undefined : str(args.description),
+          assigneeId,
+        });
+        if (!result.ok) fail(user, result.error);
+      }
       if (args.due_date !== undefined) {
         const due = str(args.due_date);
         if (due && !isDateKey(due)) throw new ToolError("due_date must be YYYY-MM-DD");
@@ -289,25 +390,45 @@ export const TOOLS: Tool[] = [
   {
     name: "create_folder",
     title: "Create a folder",
-    description: "Create a folder for notes, optionally inside another folder. Returns the id to pass as folder_id.",
-    inputSchema: object(
-      {
-        space: SPACE,
-        title: { type: "string", description: "Folder name (max 120 characters, no [ ] or |)" },
-        folder_id: { type: "string", description: "Optional parent folder id from list_notes" },
-      },
-      ["title"],
-    ),
+    description:
+      'Create a folder for notes, optionally inside another folder. Give "title" for one folder, or "path" like "Projects/2026/Q4" to create every level at once; ' +
+      "levels that already exist are reused. Returns the id of the last folder to pass as folder_id.",
+    inputSchema: object({
+      space: SPACE,
+      title: { type: "string", description: "Folder name (max 120 characters, no [ ] or |)" },
+      path: { type: "string", description: 'Folder names separated by "/" (max 10 levels), instead of title' },
+      folder_id: { type: "string", description: "Optional parent folder id from list_notes; title or path is created inside it" },
+    }),
     write: true,
     run: async (args, { user, appUrl }) => {
       const space = await pickSpace(user, args.space);
-      const parsed = noteTitle.safeParse(str(args.title));
-      if (!parsed.success) fail(user, parsed.error.issues[0].message);
-      const parentId = await folderIn(space.id, args.folder_id);
-      if (await titleTaken(space.id, parentId, parsed.data)) fail(user, "มีชื่อนี้อยู่แล้วในโฟลเดอร์นี้");
-      const folder = await prisma.note.create({ data: { teamId: space.id, parentId, kind: "FOLDER", title: parsed.data, createdById: user.id, updatedById: user.id } });
+      const hasTitle = str(args.title) !== "";
+      const hasPath = str(args.path) !== "";
+      if (hasTitle === hasPath) throw new ToolError("Give exactly one of title or path");
+      const names = hasPath ? str(args.path).split("/").map((s) => s.trim()).filter(Boolean) : [str(args.title)];
+      if (names.length === 0 || names.length > 10) throw new ToolError("path must have 1 to 10 folder names");
+      for (const name of names) {
+        const parsed = noteTitle.safeParse(name);
+        if (!parsed.success) fail(user, parsed.error.issues[0].message);
+      }
+      let parentId = await folderIn(space.id, args.folder_id);
+      const created: string[] = [];
+      for (const [i, name] of names.entries()) {
+        const siblings = await prisma.note.findMany({ where: { teamId: space.id, parentId, deletedAt: null }, select: { id: true, kind: true, title: true } });
+        const same = siblings.find((s) => noteKey(s.title) === noteKey(name));
+        // แบบ path: ชั้นที่มีอยู่แล้วใช้ของเดิม · แบบ title: ชื่อซ้ำ = สร้างไม่ได้เหมือนเดิม
+        // (ชนได้เฉพาะตามชั้นที่มีอยู่ — พอเริ่มสร้างใหม่ ชั้นถัดไปอยู่ในโฟลเดอร์ว่าง จึงไม่ค้างครึ่งทาง)
+        if (same && same.kind === "FOLDER" && hasPath) {
+          parentId = same.id;
+          continue;
+        }
+        if (same) fail(user, same.kind === "NOTE" && i < names.length - 1 ? "มีโน้ตชื่อนี้อยู่แล้วในโฟลเดอร์นี้" : "มีชื่อนี้อยู่แล้วในโฟลเดอร์นี้");
+        const folder = await prisma.note.create({ data: { teamId: space.id, parentId, kind: "FOLDER", title: name, createdById: user.id, updatedById: user.id } });
+        created.push(name);
+        parentId = folder.id;
+      }
       revalidatePath("/notes", "layout");
-      return { created: true, id: folder.id, url: `${appUrl}/notes/${folder.id}` };
+      return { created: created.length > 0, created_folders: created, id: parentId, url: `${appUrl}/notes/${parentId}` };
     },
   },
   {

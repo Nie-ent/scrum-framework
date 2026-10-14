@@ -1081,4 +1081,12 @@ export const en: Record<string, string> = {
   "ทีมของคุณ": "Your teams",
   "ทีมที่คุณอยู่แสดงที่นี่ กดที่ทีมเพื่อเชิญคนด้วยอีเมลและกำหนดสิทธิ์": "The teams you're in are listed here. Open a team to invite people by email and set their access.",
   "ตั้งชื่อทีมแล้วกดสร้าง คุณจะเป็นเจ้าของทีมและเชิญคนอื่นได้ทันที": "Name the team and create it. You become its owner and can invite others right away.",
+  "มีโน้ตชื่อนี้อยู่แล้วในโฟลเดอร์นี้": "A note with this name already exists in this folder",
+  "โอนงานจาก {0} ให้ {1}": "Reassigned from {0} to {1}",
+  "{0} โอนงานของคุณให้ {1}": "{0} reassigned your task to {1}",
+  "งานใหม่ {0} งานจาก {1}": "{0} new tasks from {1}",
+  "โอนงานได้เฉพาะหัวหน้าทีมหรือคนที่มอบหมายงานนี้": "Only team leads or whoever assigned this task can reassign it",
+  "สร้างได้ครั้งละ 1–50 งาน": "You can create 1–50 tasks at a time",
+  "ไม่พบงานนี้": "Task not found",
+  "เปลี่ยนผู้รับงานแล้ว ทั้งคนใหม่และคนเดิมจะได้รับแจ้ง": "If you change the assignee, both the new and the previous one are notified",
 };
