@@ -17,7 +17,7 @@ import { Avatar } from "@/components/avatar";
 import { CommentThread } from "@/components/comments";
 import { withComments } from "@/lib/comments";
 import { isFileStorageConfigured } from "@/lib/file-store";
-import { getManageableTeamIds, getMeetingUrl } from "@/lib/teams";
+import { getManageableTeamIds, getMeetingUrl, getWorkspaceTeams } from "@/lib/teams";
 import { currentSpaceId, pickSpace } from "@/lib/space";
 import { Icon } from "@/components/icons";
 import { ensureLang, tr } from "@/lib/i18n/server";
@@ -46,12 +46,12 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
 
   // คนที่อยู่หลายทีมเขียน scrum แยกกันต่อทีม
   let team = (await pickSpace(teams, params.team))!;
-  // พื้นที่ที่เลือกไว้เป็นทีมย่อยที่ตัวเองไม่ได้เช็กอิน (เช่น หัวหน้าทีมแม่) → ใช้ทีมแม่ที่ตัวเองเช็กอินอยู่
+  // พื้นที่ที่เลือกไว้เป็นทีมที่ตัวเองไม่ได้เช็กอิน (เช่น หัวหน้าทีมแม่เลือกทีมย่อย) →
+  // ส่วน "ทีมวันนี้" แสดงทีมที่เลือก ส่วนเช็กอินของตัวเองใช้ทีมแม่ (หรือทีมแรกที่เช็กอินอยู่) และบอกให้ชัด
   const wanted = typeof params.team === "string" ? params.team : await currentSpaceId();
-  if (wanted && wanted !== team.id) {
-    const chosen = await prisma.team.findUnique({ where: { id: wanted }, select: { parentId: true } });
-    team = teams.find((t) => t.id === chosen?.parentId) ?? team;
-  }
+  const viewing = wanted && !teams.some((t) => t.id === wanted) ? (await getWorkspaceTeams(user)).teams.find((t) => t.id === wanted) : undefined;
+  if (viewing) team = teams.find((t) => t.id === viewing.parentId) ?? teams.find((t) => !t.personalOfId) ?? team;
+  const shown = viewing ?? team;
   // พื้นที่ส่วนตัว: ใช้ฟอร์มเดียวกันเป็นบันทึกประจำวันของตัวเอง (ไม่มีส่วนของเพื่อนร่วมทีม)
   const personal = Boolean(team.personalOfId);
   const [history, myTasks, teammates, manageableIds, meetingUrl, dueNow] = await Promise.all([
@@ -70,12 +70,12 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     }),
     // เช็กอินวันนี้ของเพื่อนร่วมทีม
     prisma.standup.findMany({
-      where: { teamId: team.id, date: keyToDate(today), userId: { not: user.id }, user: { active: true } },
+      where: { teamId: shown.id, date: keyToDate(today), userId: { not: user.id }, user: { active: true } },
       include: { user: { select: { id: true, name: true, avatarUpdatedAt: true } }, comments: withComments },
       orderBy: { user: { name: "asc" } },
     }),
     getManageableTeamIds(user),
-    getMeetingUrl(team.id),
+    getMeetingUrl(shown.id),
     // "วันนี้" ของฉัน: งานที่ถึงกำหนดหรือเลยกำหนดแล้ว จากทุกพื้นที่ที่ฉันอยู่
     prisma.task.findMany({
       where: { assigneeId: user.id, deletedAt: null, progress: { lt: 100 }, dueDate: { lte: keyToDate(today) } },
@@ -85,6 +85,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
     }),
   ]);
   const canModerate = manageableIds.has(team.id);
+  const canModerateShown = manageableIds.has(shown.id);
   const canAttach = isFileStorageConfigured();
   const taskById = new Map(myTasks.map((t) => [t.id, t]));
   // บรรทัดที่อ้างถึงงาน: ใช้ชื่อและ % ล่าสุดของงานนั้น (งานคือแหล่งความจริงของ %) — งานที่ถูกลบไปแล้วกลายเป็นบรรทัดธรรมดา
@@ -103,7 +104,7 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
       <section>
         <div className="page-header mb-6">
           <div>
-            <p className="eyebrow">{team.name}</p>
+            <p className="eyebrow">{viewing ? viewing.name : team.name}</p>
             <h1 className="page-title">{tr("วันนี้")}</h1>
             <p className="page-subtitle">{formatDateKey(today)} · {current ? tr("ส่งแล้ว และแก้ไขได้ตลอดวัน") : tr("ยังไม่ได้ส่งของวันนี้")}</p>
           </div>
@@ -114,6 +115,13 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
             <Link href={`/stats?team=${team.id}`} className="btn-ghost gap-1.5"><NavGlyph icon="stats" className="h-4 w-4 text-indigo-600" />{tr("สถิติของฉัน")}</Link>
           </div>
         </div>
+
+        {viewing && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary-soft/50 px-4 py-3 text-sm text-foreground">
+            <p className="min-w-0">{tr("คุณไม่ได้เช็กอินในทีม {0} — เช็กอินของคุณบันทึกใน {1} ส่วนด้านล่างคือเช็กอินวันนี้ของทีม {0}", [viewing.name, personal ? tr("พื้นที่ส่วนตัว") : team.name])}</p>
+            {canModerateShown && <Link href={`/dashboard?team=${viewing.id}`} className="btn-ghost shrink-0">{tr("ดูภาพรวมทีม")}</Link>}
+          </div>
+        )}
 
         <GettingStarted spaceId={team.id} personal={personal} />
 
@@ -173,11 +181,11 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
           </div>
         )}
 
-        {!personal && <section className="mt-8">
+        {(!personal || viewing) && <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div>
               <p className="eyebrow">{tr("ทีมวันนี้")}</p>
-              <h2 className="font-semibold text-slate-900">{tr("เช็กอินของทีมวันนี้ ·")}{" "}{team.name}</h2>
+              <h2 className="font-semibold text-slate-900">{tr("เช็กอินของทีมวันนี้ ·")}{" "}{shown.name}</h2>
             </div>
             <span className="badge badge-neutral">{tr("{0} คน", [teammates.length])}</span>
           </div>
@@ -195,8 +203,8 @@ export default async function StandupPage({ searchParams }: PageProps<"/standup"
                     {s.blockers && <span className="badge badge-danger shrink-0">{tr("ต้องการความช่วยเหลือ")}</span>}
                   </header>
                   {/* เพื่อนร่วมทีมเห็นงานและ blocker — ส่วน reflection เห็นเฉพาะหัวหน้าในหน้าภาพรวม */}
-                  <StandupSections teamId={team.id} standup={s} only={["yesterdayTasks", "todayTasks", "blockers"]} />
-                  <CommentThread teamId={team.id} canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={canModerate} subject={tr("เช็กอินของ {0}", [s.user.name])} />
+                  <StandupSections teamId={shown.id} standup={s} only={["yesterdayTasks", "todayTasks", "blockers"]} />
+                  <CommentThread teamId={shown.id} canAttach={canAttach} target={{ standupId: s.id }} comments={s.comments} viewerId={user.id} canModerate={canModerateShown} subject={tr("เช็กอินของ {0}", [s.user.name])} />
                 </article>
               ))}
             </div>

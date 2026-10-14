@@ -10,6 +10,7 @@ import { appUrl, sendEmail } from "@/lib/email";
 import { purgeAttachments } from "@/lib/attachment-store";
 import { INVITE_DAYS, joinFromInvite, openInvite } from "@/lib/invites";
 import { notify } from "@/lib/notify";
+import { TOO_MANY, rateLimit } from "@/lib/rate-limit";
 import { getTeamControl } from "@/lib/teams";
 import { InviteFields, TeamFields, roleTitle as title, teamName } from "@/lib/schemas";
 import { hashToken, inDays, newToken } from "@/lib/tokens";
@@ -77,6 +78,8 @@ export async function inviteMember(_: FormState, formData: FormData): Promise<Fo
   if (access === "LEAD" && !control.owner) return { error: "เฉพาะเจ้าของทีมเชิญเป็นหัวหน้าทีมได้" };
 
   if (await prisma.teamMember.findFirst({ where: { teamId, user: { email } } })) return { error: "คนนี้อยู่ในทีมอยู่แล้ว" };
+  // เปิดให้สมัครเองแล้ว — กันใช้คำเชิญยิงอีเมลรัว
+  if (!(await rateLimit(`invite:user:${user.id}`, 30, 3600))) return { error: TOO_MANY };
   // เชิญซ้ำ = ยกเลิกคำเชิญเดิมที่ค้างอยู่แล้วออกลิงก์ใหม่
   await prisma.invite.updateMany({ where: { teamId, email, ...openInvite() }, data: { revokedAt: new Date() } });
 
@@ -90,7 +93,8 @@ export async function inviteMember(_: FormState, formData: FormData): Promise<Fo
   const mine = await getTr();
   const lang = invitee?.locale ?? user.locale;
   const tr = trFor(lang);
-  const emailed = await sendEmail({
+  // บัญชีที่ยังไม่ยืนยันอีเมล ส่งอีเมลเชิญจากระบบไม่ได้ (กันสแปม) — ยังได้ลิงก์ไปส่งเอง
+  const emailed = user.emailVerifiedAt && await sendEmail({
     to: email,
     subject: tr("{0} เชิญคุณเข้าทีม {1} บน Pace", [user.name, control.team.name]),
     heading: tr("คุณได้รับเชิญเข้าทีม {0}", [control.team.name]),
@@ -106,6 +110,7 @@ export async function inviteMember(_: FormState, formData: FormData): Promise<Fo
   }
   done(teamId);
   // id = ลิงก์คำเชิญ แสดงให้คัดลอกครั้งเดียว (ใน database เก็บเฉพาะ hash)
+  if (!user.emailVerifiedAt) return { ok: "สร้างคำเชิญแล้ว — คัดลอกลิงก์ด้านล่างส่งให้เขา (ยืนยันอีเมลของคุณในหน้าบัญชีก่อน ระบบจึงส่งอีเมลเชิญให้ได้)", id: link };
   return { ok: emailed ? mine("ส่งคำเชิญไปที่ {0} แล้ว", [email]) : "สร้างคำเชิญแล้ว — คัดลอกลิงก์ด้านล่างส่งให้เขา (ถ้าเขามีบัญชีที่ยืนยันอีเมลแล้ว จะเห็นคำเชิญในแอปเลย)", id: link };
 }
 

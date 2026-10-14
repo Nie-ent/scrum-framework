@@ -13,8 +13,8 @@ export function safeNextPath(value: unknown): string {
   return /^\/invite\/[A-Za-z0-9_-]+$/.test(value) || /^\/oauth\/authorize\?[^#\\]*$/.test(value) ? value : "/";
 }
 
-/** เปิดให้ใครก็สมัครเองได้ (ALLOW_SIGNUP=true) — ปิดอยู่ = สมัครได้เฉพาะคนที่มีลิงก์คำเชิญ */
-export const isSignupOpen = () => process.env.ALLOW_SIGNUP === "true";
+/** ใครก็สมัครเองได้ — ตั้ง ALLOW_SIGNUP=false เพื่อปิด (สมัครได้เฉพาะคนที่มีลิงก์คำเชิญ) */
+export const isSignupOpen = () => process.env.ALLOW_SIGNUP !== "false";
 
 /** เข้าทีมตามคำเชิญ — ถ้าอยู่ในทีมอยู่แล้วจะไม่ลดสิทธิ์เดิม */
 export async function joinFromInvite(invite: Invite, userId: string) {

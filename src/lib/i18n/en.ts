@@ -1227,4 +1227,7 @@ export const en: Record<string, string> = {
   "{0} ขอให้คุณตรวจ: {1}": "{0} asked you to review: {1}",
   "{0} ขอให้คุณแก้: {1}": "{0} asked you to edit: {1}",
   "มีป้ายชื่อนี้อยู่แล้วในทีมย่อย": "A sub-team already has a label with this name",
+  "คุณไม่ได้เช็กอินในทีม {0} — เช็กอินของคุณบันทึกใน {1} ส่วนด้านล่างคือเช็กอินวันนี้ของทีม {0}": "You don't check in with {0}. Your check-in is saved in {1}; below are {0}'s check-ins for today.",
+  "ดูภาพรวมทีม": "View team overview",
+  "สร้างคำเชิญแล้ว — คัดลอกลิงก์ด้านล่างส่งให้เขา (ยืนยันอีเมลของคุณในหน้าบัญชีก่อน ระบบจึงส่งอีเมลเชิญให้ได้)": "Invite created. Copy the link below and send it yourself (verify your email on the Account page so Pace can email invites for you).",
 };

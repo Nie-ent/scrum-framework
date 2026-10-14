@@ -93,7 +93,9 @@ export default async function StatsPage({ searchParams }: PageProps<"/stats">) {
               <p className="text-sm text-slate-500">{tr("เห็นเฉพาะหัวหน้าและเจ้าของทีม · ใช้ดูว่าใครอาจต้องการความช่วยเหลือ ไม่ใช่คะแนนประเมินผลงาน")}</p>
             </div>
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-              <table className="w-full min-w-[720px] text-sm">
+              {/* ความกว้างคอลัมน์คงที่ ไม่ขยับตามความยาวชื่อหรือตัวเลข */}
+              <table className="w-full min-w-[960px] table-fixed text-sm">
+                <colgroup><col /><col className="w-56" /><col className="w-24" /><col className="w-24" /><col className="w-40" /><col className="w-28" /><col className="w-40" /></colgroup>
                 <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-5 py-3">{tr("สมาชิก")}</th>
@@ -132,7 +134,7 @@ function Row({ row: r, teamId }: { row: MemberStats; teamId: string }) {
       <td className="px-5 py-3">
         <div className="flex items-center gap-3">
           <Avatar user={{ id: r.userId, name: r.name, avatarUpdatedAt: r.avatarUpdatedAt }} size={32} />
-          <div className="min-w-0">
+          <div className="min-w-0 break-words">
             <Link href={`/dashboard/member/${r.userId}`} className="font-semibold text-slate-800 hover:text-indigo-700">{r.name}</Link>
             {r.title && <p className="text-xs text-slate-500">{r.title}</p>}
           </div>
