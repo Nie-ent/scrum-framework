@@ -45,9 +45,11 @@ export async function startCheckout(_: FormState, formData: FormData): Promise<F
   const price = (await teamPrices()).find((p) => p.interval === parsed.data.interval);
   if (!price) return { error: t("ยังไม่ได้ตั้งราคาในระบบชำระเงิน") };
 
-  const customer = await customerFor(ws.team, ws.user);
-  const origin = await publicOrigin();
-  const session = await stripe().checkout.sessions.create({
+  let url: string | null;
+  try {
+    const customer = await customerFor(ws.team, ws.user);
+    const origin = await publicOrigin();
+    const session = await stripe().checkout.sessions.create({
     mode: "subscription",
     customer,
     client_reference_id: ws.team.id,
@@ -58,22 +60,35 @@ export async function startCheckout(_: FormState, formData: FormData): Promise<F
     customer_update: { name: "auto", address: "auto" },
     tax_id_collection: { enabled: true },
     integration_identifier: "pace_team_seats_qvhtzmxb",
-  });
-  if (!session.url) return { error: t("เปิดหน้าชำระเงินไม่สำเร็จ ลองใหม่อีกครั้ง") };
-  redirect(session.url);
+    });
+    url = session.url;
+  } catch (e) {
+    console.error("[billing] checkout", e);
+    url = null;
+  }
+  if (!url) return { error: t("เปิดหน้าชำระเงินไม่สำเร็จ ลองใหม่อีกครั้ง") };
+  redirect(url);
 }
 
 async function openPortalFor(teamId: string): Promise<FormState> {
   const t = await getTr();
   const row = await prisma.subscription.findUnique({ where: { teamId }, select: { stripeCustomerId: true } });
   if (!row?.stripeCustomerId) return { error: t("ทีมนี้ยังไม่เคยชำระเงิน") };
-  const session = await stripe().billingPortal.sessions.create({
-    customer: row.stripeCustomerId,
-    return_url: `${await publicOrigin()}/teams/${teamId}`,
-    configuration: await portalConfiguration(),
-    locale: await ensureLang(),
-  });
-  redirect(session.url);
+  let url: string | null;
+  try {
+    const session = await stripe().billingPortal.sessions.create({
+      customer: row.stripeCustomerId,
+      return_url: `${await publicOrigin()}/teams/${teamId}`,
+      configuration: await portalConfiguration(),
+      locale: await ensureLang(),
+    });
+    url = session.url;
+  } catch (e) {
+    console.error("[billing] portal", e);
+    url = null;
+  }
+  if (!url) return { error: t("เปิดหน้าจัดการการชำระเงินไม่สำเร็จ ลองใหม่อีกครั้ง") };
+  redirect(url);
 }
 
 /** หน้าจัดการการชำระเงินของ Stripe: เพิ่ม/ลดที่นั่ง เปลี่ยนรอบบิล เปลี่ยนบัตร ใบเสร็จ ยกเลิก */

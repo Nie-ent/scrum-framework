@@ -9,6 +9,8 @@ import { requireUser } from "@/lib/auth";
 import { LEVEL } from "@/lib/permissions";
 import type { FormState } from "./auth";
 import { getTr } from "@/lib/i18n/server";
+import { ensureCatalog, isBillingConfigured, recreateWebhook } from "@/lib/billing";
+import { publicOrigin } from "@/lib/origin";
 
 const requireAdmin = () => requireUser(LEVEL.ADMIN);
 
@@ -215,4 +217,36 @@ export async function saveUser(_: FormState, formData: FormData): Promise<FormSt
   }
   revalidatePath("/admin/users");
   return { ok: id ? "อัปเดตผู้ใช้แล้ว" : "สร้างผู้ใช้แล้ว" };
+}
+
+/* ---------- ชำระเงิน (Stripe) ---------- */
+
+export type BillingSetupState = { error?: string; ok?: string; secret?: string } | undefined;
+
+/** สร้างสินค้า/ราคา/หน้าจัดการการชำระเงินในบัญชี Stripe ที่ใช้อยู่ — หลังจากนี้เจ้าของทีมเห็นปุ่มอัปเกรด */
+export async function setupBillingCatalog(): Promise<BillingSetupState> {
+  await requireAdmin();
+  const t = await getTr();
+  if (!isBillingConfigured()) return { error: t("ยังไม่เปิดระบบชำระเงิน") };
+  try {
+    await ensureCatalog();
+  } catch (e) {
+    return { error: t("Stripe ตอบกลับว่า: {0}", [e instanceof Error ? e.message : String(e)]) };
+  }
+  revalidatePath("/admin/billing");
+  return { ok: t("ตั้งค่าสินค้าและราคาแล้ว") };
+}
+
+/** สร้าง webhook ใหม่ไปที่เว็บนี้ แล้วแสดง signing secret ครั้งเดียวให้นำไปใส่บน Vercel */
+export async function setupBillingWebhook(): Promise<BillingSetupState> {
+  await requireAdmin();
+  const t = await getTr();
+  if (!isBillingConfigured()) return { error: t("ยังไม่เปิดระบบชำระเงิน") };
+  try {
+    const secret = await recreateWebhook(`${await publicOrigin()}/api/stripe/webhook`);
+    revalidatePath("/admin/billing");
+    return { ok: t("สร้าง webhook แล้ว"), secret };
+  } catch (e) {
+    return { error: t("Stripe ตอบกลับว่า: {0}", [e instanceof Error ? e.message : String(e)]) };
+  }
 }

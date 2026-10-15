@@ -165,7 +165,8 @@ npm run dev
 | `APP_URL` | URL หลักของเว็บ ใช้สร้างลิงก์คำเชิญ/อีเมล (บน Vercel ไม่ต้องตั้ง ใช้โดเมน production ให้เอง) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Google" — redirect URI ที่ต้องลงทะเบียน: `https://<โดเมนที่ผู้ใช้เข้าจริง>/api/auth/google/callback` |
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | เปิดปุ่ม "เข้าสู่ระบบด้วย Microsoft" — redirect URI: `https://<โดเมนที่ผู้ใช้เข้าจริง>/api/auth/microsoft/callback` · `MICROSOFT_TENANT` (ไม่บังคับ, default `common`) จำกัดเฉพาะองค์กรเดียวได้ |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | ชำระเงินแพ็กเกจทีมผ่าน Stripe (ติดตั้งผ่าน Vercel Marketplace — key ใส่ให้อัตโนมัติ) · webhook: `https://<โดเมน>/api/stripe/webhook` · สร้างสินค้า/ราคา/หน้าจัดการการชำระเงินด้วย `node --env-file=.env.local scripts/stripe-setup.mjs` · บนเว็บจริงไม่ใช้ key ทดสอบ (`sk_test_`) เว้นแต่ตั้ง `BILLING_ALLOW_TEST_KEYS=true` · ไม่ตั้ง = ไม่มีปุ่มชำระเงิน (ฟรีไม่เกิน 5 คนต่อทีม) |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | ชำระเงินแพ็กเกจทีมผ่าน Stripe แบบทดสอบ (sandbox จาก Vercel Marketplace — key ใส่ให้อัตโนมัติ) · บนเว็บจริงไม่ใช้ key ทดสอบ เว้นแต่ตั้ง `BILLING_ALLOW_TEST_KEYS=true` · ไม่มี key = ไม่มีปุ่มชำระเงิน (ฟรีไม่เกิน 5 คนต่อทีม) |
+| `STRIPE_LIVE_SECRET_KEY` / `STRIPE_LIVE_WEBHOOK_SECRET` | key จริงของ Stripe (เฉพาะ Production, ติ๊ก Sensitive) — มีแล้วเว็บจริงใช้แทน key ทดสอบ · สร้างสินค้า/ราคา/webhook ได้ที่หน้า **จัดการระบบ → ชำระเงิน** (webhook: `https://<โดเมน>/api/stripe/webhook`) |
 
 ## โครงสร้าง
 

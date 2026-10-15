@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
-import { isBillingConfigured, stripe, syncSubscription } from "@/lib/billing";
+import { isBillingConfigured, stripe, syncSubscription, webhookSecret } from "@/lib/billing";
 
 /**
  * เหตุการณ์จาก Stripe — ตรวจลายเซ็นทุกครั้ง แล้วดึงสถานะ subscription ล่าสุดจาก Stripe มาบันทึก
@@ -34,7 +34,7 @@ async function subscriptionIdOf(event: Stripe.Event): Promise<string | null> {
 const RISK_EVENTS = new Set(["charge.refunded", "charge.dispute.created", "radar.early_fraud_warning.created"]);
 
 export async function POST(request: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = webhookSecret();
   if (!isBillingConfigured() || !secret) return new Response("billing not configured", { status: 503 });
   const signature = request.headers.get("stripe-signature");
   if (!signature) return new Response("missing signature", { status: 400 });

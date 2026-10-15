@@ -15,6 +15,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           <NavLink href="/admin/users">{tr("ผู้ใช้")}</NavLink>
           <NavLink href="/admin/roles">Roles & Levels</NavLink>
           <NavLink href="/admin/teams">{tr("ทีม")}</NavLink>
+          <NavLink href="/admin/billing">{tr("ชำระเงิน")}</NavLink>
         </nav>
         </div>
       </div>

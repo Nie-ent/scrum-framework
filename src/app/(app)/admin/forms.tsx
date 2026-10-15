@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { grantPlan, saveRole, saveTeam, saveUser } from "@/app/actions/admin";
+import { useActionState, useState } from "react";
+import { grantPlan, saveRole, saveTeam, saveUser, setupBillingCatalog, setupBillingWebhook } from "@/app/actions/admin";
 import { DatePicker } from "@/components/date-picker";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Select } from "@/components/select";
@@ -151,6 +151,44 @@ export function UserForm({
         <FormMessage state={state} />
         <SubmitButton>{user ? tr("บันทึก") : tr("เพิ่มผู้ใช้")}</SubmitButton>
       </div>
+    </form>
+  );
+}
+
+/** หน้า admin → ชำระเงิน: ปุ่มตั้งค่าสินค้า/ราคา และสร้าง webhook (แสดง secret ครั้งเดียว) */
+export function BillingCatalogForm({ live, ready }: { live: boolean; ready: boolean }) {
+  const tr = useT();
+  const [state, action] = useActionState(setupBillingCatalog, undefined);
+  return (
+    <form action={action} className="space-y-2">
+      {live && !ready && <p className="text-sm text-warning">{tr("กดแล้วเจ้าของทีมทุกคนจะเห็นปุ่มอัปเกรด และจ่ายเงินจริงได้ทันที")}</p>}
+      <SubmitButton className={ready ? "btn-ghost" : "btn"} pendingText={tr("กำลังตั้งค่า...")}>{ready ? tr("อัปเดตหน้าจัดการการชำระเงิน") : tr("สร้างสินค้าและราคา")}</SubmitButton>
+      <FormMessage state={state} />
+    </form>
+  );
+}
+
+export function BillingWebhookForm({ envName, exists }: { envName: string; exists: boolean }) {
+  const tr = useT();
+  const [state, action] = useActionState(setupBillingWebhook, undefined);
+  const [copied, setCopied] = useState(false);
+  return (
+    <form action={action} className="space-y-2">
+      {exists && <p className="text-sm text-muted-foreground">{tr("สร้างใหม่จะลบ webhook เดิมของเว็บนี้ใน Stripe และต้องใส่ secret ใหม่บน Vercel")}</p>}
+      <SubmitButton className={exists ? "btn-ghost" : "btn"} pendingText={tr("กำลังสร้าง...")}>{exists ? tr("สร้าง webhook ใหม่") : tr("สร้าง webhook")}</SubmitButton>
+      {state?.secret ? (
+        <div role="status" className="space-y-2 rounded-xl bg-surface-sunken p-3 text-sm">
+          <p className="text-foreground">{tr("คัดลอก secret นี้ไปใส่บน Vercel ชื่อ {0} (Production, ติ๊ก Sensitive) แล้ว redeploy — secret นี้แสดงครั้งเดียว", [envName])}</p>
+          <div className="flex gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-surface px-2 py-2 text-xs">{state.secret}</code>
+            <button type="button" className="btn-ghost shrink-0" onClick={async () => { await navigator.clipboard.writeText(state.secret!); setCopied(true); }}>
+              {copied ? tr("คัดลอกแล้ว ✓") : tr("คัดลอก")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <FormMessage state={state} />
+      )}
     </form>
   );
 }
