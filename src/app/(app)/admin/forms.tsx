@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { grantPlan, saveRole, saveTeam, saveUser, setupBillingCatalog, setupBillingWebhook } from "@/app/actions/admin";
+import { grantPlan, savePlanSettings, saveRole, saveTeam, saveTeamPrices, saveUser, setupBillingCatalog, setupBillingWebhook } from "@/app/actions/admin";
 import { DatePicker } from "@/components/date-picker";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { Select } from "@/components/select";
@@ -156,6 +156,51 @@ export function UserForm({
 }
 
 /** หน้า admin → ชำระเงิน: ปุ่มตั้งค่าสินค้า/ราคา และสร้าง webhook (แสดง secret ครั้งเดียว) */
+/** จำนวนที่นั่งของแพ็กเกจฟรี + เปิด/ปิดการสมัครเอง */
+export function PlanSettingsForm({ freeSeats, allowSignup }: { freeSeats: number; allowSignup: boolean }) {
+  const tr = useT();
+  const [state, action] = useActionState(savePlanSettings, undefined);
+  return (
+    <form action={action} className="space-y-3">
+      <div>
+        <label className="label" htmlFor="freeSeats">{tr("แพ็กเกจฟรีใช้ได้กี่คนต่อ workspace")}</label>
+        <input id="freeSeats" className="input w-28" name="freeSeats" type="number" min={0} max={10000} defaultValue={freeSeats} required />
+        <p className="mt-1 text-xs text-muted-foreground">{tr("ลดจำนวนลงจะไม่เอาใครออก แค่เพิ่มคนใหม่ไม่ได้จนกว่าจะต่ำกว่าโควตา · ทีมที่จ่ายเงินได้อย่างน้อยเท่านี้เสมอ")}</p>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="allowSignup" defaultChecked={allowSignup} /> {tr("ใครก็สมัครเองได้ (ปิด = สมัครได้เฉพาะคนที่มีลิงก์คำเชิญ)")}
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <SubmitButton>{tr("บันทึก")}</SubmitButton>
+        <FormMessage state={state} />
+      </div>
+    </form>
+  );
+}
+
+/** ราคาต่อที่นั่ง (บาท) ใน Stripe */
+export function TeamPriceForm({ month, year }: { month: number; year: number }) {
+  const tr = useT();
+  const [state, action] = useActionState(saveTeamPrices, undefined);
+  return (
+    <form action={action} className="space-y-2">
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="label" htmlFor="price-month">{tr("รายเดือน (บาท/ที่นั่ง)")}</label>
+          <input id="price-month" className="input w-32" name="month" type="number" min={1} step={1} defaultValue={month} required />
+        </div>
+        <div>
+          <label className="label" htmlFor="price-year">{tr("รายปี (บาท/ที่นั่ง)")}</label>
+          <input id="price-year" className="input w-32" name="year" type="number" min={1} step={1} defaultValue={year} required />
+        </div>
+        <SubmitButton className="btn-ghost" pendingText={tr("กำลังบันทึก...")}>{tr("เปลี่ยนราคา")}</SubmitButton>
+      </div>
+      <p className="text-xs text-muted-foreground">{tr("ลูกค้าใหม่จ่ายราคาใหม่ทันที ลูกค้าเดิมยังจ่ายราคาเดิม")}</p>
+      <FormMessage state={state} />
+    </form>
+  );
+}
+
 export function BillingCatalogForm({ live, ready }: { live: boolean; ready: boolean }) {
   const tr = useT();
   const [state, action] = useActionState(setupBillingCatalog, undefined);

@@ -4,9 +4,11 @@ import { sortTeamTree } from "@/lib/teams";
 import { GrantPlanForm, TeamForm } from "../forms";
 import { dateToKey, todayKey } from "@/lib/dates";
 import { planState } from "@/lib/plans";
+import { getSettings } from "@/lib/settings";
 import { tr } from "@/lib/i18n/server";
 
 export default async function TeamsPage() {
+  const { freeSeats } = await getSettings();
   const teams = sortTeamTree(
     await prisma.team.findMany({
       // ไม่รวมพื้นที่ส่วนตัวของผู้ใช้
@@ -51,7 +53,7 @@ export default async function TeamsPage() {
             </div>
             {!team.parentId && (
               <div className="flex w-full flex-wrap items-center gap-3 pl-1 text-xs text-muted-foreground">
-                <span>{tr("แพ็กเกจ")}: {planState(team.subscription).plan === "FREE" ? tr("ฟรี") : tr("ทีม")} · {tr("{0} ที่นั่ง", [planState(team.subscription).seats])}{team.subscription?.stripeSubscriptionId && ` · Stripe ${team.subscription.status}`}</span>
+                <span>{tr("แพ็กเกจ")}: {planState(team.subscription, freeSeats).plan === "FREE" ? tr("ฟรี") : tr("ทีม")} · {tr("{0} ที่นั่ง", [planState(team.subscription, freeSeats).seats])}{team.subscription?.stripeSubscriptionId && ` · Stripe ${team.subscription.status}`}</span>
                 <GrantPlanForm teamId={team.id} seats={team.subscription?.compSeats ?? null} until={team.subscription?.compUntil ? dateToKey(team.subscription.compUntil) : ""} today={todayKey()} />
               </div>
             )}

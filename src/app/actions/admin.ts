@@ -9,7 +9,8 @@ import { requireUser } from "@/lib/auth";
 import { LEVEL } from "@/lib/permissions";
 import type { FormState } from "./auth";
 import { getTr } from "@/lib/i18n/server";
-import { ensureCatalog, isBillingConfigured, recreateWebhook } from "@/lib/billing";
+import { changeTeamPrice, ensureCatalog, isBillingConfigured, recreateWebhook } from "@/lib/billing";
+import { saveSettings } from "@/lib/settings";
 import { publicOrigin } from "@/lib/origin";
 
 const requireAdmin = () => requireUser(LEVEL.ADMIN);
@@ -235,6 +236,38 @@ export async function setupBillingCatalog(): Promise<BillingSetupState> {
   }
   revalidatePath("/admin/billing");
   return { ok: t("ตั้งค่าสินค้าและราคาแล้ว") };
+}
+
+/** แพ็กเกจฟรีกี่คน + เปิดให้สมัครเองไหม — มีผลทันทีไม่ต้อง deploy */
+export async function savePlanSettings(_: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const t = await getTr();
+  const parsed = z
+    .object({ freeSeats: z.coerce.number().int().min(0).max(10000), allowSignup: z.boolean() })
+    .safeParse({ freeSeats: formData.get("freeSeats"), allowSignup: formData.get("allowSignup") === "on" });
+  if (!parsed.success) return { error: t("ข้อมูลไม่ถูกต้อง") };
+  await saveSettings(parsed.data);
+  revalidatePath("/", "layout");
+  return { ok: t("บันทึกแล้ว") };
+}
+
+/** เปลี่ยนราคาต่อที่นั่งใน Stripe */
+export async function saveTeamPrices(_: BillingSetupState, formData: FormData): Promise<BillingSetupState> {
+  await requireAdmin();
+  const t = await getTr();
+  if (!isBillingConfigured()) return { error: t("ยังไม่เปิดระบบชำระเงิน") };
+  const parsed = z
+    .object({ month: z.coerce.number().int().min(1).max(100000), year: z.coerce.number().int().min(1).max(1000000) })
+    .safeParse({ month: formData.get("month"), year: formData.get("year") });
+  if (!parsed.success) return { error: t("ราคาต้องเป็นจำนวนเต็มบาทและมากกว่า 0") };
+  try {
+    await changeTeamPrice("month", parsed.data.month);
+    await changeTeamPrice("year", parsed.data.year);
+  } catch (e) {
+    return { error: t("Stripe ตอบกลับว่า: {0}", [e instanceof Error ? e.message : String(e)]) };
+  }
+  revalidatePath("/", "layout");
+  return { ok: t("เปลี่ยนราคาแล้ว — ลูกค้าใหม่จ่ายราคานี้ ลูกค้าเดิมยังจ่ายราคาเดิม") };
 }
 
 /** สร้าง webhook ใหม่ไปที่เว็บนี้ แล้วแสดง signing secret ครั้งเดียวให้นำไปใส่บน Vercel */

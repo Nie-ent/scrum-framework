@@ -59,7 +59,7 @@ export async function GET(request: Request, { params }: RouteContext<"/api/auth/
       user = existing;
     } else {
       // ยังไม่มีบัญชี: สร้างได้เมื่อเปิดให้สมัครเอง หรือมาจากลิงก์คำเชิญที่ยังใช้ได้ (กฎเดียวกับการสมัครด้วยรหัสผ่าน)
-      if (!isSignupOpen()) {
+      if (!(await isSignupOpen())) {
         const token = saved.next.startsWith("/invite/") ? saved.next.slice("/invite/".length) : "";
         const invited = token && (await prisma.invite.findFirst({ where: { tokenHash: hashToken(token), ...openInvite() } }));
         if (!invited) return fail("no_account");

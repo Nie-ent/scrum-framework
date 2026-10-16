@@ -72,7 +72,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/tea
         </div>
       </div>
 
-      <PlanCard teamId={team.parentId ?? team.id} parentName={parent?.name ?? null} owner={owner} state={usage.state} used={usage.used} pending={usage.pending} notice={billing === "success" || billing === "cancel" ? billing : undefined} />
+      <PlanCard teamId={team.parentId ?? team.id} parentName={parent?.name ?? null} owner={owner} state={usage.state} freeSeats={usage.freeSeats} used={usage.used} pending={usage.pending} notice={billing === "success" || billing === "cancel" ? billing : undefined} />
 
       <section className="card">
         <div className="mb-4">

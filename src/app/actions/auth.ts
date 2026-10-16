@@ -51,7 +51,7 @@ export async function signup(_: FormState, formData: FormData): Promise<FormStat
   if (!(await rateLimit(`signup:ip:${await clientIp()}`, 5, 3600))) return { error: TOO_MANY };
 
   // ปิดสมัครเองอยู่ก็ยังสมัครได้ถ้ามาจากลิงก์คำเชิญที่ยังใช้ได้
-  if (!isSignupOpen()) {
+  if (!(await isSignupOpen())) {
     const token = next.startsWith("/invite/") ? next.slice("/invite/".length) : "";
     const invited = token && (await prisma.invite.findFirst({ where: { tokenHash: hashToken(token), ...openInvite() } }));
     if (!invited) return { error: "ยังไม่เปิดให้สมัครเอง — ต้องมีลิงก์คำเชิญจากทีม" };

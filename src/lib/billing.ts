@@ -143,6 +143,32 @@ export async function ensureCatalog() {
   portalConfig = undefined;
 }
 
+/**
+ * เปลี่ยนราคาต่อที่นั่ง (บาท) — Stripe แก้ราคาเดิมไม่ได้ จึงสร้างราคาใหม่ย้าย lookup key มา แล้วปิดราคาเดิม
+ * ลูกค้าใหม่ได้ราคาใหม่ทันที · ลูกค้าเดิมยังจ่ายราคาเดิมจนกว่าจะย้ายราคาเอง
+ */
+export async function changeTeamPrice(interval: Interval, baht: number) {
+  const s = stripe();
+  const lookup_key = PRICE_KEYS[interval];
+  const old = (await s.prices.list({ lookup_keys: [lookup_key], active: true })).data[0];
+  if (!old) throw new Error("no price — run setup first");
+  if (old.unit_amount === baht * 100) return;
+  await s.prices.create({
+    product: typeof old.product === "string" ? old.product : old.product.id,
+    currency: old.currency,
+    unit_amount: baht * 100,
+    recurring: { interval },
+    lookup_key,
+    transfer_lookup_key: true,
+    tax_behavior: old.tax_behavior ?? "inclusive",
+  });
+  await s.prices.update(old.id, { active: false });
+  priceCache = undefined;
+  portalConfig = undefined;
+  // หน้าจัดการการชำระเงินต้องรู้จักราคาใหม่ (ให้ลูกค้าเปลี่ยนรายเดือน/รายปีได้)
+  await ensureCatalog();
+}
+
 export const WEBHOOK_EVENTS: Stripe.WebhookEndpointCreateParams.EnabledEvent[] = [
   "checkout.session.completed", "checkout.session.async_payment_succeeded", "checkout.session.async_payment_failed",
   "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted", "customer.subscription.paused", "customer.subscription.resumed",

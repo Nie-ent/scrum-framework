@@ -19,7 +19,7 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   const loginHref = nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login";
   return (
     <AuthShell>
-      {isSignupOpen() || nextPath ? (
+      {(await isSignupOpen()) || nextPath ? (
         <>
           <SignupForm next={nextPath} />
           <SsoButtons next={nextPath} />

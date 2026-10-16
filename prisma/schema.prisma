@@ -591,3 +591,10 @@ model BillingEvent {
   type      String
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
+
+/// ค่าตั้งของระบบที่ผู้ดูแลปรับจากหน้าเว็บได้ (ไม่ต้อง deploy) — key เดียวต่อค่า ไม่มีแถว = ใช้ค่าเริ่มต้นในโค้ด
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}

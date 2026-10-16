@@ -1,6 +1,7 @@
 import "server-only";
 import type { Invite } from "@prisma/client";
 import { prisma } from "./db";
+import { getSettings } from "./settings";
 
 /** คำเชิญที่ยังรับได้ */
 export const openInvite = () => ({ acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } });
@@ -13,8 +14,8 @@ export function safeNextPath(value: unknown): string {
   return /^\/invite\/[A-Za-z0-9_-]+$/.test(value) || /^\/oauth\/authorize\?[^#\\]*$/.test(value) ? value : "/";
 }
 
-/** ใครก็สมัครเองได้ — ตั้ง ALLOW_SIGNUP=false เพื่อปิด (สมัครได้เฉพาะคนที่มีลิงก์คำเชิญ) */
-export const isSignupOpen = () => process.env.ALLOW_SIGNUP !== "false";
+/** ใครก็สมัครเองได้ — ปิดได้ที่หน้า admin → ชำระเงิน (สมัครได้เฉพาะคนที่มีลิงก์คำเชิญ) */
+export const isSignupOpen = async () => (await getSettings()).allowSignup;
 
 /** เข้าทีมตามคำเชิญ — ถ้าอยู่ในทีมอยู่แล้วจะไม่ลดสิทธิ์เดิม */
 export async function joinFromInvite(invite: Invite, userId: string) {

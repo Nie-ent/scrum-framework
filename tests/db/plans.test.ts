@@ -3,7 +3,10 @@ import type { Subscription } from "@prisma/client";
 import { DB_TESTS } from "./setup";
 import { makeWorld } from "./fixtures";
 import { prisma } from "@/lib/db";
-import { FREE_SEATS, canAddSeat, planState, workspaceUsage } from "@/lib/plans";
+import { canAddSeat, planState, workspaceUsage } from "@/lib/plans";
+import { saveSettings } from "@/lib/settings";
+
+const FREE_SEATS = 5;
 
 const sub = (over: Partial<Subscription>): Subscription => ({
   teamId: "t", plan: "TEAM", seats: 0, status: "none", stripeCustomerId: null, stripeSubscriptionId: null,
@@ -13,19 +16,19 @@ const sub = (over: Partial<Subscription>): Subscription => ({
 describe("planState", () => {
   const now = new Date("2026-10-14T00:00:00Z");
   it("is free without a live subscription", () => {
-    expect(planState(null, now)).toMatchObject({ plan: "FREE", seats: FREE_SEATS, source: "free" });
-    expect(planState(sub({ seats: 20, status: "canceled" }), now)).toMatchObject({ plan: "FREE", seats: FREE_SEATS });
-    expect(planState(sub({ seats: 20, status: "incomplete" }), now).plan).toBe("FREE");
+    expect(planState(null, FREE_SEATS, now)).toMatchObject({ plan: "FREE", seats: FREE_SEATS, source: "free" });
+    expect(planState(sub({ seats: 20, status: "canceled" }), FREE_SEATS, now)).toMatchObject({ plan: "FREE", seats: FREE_SEATS });
+    expect(planState(sub({ seats: 20, status: "incomplete" }), FREE_SEATS, now).plan).toBe("FREE");
   });
   it("uses paid seats while active or retrying a failed payment", () => {
-    expect(planState(sub({ seats: 12, status: "active" }), now)).toMatchObject({ plan: "TEAM", seats: 12, source: "paid" });
-    expect(planState(sub({ seats: 12, status: "past_due" }), now)).toMatchObject({ seats: 12, pastDue: true });
+    expect(planState(sub({ seats: 12, status: "active" }), FREE_SEATS, now)).toMatchObject({ plan: "TEAM", seats: 12, source: "paid" });
+    expect(planState(sub({ seats: 12, status: "past_due" }), FREE_SEATS, now)).toMatchObject({ seats: 12, pastDue: true });
   });
   it("never drops below the free allowance, and honours admin grants until they expire", () => {
-    expect(planState(sub({ seats: 2, status: "active" }), now).seats).toBe(FREE_SEATS);
+    expect(planState(sub({ seats: 2, status: "active" }), FREE_SEATS, now).seats).toBe(FREE_SEATS);
     const comp = sub({ plan: "FREE", compSeats: 30, compUntil: new Date("2026-12-31T00:00:00Z") });
-    expect(planState(comp, now)).toMatchObject({ plan: "TEAM", seats: 30, source: "comp" });
-    expect(planState(comp, new Date("2027-01-01T00:00:00Z")).plan).toBe("FREE");
+    expect(planState(comp, FREE_SEATS, now)).toMatchObject({ plan: "TEAM", seats: 30, source: "comp" });
+    expect(planState(comp, FREE_SEATS, new Date("2027-01-01T00:00:00Z")).plan).toBe("FREE");
   });
 });
 
@@ -67,5 +70,19 @@ describe.skipIf(!DB_TESTS)("seat limits", () => {
     const personal = await prisma.team.create({ data: { name: `p ${w.tag}`, personalOfId: people[5].id } });
     expect(await canAddSeat(personal.id, { userId: people[0].id })).toBe(true);
     await prisma.team.delete({ where: { id: personal.id } });
+  });
+
+  it("follows the free allowance the admin sets, without a deploy", async () => {
+    await prisma.subscription.delete({ where: { teamId: root.id } });
+    // ตอนนี้ 5 คน เต็มโควตาฟรี 5
+    expect(await canAddSeat(root.id, { userId: people[5].id })).toBe(false);
+    try {
+      await saveSettings({ freeSeats: 8 });
+      expect((await workspaceUsage(root.id)).state.seats).toBe(8);
+      expect(await canAddSeat(root.id, { userId: people[5].id })).toBe(true);
+    } finally {
+      await prisma.appSetting.deleteMany({ where: { key: "freeSeats" } });
+    }
+    expect((await workspaceUsage(root.id)).state.seats).toBe(FREE_SEATS);
   });
 });

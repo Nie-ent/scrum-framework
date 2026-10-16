@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <SsoButtons next={nextPath} error={typeof sso === "string" ? sso : undefined} />
       <p className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-slate-500">
         <Link href="/forgot-password" className="hover:text-indigo-700">{tr("ลืมรหัสผ่าน?")}</Link>
-        {(isSignupOpen() || nextPath) && (
+        {((await isSignupOpen()) || nextPath) && (
           <Link href={nextPath ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup"} className="font-medium text-indigo-600 hover:text-indigo-800">{tr("สมัครบัญชีใหม่")}</Link>
         )}
       </p>

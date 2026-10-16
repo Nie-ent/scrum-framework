@@ -1,15 +1,14 @@
 import "server-only";
 import type { Subscription } from "@prisma/client";
 import { prisma } from "./db";
+import { getSettings } from "./settings";
 
 /**
  * แพ็กเกจ — คิดต่อ workspace (ทีมระดับบน + ทีมย่อยทั้งหมด) ส่วนพื้นที่ส่วนตัวฟรีเสมอและไม่นับ
- * - ฟรี: ไม่เกิน FREE_SEATS คน
+ * - ฟรี: ไม่เกิน freeSeats คน (ผู้ดูแลปรับได้ที่หน้า admin → ชำระเงิน)
  * - ทีม: ไม่เกินจำนวนที่นั่งที่จ่าย (หรือที่ผู้ดูแลระบบให้)
  * ไม่เคยลบหรือเอาใครออกเอง — เกินโควตา = เพิ่มคนใหม่ไม่ได้จนกว่าจะเพิ่มที่นั่ง
  */
-export const FREE_SEATS = 5;
-
 /** สถานะจาก Stripe ที่ยังใช้แพ็กเกจที่จ่ายได้ (past_due = ตัดเงินไม่ผ่าน ยังให้ใช้ระหว่างลองตัดใหม่) */
 const PAID_STATUSES = new Set(["active", "trialing", "past_due"]);
 
@@ -25,12 +24,12 @@ export type PlanState = {
   pastDue: boolean;
 };
 
-export function planState(sub: Subscription | null, now = new Date()): PlanState {
+export function planState(sub: Subscription | null, freeSeats: number, now = new Date()): PlanState {
   const base = { status: sub?.status ?? "none", currentPeriodEnd: sub?.currentPeriodEnd ?? null, cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false, compUntil: sub?.compUntil ?? null, pastDue: sub?.status === "past_due" };
   const paid = sub && sub.plan === "TEAM" && PAID_STATUSES.has(sub.status) ? sub.seats : 0;
   const comp = sub?.compUntil && sub.compUntil > now ? (sub.compSeats ?? 0) : 0;
-  if (paid === 0 && comp === 0) return { ...base, plan: "FREE", seats: FREE_SEATS, source: "free" };
-  return { ...base, plan: "TEAM", seats: Math.max(paid, comp, FREE_SEATS), source: paid >= comp ? "paid" : "comp" };
+  if (paid === 0 && comp === 0) return { ...base, plan: "FREE", seats: freeSeats, source: "free" };
+  return { ...base, plan: "TEAM", seats: Math.max(paid, comp, freeSeats), source: paid >= comp ? "paid" : "comp" };
 }
 
 /** ทีมระดับบนของทีมนี้ (ทีมย่อยใช้แพ็กเกจของทีมแม่) — null = ไม่มีทีม หรือเป็นพื้นที่ส่วนตัว */
@@ -50,8 +49,9 @@ export async function seatUserIds(rootId: string): Promise<Set<string>> {
 }
 
 export async function workspaceUsage(rootId: string) {
-  const [sub, users, pending] = await Promise.all([
+  const [sub, settings, users, pending] = await Promise.all([
     prisma.subscription.findUnique({ where: { teamId: rootId } }),
+    getSettings(),
     seatUserIds(rootId),
     // คำเชิญที่ยังรอรับ ของคนที่ยังไม่อยู่ใน workspace (จองที่นั่งไว้)
     prisma.invite.findMany({
@@ -63,7 +63,7 @@ export async function workspaceUsage(rootId: string) {
     (await prisma.user.findMany({ where: { id: { in: [...users] } }, select: { email: true } })).map((u) => u.email),
   );
   const pendingEmails = new Set(pending.map((p) => p.email).filter((e) => !memberEmails.has(e)));
-  return { state: planState(sub), used: users.size, pending: pendingEmails.size, users };
+  return { state: planState(sub, settings.freeSeats), freeSeats: settings.freeSeats, used: users.size, pending: pendingEmails.size, users };
 }
 
 export const SEATS_FULL = "ที่นั่งในแพ็กเกจเต็มแล้ว — เจ้าของทีมเพิ่มที่นั่งได้ที่หน้าจัดการทีม";
