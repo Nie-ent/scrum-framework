@@ -31,6 +31,8 @@ export async function POST(request: Request) {
   const auth = token ? await userFromApiToken(hashToken(token)) : null;
   const origin = await publicOrigin();
   if (!auth) {
+    // ไว้ไล่ปัญหาโปรแกรมที่เชื่อมไม่ติด (ไม่บันทึกตัวโทเคน)
+    if (token) console.warn(`[mcp] rejected token from ${request.headers.get("user-agent") ?? "?"}`);
     return json(failure(null, -32001, "Missing, expired or invalid access token. Sign in through OAuth, or create a token in Pace: Account → Connect an AI assistant."), 401, { "WWW-Authenticate": `Bearer realm="Pace MCP", resource_metadata="${resourceMetadataUrl(origin)}"` });
   }
   if (!(await rateLimit(`mcp:${auth.user.id}`, 120, 60))) return json(failure(null, -32002, "Too many requests. Try again in a minute."), 429);

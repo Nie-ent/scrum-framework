@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { keyToDate } from "@/lib/dates";
 import { TaskFields } from "@/lib/schemas";
-import { createTaskFor, editTaskFor, loadTask, revalidateTasks, setDueFor, setProgressFor } from "@/lib/task-ops";
+import { createGroupTaskFor, createTaskFor, editTaskFor, loadTask, revalidateTasks, setDueFor, setProgressFor } from "@/lib/task-ops";
+import { getTr } from "@/lib/i18n/server";
 import { addBlockerFor, createLabelFor, removeBlockerFor, setLabelsFor, setParentFor, updateLabelFor } from "@/lib/task-structure";
 import { isLabelColor } from "@/lib/labels";
 import type { FormState } from "./auth";
@@ -30,7 +31,14 @@ export async function createTask(_: FormState, formData: FormData): Promise<Form
     dueDate: formData.get("dueDate") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const result = await createTaskFor(user, parsed.data);
+  // แท็กหลายคน (คั่นด้วย ,) = งานแม่ + งานย่อยคนละงาน
+  const assigneeIds = [...new Set(parsed.data.assigneeId.split(",").map((id) => id.trim()).filter(Boolean))];
+  if (assigneeIds.length > 1) {
+    const group = await createGroupTaskFor(user, { ...parsed.data, assigneeIds });
+    if (!group.ok) return { error: group.error };
+    return { ok: (await getTr())("มอบหมายให้ {0} คนแล้ว", [assigneeIds.length]), id: group.task.id };
+  }
+  const result = await createTaskFor(user, { ...parsed.data, assigneeId: assigneeIds[0] ?? "" });
   if (!result.ok) return { error: result.error };
   return { ok: result.self ? "เพิ่มงานแล้ว" : "มอบหมายงานแล้ว", id: result.task.id };
 }

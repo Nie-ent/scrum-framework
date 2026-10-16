@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DB_TESTS } from "./setup";
 import { makeWorld } from "./fixtures";
 import { prisma } from "@/lib/db";
-import { createTaskFor, createTasksFor, editTaskFor, setDueFor, setProgressFor } from "@/lib/task-ops";
+import { createGroupTaskFor, createTaskFor, createTasksFor, editTaskFor, setDueFor, setProgressFor } from "@/lib/task-ops";
 import { addBlockerFor, availableLabels, createLabelFor, removeBlockerFor, setLabelsFor, setParentFor, updateLabelFor } from "@/lib/task-structure";
 import { keyToDate } from "@/lib/dates";
 
@@ -137,5 +137,29 @@ describe.skipIf(!DB_TESTS)("tasks: edit, reassign, bulk, subtasks, labels, waiti
     await editTaskFor(await w.as(lead.id), t.id, { description: `ฝาก @Dev Two อีกที` });
     expect((await w.notices(dev2.id)).length).toBe(count);
     expect(await prisma.ref.count({ where: { fromTaskId: t.id } })).toBe(1);
+  });
+
+  it("gives one task to several people: parent + a subtask each, parent closes when all are done", async () => {
+    const as = await w.as(lead.id);
+    // สมาชิกทั่วไปมอบให้หลายคนไม่ได้ · คนนอกทีมไม่ได้
+    expect((await createGroupTaskFor(await w.as(dev1.id), { teamId: team.id, assigneeIds: [dev1.id, dev2.id], title: "x", description: null, dueDate: null })).ok).toBe(false);
+    expect((await createGroupTaskFor(as, { teamId: team.id, assigneeIds: [dev1.id, outsider.id], title: "x", description: null, dueDate: null })).ok).toBe(false);
+
+    const result = await createGroupTaskFor(as, { teamId: team.id, assigneeIds: [dev1.id, dev2.id, dev1.id], title: "Q4 report", description: "อ่านก่อน", dueDate: keyToDate("2026-12-01") });
+    if (!result.ok) throw new Error(result.error);
+    expect(result.subtasks).toHaveLength(2);
+    const parent = await prisma.task.findUniqueOrThrow({ where: { id: result.task.id } });
+    // หัวหน้าทีมแม่ไม่ได้อยู่ในทีมนี้ → งานแม่เป็นของคนแรกที่ถูกแท็ก
+    expect(parent.assigneeId).toBe(dev1.id);
+    const kids = await prisma.task.findMany({ where: { parentId: parent.id }, orderBy: { number: "asc" } });
+    expect(kids.map((k) => k.assigneeId)).toEqual([dev1.id, dev2.id]);
+    expect(kids.every((k) => k.title === "Q4 report" && k.dueDate?.getTime() === parent.dueDate?.getTime())).toBe(true);
+
+    expect((await setProgressFor(await w.as(dev1.id), kids[0].id, 100, "")).ok).toBe(true);
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: parent.id } })).progress).toBe(0);
+    expect((await setProgressFor(await w.as(dev2.id), kids[1].id, 100, "")).ok).toBe(true);
+    const closed = await prisma.task.findUniqueOrThrow({ where: { id: parent.id } });
+    expect(closed.progress).toBe(100);
+    expect(closed.doneAt).not.toBeNull();
   });
 });

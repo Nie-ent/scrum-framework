@@ -6,7 +6,7 @@ import { dateToKey, isDateKey, keyToDate, todayKey } from "./dates";
 import { noteKey } from "./note-links";
 import { relinkMentions, syncLinks, syncNoteMentions } from "./notes";
 import { NoteFields, TaskFields, noteTitle } from "./schemas";
-import { MAX_BATCH, createTaskFor, createTasksFor, editTaskFor, setDueFor, setProgressFor } from "./task-ops";
+import { MAX_BATCH, createGroupTaskFor, createTaskFor, createTasksFor, editTaskFor, setDueFor, setProgressFor } from "./task-ops";
 import { addBlockerFor, availableLabels, createLabelFor, removeBlockerFor, setLabelsFor, setParentFor } from "./task-structure";
 import { addCommentFor, completeAssignmentFor, noteThreadsFor, resolveThreadFor } from "./comment-ops";
 import { waitingOn } from "./inbox";
@@ -280,7 +280,9 @@ export const TOOLS: Tool[] = [
   {
     name: "create_task",
     title: "Create a task",
-    description: "Create a task in a space. It is assigned to the token owner unless assignee_email names another member (team leads only). The assignee is notified.",
+    description:
+      "Create a task in a space. It is assigned to the token owner unless assignee_email names another member (team leads only). The assignee is notified. " +
+      "To give the same task to several people, pass assignee_emails instead: Pace creates one parent task plus a subtask for each person (own progress each); the parent completes itself when every subtask is done.",
     inputSchema: object(
       {
         space: SPACE,
@@ -288,6 +290,7 @@ export const TOOLS: Tool[] = [
         description: { type: "string", description: "Optional details; may contain line breaks and links" },
         due_date: { type: "string", description: "Optional due date, YYYY-MM-DD" },
         assignee_email: { type: "string", description: "Email of the member to assign to. Default: the token owner" },
+        assignee_emails: { type: "array", items: { type: "string" }, description: "Emails of two or more members to each get the task (team leads only). Not combined with assignee_email or parent_number" },
         parent_number: { type: "integer", description: "Make it a subtask of this task number (one level only)" },
         labels: { type: "array", items: { type: "string" }, description: "Label names; missing labels are created" },
       },
@@ -296,6 +299,16 @@ export const TOOLS: Tool[] = [
     write: true,
     run: async (args, { user, appUrl }) => {
       const space = await pickSpace(user, args.space);
+      if (Array.isArray(args.assignee_emails) && args.assignee_emails.length > 1) {
+        const assigneeIds = [];
+        for (const email of args.assignee_emails) assigneeIds.push(await memberByEmail(user, space, email));
+        const item = await newTask(user, space, { ...args, assignee_email: undefined, parent_number: undefined });
+        const labels = args.labels === undefined ? [] : await labelIds(user, space, args.labels);
+        const result = await createGroupTaskFor(user, { teamId: space.id, assigneeIds, title: item.title, description: item.description, dueDate: item.dueDate });
+        if (!result.ok) fail(user, result.error);
+        if (labels.length) await setLabelsFor(user, result.task.id, labels);
+        return { created: true, number: result.task.number, subtasks: result.subtasks, url: `${appUrl}/tasks?team=${space.id}&task=${result.task.number}` };
+      }
       const item = await newTask(user, space, args);
       const labels = args.labels === undefined ? [] : await labelIds(user, space, args.labels);
       const result = await createTaskFor(user, { teamId: space.id, ...item });

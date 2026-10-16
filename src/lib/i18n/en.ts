@@ -1328,4 +1328,13 @@ export const en: Record<string, string> = {
   "กำลังลบ…": "Deleting…",
   "บันทึกว่าเสร็จแล้ว": "Save as done",
   "บันทึก {0}%": "Save {0}%",
+  "มอบหมายให้ {0} คนแล้ว": "Assigned to {0} people",
+  "เลือกผู้รับงานอย่างน้อย 2 คน": "Pick at least 2 assignees",
+  "มอบหมายได้ครั้งละไม่เกิน 50 คน": "You can assign to at most 50 people at once",
+  "+ เลือกผู้รับงาน": "+ Pick assignees",
+  "+ เพิ่มคน": "+ Add person",
+  "พิมพ์ชื่อ…": "Type a name…",
+  "ค้นหาสมาชิก": "Search members",
+  "ไม่พบสมาชิก": "No members found",
+  "{0} คน — แต่ละคนได้งานย่อยของตัวเองภายใต้งานนี้": "{0} people — each gets their own subtask under this task",
 };

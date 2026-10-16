@@ -8,7 +8,7 @@ import { FilePicker, PickedFiles, UploadProgressBar } from "@/components/attachm
 import { TaskFields } from "@/lib/schemas";
 import { FormMessage, SubmitButton } from "@/components/form";
 import { FieldError, useZodForm } from "@/components/zod-form";
-import { Select } from "@/components/select";
+import { AssigneePicker } from "./assignee-picker";
 import { DatePicker } from "@/components/date-picker";
 import { useT } from "@/components/i18n";
 import { RefTextarea } from "@/components/ref-textarea";
@@ -65,7 +65,7 @@ export function TaskForm({
           <span aria-hidden="true" className="transition group-open/more:rotate-90">▸</span>
           {tr("กำหนดส่ง")}{members ? tr(" ผู้รับงาน") : ""} {tr("รายละเอียด")}{canAttach ? tr(" และไฟล์แนบ") : ""}
         </summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem_10rem]">
+        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,16rem)_10rem]">
           <div>
             <label className="label" htmlFor="task-description">{tr("รายละเอียด")}</label>
             {/* หลายบรรทัดได้: Enter ในช่องนี้ = ขึ้นบรรทัดใหม่ (ไม่ใช่การเพิ่มงาน) */}
@@ -75,12 +75,12 @@ export function TaskForm({
           {members ? (
             <div>
               <label className="label" htmlFor="task-assignee">{tr("มอบหมายให้")}</label>
-              <Select
+              <AssigneePicker
                 id="task-assignee"
-                placeholder={tr("เลือกสมาชิก")}
-                defaultValue={members.some((m) => m.id === selfId) ? selfId : (members[0]?.id ?? "")}
+                members={members}
+                selfId={selfId}
+                defaultIds={members.some((m) => m.id === selfId) ? [selfId] : members[0] ? [members[0].id] : []}
                 inputProps={field("assigneeId")}
-                options={members.map((m) => ({ value: m.id, label: `${m.name}${m.id === selfId ? tr(" (ฉัน)") : ""}` }))}
               />
               <FieldError name="assigneeId" message={error("assigneeId")} />
             </div>

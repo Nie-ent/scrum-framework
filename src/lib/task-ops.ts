@@ -103,6 +103,38 @@ export async function createTasksFor(user: CurrentUser, teamId: string, items: N
 }
 
 /**
+ * มอบงานเดียวกันให้หลายคน: สร้างงานแม่ 1 งาน + งานย่อยคนละ 1 งาน (แต่ละคนมี % ของตัวเอง ขึ้นในเช็กอินและสถิติของคนนั้น)
+ * งานแม่เป็นของคนมอบหมาย (ถ้าอยู่ในทีมและร่วมเช็กอิน ไม่งั้นเป็นของคนแรกที่ถูกแท็ก) และปิดเองเมื่องานย่อยเสร็จครบ
+ */
+export async function createGroupTaskFor(
+  user: CurrentUser,
+  data: { teamId: string; assigneeIds: string[]; title: string; description: string | null; dueDate: Date | null },
+): Promise<OpResult<{ task: { id: string; number: number }; subtasks: number[] }>> {
+  const ids = [...new Set(data.assigneeIds)];
+  if (ids.length < 2) return { ok: false, error: "เลือกผู้รับงานอย่างน้อย 2 คน" };
+  if (ids.length > MAX_BATCH) return { ok: false, error: "มอบหมายได้ครั้งละไม่เกิน 50 คน" };
+  // ตรวจสิทธิ์และผู้รับงานทุกคนก่อนสร้างอะไร
+  if (!(await getManageableTeamIds(user)).has(data.teamId)) return { ok: false, error: "มอบหมายงานให้คนอื่นได้เฉพาะหัวหน้าทีม" };
+  const members = await prisma.teamMember.findMany({
+    where: { teamId: data.teamId, userId: { in: [...ids, user.id] }, participates: true, user: { active: true } },
+    select: { userId: true },
+  });
+  const ok = new Set(members.map((m) => m.userId));
+  if (!ids.every((id) => ok.has(id))) return { ok: false, error: "ผู้รับงานไม่ได้อยู่ในทีมนี้" };
+  const owner = ok.has(user.id) ? user.id : ids[0];
+
+  const { teamId, title, description, dueDate } = data;
+  const parent = await createTaskFor(user, { teamId, assigneeId: owner, title, description, dueDate });
+  if (!parent.ok) return parent;
+  const children = await createTasksFor(user, teamId, ids.map((assigneeId) => ({ assigneeId, title, description: null, dueDate, parentId: parent.task.id })));
+  if (!children.ok) {
+    await prisma.task.delete({ where: { id: parent.task.id } });
+    return children;
+  }
+  return { ok: true, task: parent.task, subtasks: children.tasks.map((t) => t.number) };
+}
+
+/**
  * แก้ชื่อ/รายละเอียด และโอนผู้รับงาน
  * - ชื่อและรายละเอียด: หัวหน้าทีม ผู้รับงาน หรือคนสร้างงาน
  * - โอนงาน: หัวหน้าทีม หรือคนที่มอบหมายงานนี้ให้คนอื่นไว้ — ผู้รับงานโอนเองไม่ได้
@@ -224,8 +256,24 @@ export async function setProgressFor(user: CurrentUser, taskId: string, progress
   ]);
   await notifyProgress(user, task, progress, reason);
   if (progress >= 100 && task.progress < 100) await alertUnblocked(user, task);
+  if (progress >= 100 && task.parentId) await completeParentIfDone(user, task.parentId);
   revalidateTasks();
   return { ok: true };
+}
+
+/** งานย่อยเสร็จครบทุกงาน → งานแม่เป็น 100% เอง (บันทึกในเธรดของงานแม่) และแจ้งคนที่เกี่ยวข้อง */
+async function completeParentIfDone(user: CurrentUser, parentId: string) {
+  const parent = await prisma.task.findFirst({ where: { id: parentId, deletedAt: null }, select: { id: true, progress: true, doneAt: true } });
+  if (!parent || parent.progress >= 100) return;
+  const open = await prisma.task.count({ where: { parentId, deletedAt: null, progress: { lt: 100 } } });
+  if (open > 0) return;
+  const full = await prisma.task.findUniqueOrThrow({ where: { id: parentId } });
+  await prisma.$transaction([
+    prisma.task.update({ where: { id: parentId }, data: { progress: 100, doneAt: new Date() } }),
+    prisma.comment.create({ data: { taskId: parentId, authorId: user.id, body: "", progressFrom: parent.progress, progressTo: 100 } }),
+  ]);
+  await notifyProgress(user, full, 100, "");
+  await alertUnblocked(user, full);
 }
 
 /** ผู้เกี่ยวข้องกับงาน: คนรับงาน คนมอบหมาย และหัวหน้า/เจ้าของทีมของงานนั้นและของทีมแม่ (ไม่รวมคนที่อัปเดตเอง) */
