@@ -105,10 +105,9 @@ export async function inviteMember(_: FormState, formData: FormData): Promise<Fo
     lang,
   });
   // คนที่มีบัญชีอยู่แล้ว: ขึ้นกระดิ่งในแอปให้กดรับได้เลย
+  // (กระดิ่ง + push มือถือ · อีเมลส่งแยกไปแล้วด้านบน) และมีแถบรับคำเชิญขึ้นบนทุกหน้า
   if (invitee?.emailVerifiedAt) {
-    await prisma.notification.create({
-      data: { userId: invitee.id, title: tr("{0} เชิญคุณเข้าทีม {1}", [user.name, control.team.name]), body: tr("กดเพื่อดูและรับคำเชิญ"), url: "/teams" },
-    });
+    await notify([{ userId: invitee.id }], (t) => ({ title: t("{0} เชิญคุณเข้าทีม {1}", [user.name, control.team.name]), body: t("กดเพื่อดูและรับคำเชิญ"), url: "/teams" }), { email: false });
   }
   done(teamId);
   // id = ลิงก์คำเชิญ แสดงให้คัดลอกครั้งเดียว (ใน database เก็บเฉพาะ hash)
@@ -137,6 +136,7 @@ export async function respondToInvite(formData: FormData) {
   else if (await canAddSeat(invite.teamId, { userId: user.id })) await joinFromInvite(invite, user.id);
   else redirect("/teams?full=1");
   done(invite.teamId);
+  if (!formData.get("decline")) redirect(`/standup?team=${invite.teamId}`);
 }
 
 /** รับคำเชิญจากลิงก์ (token ใช้ได้ครั้งเดียว) */

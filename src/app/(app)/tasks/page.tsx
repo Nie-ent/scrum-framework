@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui-state";
 import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-delete";
 import { TaskForm } from "./task-form";
 import { TaskSearch } from "./task-search";
-import { ProgressSlider } from "./progress-slider";
+import { ProgressForm } from "./progress-slider";
 import { DueForm } from "../calendar/due-form";
 import { TaskEdit } from "./task-edit";
 import { AddSubtask, LabelPicker, ParentPicker, WaitingEditor } from "./task-structure";
@@ -409,15 +409,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
               <section>
                 <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><ProgressRing value={selected.progress} size={22} />{tr("ความคืบหน้า")}{" "}{selected.progress}%</h3>
                 {canUpdate(selected) ? (
-                  <form action={setTaskProgress} className="space-y-2">
-                    <input type="hidden" name="id" value={selected.id} />
-                    <ProgressSlider key={`${selected.id}:${selected.progress}`} defaultValue={selected.progress} label={tr("ความคืบหน้าของ {0} (%)", [selected.title])} />
-                    <div className="flex items-center gap-2">
-                      <input name="reason" maxLength={500} placeholder={tr("เหตุผล / หมายเหตุ (ไม่บังคับ)")} aria-label={tr("เหตุผลของการอัปเดต")} className="input flex-1 py-2 text-sm" />
-                      <button className="btn shrink-0">{tr("บันทึก")}</button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{tr("การเปลี่ยนแปลงและเหตุผลจะถูกบันทึกไว้ในความคิดเห็นด้านล่าง")}</p>
-                  </form>
+                  <ProgressForm key={`${selected.id}:${selected.updatedAt.getTime()}`} id={selected.id} defaultValue={selected.progress} label={tr("ความคืบหน้าของ {0} (%)", [selected.title])} />
                 ) : (
                   <p className="text-sm text-muted-foreground">{tr("อัปเดตได้เฉพาะผู้รับงานหรือหัวหน้าทีม")}</p>
                 )}

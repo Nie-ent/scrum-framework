@@ -1323,4 +1323,9 @@ export const en: Record<string, string> = {
   "ราคาต้องเป็นจำนวนเต็มบาทและมากกว่า 0": "Prices must be whole baht and more than 0",
   "เปลี่ยนราคาแล้ว — ลูกค้าใหม่จ่ายราคานี้ ลูกค้าเดิมยังจ่ายราคาเดิม": "Prices changed — new customers pay this price; existing customers keep their current price",
   "ข้อมูลไม่ถูกต้อง": "Invalid data",
+  "คำเชิญที่รอคุณ": "Invitations waiting for you",
+  "ลบงานนี้?": "Delete this task?",
+  "กำลังลบ…": "Deleting…",
+  "บันทึกว่าเสร็จแล้ว": "Save as done",
+  "บันทึก {0}%": "Save {0}%",
 };

@@ -19,6 +19,8 @@ import { currentSpaceId } from "@/lib/space";
 import { getWorkspaceTeams } from "@/lib/teams";
 import { tr } from "@/lib/i18n/server";
 import { waitingCount } from "@/lib/inbox";
+import { openInvite } from "@/lib/invites";
+import { InviteBanner } from "@/components/invite-banner";
 
 /** บัญชีที่เพิ่งสร้าง (ไม่เกิน 3 วัน) */
 const isFresh = (createdAt: Date) => Date.now() - createdAt.getTime() < 3 * 24 * 60 * 60 * 1000;
@@ -26,10 +28,14 @@ const isFresh = (createdAt: Date) => Date.now() - createdAt.getTime() < 3 * 24 *
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const level = user.role.level;
-  const [unread, latest, waiting] = await Promise.all([
+  const [unread, latest, waiting, invites] = await Promise.all([
     prisma.notification.count({ where: { userId: user.id, readAt: null } }),
     prisma.notification.findMany({ where: { userId: user.id }, orderBy: { id: "desc" }, take: 6 }),
     waitingCount(user),
+    // คำเชิญเข้าทีมที่รอคุณ — ต้องยืนยันอีเมลแล้ว (กันคนที่สมัครด้วยอีเมลคนอื่นเห็นชื่อทีม)
+    user.emailVerifiedAt
+      ? prisma.invite.findMany({ where: { email: user.email, ...openInvite() }, select: { id: true, access: true, team: { select: { name: true } }, invitedBy: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 3 })
+      : [],
   ]);
   const previews = latest.map((n) => ({ id: String(n.id), title: n.title, body: n.body, time: formatDateTime(n.createdAt), unread: !n.readAt }));
   const overview = canViewOverview(user);
@@ -131,7 +137,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </header>
       {/* เว้นที่ด้านล่างให้แถบเมนูมือถือ (รวม safe area ของ iPhone) */}
-      <main className="min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-10"><div className="mx-auto max-w-7xl"><SectionTabs canOverview={overview} />{children}</div></main>
+      <main className="min-w-0 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:py-10"><div className="mx-auto max-w-7xl"><SectionTabs canOverview={overview} /><InviteBanner invites={invites.map((i) => ({ id: i.id, teamName: i.team.name, inviter: i.invitedBy?.name ?? null, access: i.access }))} />{children}</div></main>
       <BottomNav items={bottom} />
       {/* บัญชีที่สร้างไม่เกิน 3 วัน: เริ่มทัวร์แนะนำให้เองหนึ่งครั้ง */}
       <TourHost fresh={isFresh(user.createdAt)} />

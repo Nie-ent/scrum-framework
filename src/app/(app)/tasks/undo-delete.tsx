@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition } from "react";
+import * as P from "@radix-ui/react-popover";
 import { deleteTask, restoreTask } from "@/app/actions/tasks";
 import { SwipeToDelete } from "@/components/swipe-to-delete";
 import { useT } from "@/components/i18n";
@@ -103,22 +104,43 @@ function useDeleteTask() {
   return remove;
 }
 
-/** ปุ่ม × (เมาส์/คีย์บอร์ด) */
+/** ปุ่มลบ (เมาส์/คีย์บอร์ด) — กดแล้วถามยืนยันก่อน กันกดพลาด (ลบแล้วยังกดเลิกทำได้อีกครั้ง) */
 export function DeleteTaskButton({ id, title }: { id: string; title: string }) {
   const tr = useT();
   const remove = useDeleteTask();
+  const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   return (
-    <button
-      type="button"
-      aria-label={tr("ลบงาน {0}", [title])}
-      title={tr("ลบงาน")}
-      disabled={pending}
-      onClick={() => start(() => remove({ id, title }))}
-      className="rounded-lg px-2 py-1 text-slate-400 transition hover:text-rose-600 disabled:opacity-40"
-    >
-      ×
-    </button>
+    <P.Root open={open} onOpenChange={setOpen}>
+      <P.Trigger
+        aria-label={tr("ลบงาน {0}", [title])}
+        className="flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm text-muted-foreground transition hover:bg-danger-soft hover:text-danger data-[state=open]:bg-danger-soft data-[state=open]:text-danger"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="size-4" aria-hidden="true">
+          <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+        </svg>
+        <span className="max-sm:sr-only">{tr("ลบ")}</span>
+      </P.Trigger>
+      <P.Portal>
+        <P.Content align="end" sideOffset={8} collisionPadding={16} className="tooltip-pop z-[80] w-72 space-y-3 rounded-2xl border border-border bg-surface p-4 shadow-overlay">
+          <div>
+            <p className="text-sm font-semibold text-foreground">{tr("ลบงานนี้?")}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{title}</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <P.Close className="btn-ghost min-h-9 px-3 py-1 text-sm">{tr("ยกเลิก")}</P.Close>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => start(async () => { await remove({ id, title }); setOpen(false); })}
+              className="btn min-h-9 bg-danger px-3 py-1 text-sm text-primary-foreground hover:bg-danger/90"
+            >
+              {pending ? tr("กำลังลบ…") : tr("ลบงาน")}
+            </button>
+          </div>
+        </P.Content>
+      </P.Portal>
+    </P.Root>
   );
 }
 
