@@ -2,10 +2,10 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { prisma } from "./db";
 import type { CurrentUser } from "./auth";
-import { isDateKey, keyToDate, todayKey } from "./dates";
+import { dateToKey, isDateKey, keyToDate, todayKey } from "./dates";
 import { notify } from "./notify";
 import { nextTaskNumbers } from "./task-store";
-import { toTasks } from "./tasks";
+import { isPostpone, toTasks } from "./tasks";
 import { getManageableTeamIds } from "./teams";
 import { trFor } from "./i18n/server";
 import { syncRefs } from "./refs";
@@ -304,17 +304,56 @@ async function notifyProgress(
   );
 }
 
-/** กำหนด/เลื่อน/ล้างวันกำหนดส่งของงาน ("" = ไม่มีกำหนด) — คนรับงานหรือคนที่ดูแลทีม */
-export async function setDueFor(user: CurrentUser, taskId: string, raw: string): Promise<OpResult> {
+/**
+ * กำหนด/เลื่อน/ล้างวันกำหนดส่งของงาน ("" = ไม่มีกำหนด) — คนรับงานหรือคนที่ดูแลทีม
+ * เลื่อนออกไปต้องใส่เหตุผล · ทุกการเปลี่ยนบันทึกในเธรดของงาน (วันเดิม → วันใหม่ + เหตุผล) และการเลื่อนแจ้งคนที่เกี่ยวข้อง
+ */
+export async function setDueFor(user: CurrentUser, taskId: string, raw: string, rawReason = ""): Promise<OpResult> {
   const found = await loadTask(user, taskId);
   if (!found || !(found.canManage || found.isAssignee)) return { ok: false, error: "คุณไม่มีสิทธิ์แก้งานนี้" };
   if (raw !== "" && !isDateKey(raw)) return { ok: false, error: "วันที่ไม่ถูกต้อง" };
-  const due = raw ? keyToDate(raw) : null;
-  await prisma.task.update({ where: { id: found.task.id }, data: { dueDate: due } });
+  const { task } = found;
+  const from = task.dueDate ? dateToKey(task.dueDate) : null;
+  const to = raw || null;
+  if (from === to) return { ok: true };
+  const reason = rawReason.trim().slice(0, 500);
+  const postpone = isPostpone(from, to);
+  if (postpone && !reason) return { ok: false, error: "เลื่อนกำหนดส่งต้องใส่เหตุผล" };
+  const due = to ? keyToDate(to) : null;
+  await prisma.$transaction([
+    prisma.task.update({ where: { id: task.id }, data: { dueDate: due } }),
+    prisma.comment.create({ data: { taskId: task.id, authorId: user.id, body: reason, dueChange: true, dueFrom: task.dueDate, dueTo: due } }),
+  ]);
+  if (postpone) await notifyDueChange(user, task, from, to, reason);
   // เลื่อนออกไป = งานที่รองานนี้อาจส่งไม่ทัน
-  if (due && (!found.task.dueDate || due > found.task.dueDate)) await alertDueMoved(user, found.task, due);
+  if (due && (!task.dueDate || due > task.dueDate)) await alertDueMoved(user, task, due);
   revalidateTasks();
   return { ok: true };
+}
+
+async function notifyDueChange(
+  actor: CurrentUser,
+  task: { id: string; teamId: string; assigneeId: string; createdById: string | null; title: string; number: number | null },
+  from: string | null,
+  to: string | null,
+  reason: string,
+) {
+  const team = await prisma.team.findUnique({ where: { id: task.teamId }, select: { parentId: true } });
+  const leads = await prisma.teamMember.findMany({
+    where: { teamId: { in: [task.teamId, ...(team?.parentId ? [team.parentId] : [])] }, access: { not: "MEMBER" }, user: { active: true } },
+    select: { userId: true },
+  });
+  const ids = new Set([task.assigneeId, ...(task.createdById ? [task.createdById] : []), ...leads.map((m) => m.userId)]);
+  ids.delete(actor.id);
+  await notify(
+    [...ids].map((userId) => ({ userId })),
+    (tr) => ({
+      title: to ? tr("{0} เลื่อนกำหนดส่ง {1} → {2}", [actor.name, from ?? "—", to]) : tr("{0} เอากำหนดส่งออก", [actor.name]),
+      body: `${task.number === null ? "" : `#${task.number} `}${task.title} — ${reason}`,
+      url: `/tasks?team=${task.teamId}${task.number === null ? "" : `&task=${task.number}`}`,
+    }),
+    { email: false },
+  );
 }
 
 /** อ่าน #งาน [[โน้ต]] @คน จากรายละเอียดงาน — คนที่ถูกแท็กใหม่ได้แจ้งเตือน */

@@ -37,3 +37,6 @@ export function averageProgress(tasks: Task[]): number | null {
   if (tasks.length === 0) return null;
   return Math.round(tasks.reduce((sum, t) => sum + (t.progress ?? 0), 0) / tasks.length);
 }
+
+/** เลื่อนกำหนดส่งออกไป (ต้องใส่เหตุผล) = มีกำหนดส่งอยู่แล้ว และวันใหม่ช้ากว่าเดิมหรือเอากำหนดส่งออก — วันที่เป็น YYYY-MM-DD */
+export const isPostpone = (from: string | null, to: string | null) => from !== null && (to === null || to > from);

@@ -273,6 +273,7 @@ export const TOOLS: Tool[] = [
           by: c.author?.name ?? null,
           text: c.body,
           ...(c.progressTo === null ? {} : { progress_from: c.progressFrom, progress_to: c.progressTo }),
+          ...(c.dueChange ? { due_from: c.dueFrom ? dateToKey(c.dueFrom) : null, due_to: c.dueTo ? dateToKey(c.dueTo) : null } : {}),
         })),
       };
     },
@@ -385,6 +386,7 @@ export const TOOLS: Tool[] = [
         progress: { type: "integer", minimum: 0, maximum: 100, description: "Percent complete" },
         note: { type: "string", description: "Why the progress changed (shown in the task history)" },
         due_date: { type: "string", description: 'New due date YYYY-MM-DD, or "" to remove it' },
+        due_reason: { type: "string", description: "Why the due date changes. Required when moving it later or removing it; recorded in the task thread" },
         title: { type: "string", description: "New title (max 200 characters)" },
         description: { type: "string", description: 'New details (replaces the old ones), or "" to clear' },
         assignee_email: { type: "string", description: "Email of the member to hand the task to" },
@@ -433,7 +435,7 @@ export const TOOLS: Tool[] = [
       if (args.due_date !== undefined) {
         const due = str(args.due_date);
         if (due && !isDateKey(due)) throw new ToolError("due_date must be YYYY-MM-DD");
-        const result = await setDueFor(user, task.id, due);
+        const result = await setDueFor(user, task.id, due, str(args.due_reason));
         if (!result.ok) fail(user, result.error);
       }
       if (args.progress !== undefined) {

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DB_TESTS } from "./setup";
 import { makeWorld } from "./fixtures";
 import { prisma } from "@/lib/db";
+import { editCommentFor } from "@/lib/comment-ops";
 import { createGroupTaskFor, createTaskFor, createTasksFor, editTaskFor, setDueFor, setProgressFor } from "@/lib/task-ops";
 import { addBlockerFor, availableLabels, createLabelFor, removeBlockerFor, setLabelsFor, setParentFor, updateLabelFor } from "@/lib/task-structure";
 import { keyToDate } from "@/lib/dates";
@@ -115,7 +116,7 @@ describe.skipIf(!DB_TESTS)("tasks: edit, reassign, bulk, subtasks, labels, waiti
     expect(await addBlockerFor(await w.as(lead.id), a.id, c.id)).toMatchObject({ ok: false, error: "ตั้งไม่ได้ เพราะงานจะรอกันเป็นวง" });
 
     // เลื่อน Design ไปหลังกำหนดส่งของ Build → คนทำ Build ได้เตือน
-    expect(await setDueFor(await w.as(dev1.id), a.id, "2030-01-15")).toEqual({ ok: true });
+    expect(await setDueFor(await w.as(dev1.id), a.id, "2030-01-15", "รอข้อมูลลูกค้า")).toEqual({ ok: true });
     expect((await w.notices(dev2.id)).at(-1)?.title).toContain("งานที่คุณรออยู่ถูกเลื่อน");
 
     // Design เสร็จ → Build เริ่มได้ · Ship ยังรอ Build อยู่ จึงยังไม่แจ้ง
@@ -161,5 +162,37 @@ describe.skipIf(!DB_TESTS)("tasks: edit, reassign, bulk, subtasks, labels, waiti
     const closed = await prisma.task.findUniqueOrThrow({ where: { id: parent.id } });
     expect(closed.progress).toBe(100);
     expect(closed.doneAt).not.toBeNull();
+  });
+
+  it("needs a reason to push a due date later, records every change and lets the author fix the reason", async () => {
+    const t = await make(lead, dev1, "Slides", { due: "2030-02-10" });
+    const as = await w.as(dev1.id);
+    // เลื่อนออกไป / เอาออก ไม่มีเหตุผล = ไม่ได้
+    expect(await setDueFor(as, t.id, "2030-02-20")).toEqual({ ok: false, error: "เลื่อนกำหนดส่งต้องใส่เหตุผล" });
+    expect(await setDueFor(as, t.id, "", "  ")).toEqual({ ok: false, error: "เลื่อนกำหนดส่งต้องใส่เหตุผล" });
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).dueDate?.toISOString().slice(0, 10)).toBe("2030-02-10");
+    // เลื่อนเข้ามาเร็วขึ้นไม่ต้องมีเหตุผล
+    expect(await setDueFor(as, t.id, "2030-02-05")).toEqual({ ok: true });
+    const before = (await w.notices(lead.id)).length;
+    expect(await setDueFor(as, t.id, "2030-02-25", "รอรีวิวจากลูกค้า")).toEqual({ ok: true });
+    // คนมอบหมายได้แจ้งพร้อมเหตุผล
+    expect((await w.notices(lead.id)).slice(before).map((n) => n.body)).toEqual([expect.stringContaining("รอรีวิวจากลูกค้า")]);
+
+    const log = await prisma.comment.findMany({ where: { taskId: t.id, dueChange: true }, orderBy: { createdAt: "asc" } });
+    expect(log.map((c) => [c.dueFrom?.toISOString().slice(0, 10), c.dueTo?.toISOString().slice(0, 10), c.body])).toEqual([
+      ["2030-02-10", "2030-02-05", ""],
+      ["2030-02-05", "2030-02-25", "รอรีวิวจากลูกค้า"],
+    ]);
+    // แก้เหตุผลได้ แต่ลบเหตุผลของการเลื่อนออกไม่ได้ · คนอื่นแก้ไม่ได้
+    expect(await editCommentFor(as, log[1].id, "รอรีวิวจากลูกค้า (เลื่อนประชุม)")).toEqual({ ok: true });
+    expect(await editCommentFor(as, log[1].id, "")).toMatchObject({ ok: false });
+    expect(await editCommentFor(await w.as(lead.id), log[1].id, "x")).toMatchObject({ ok: false });
+    const fixed = await prisma.comment.findUniqueOrThrow({ where: { id: log[1].id } });
+    expect(fixed.body).toBe("รอรีวิวจากลูกค้า (เลื่อนประชุม)");
+    expect(fixed.editedAt).not.toBeNull();
+    // รายการอัปเดต % ก็แก้เหตุผลได้
+    await setProgressFor(as, t.id, 40, "");
+    const progress = await prisma.comment.findFirstOrThrow({ where: { taskId: t.id, progressTo: 40 } });
+    expect(await editCommentFor(as, progress.id, "ทำสไลด์ครึ่งแรกแล้ว")).toEqual({ ok: true });
   });
 });

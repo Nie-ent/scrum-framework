@@ -137,5 +137,7 @@ export async function runCommand(text: string, spaceId: string): Promise<Command
     return result.ok ? { ok: true, done: "อัปเดต #{0} เป็น {1}% แล้ว", args: [command.number, command.progress], href } : result;
   }
   const result = await setDueFor(user, task.id, command.due ?? "");
+  // เลื่อนออกไปต้องมีเหตุผล — คำสั่งลัดไม่มีช่องให้พิมพ์ จึงพาไปทำในหน้างาน
+  if (!result.ok && result.error === "เลื่อนกำหนดส่งต้องใส่เหตุผล") return { ok: false, error: "เลื่อนกำหนดส่งต้องใส่เหตุผล — เปิดงานแล้วเลื่อนในหน้างาน" };
   return result.ok ? { ok: true, done: command.due ? "เลื่อนกำหนดส่ง #{0} แล้ว" : "ล้างกำหนดส่ง #{0} แล้ว", args: [command.number], href } : result;
 }

@@ -246,6 +246,10 @@ model Comment {
   /// มีค่า = รายการ "อัปเดตความคืบหน้า" ของงาน (จาก % เดิม → % ใหม่) โดย body คือเหตุผล (ว่างได้)
   progressFrom Int?
   progressTo   Int?
+  /// true = รายการ "เปลี่ยนกำหนดส่ง" ของงาน (dueFrom → dueTo, ว่าง = ไม่มีกำหนด) โดย body คือเหตุผล
+  dueChange    Boolean      @default(false)
+  dueFrom      DateTime?    @db.Date
+  dueTo        DateTime?    @db.Date
   attachments  Attachment[]
   createdAt    DateTime     @default(now()) @db.Timestamptz(3)
 

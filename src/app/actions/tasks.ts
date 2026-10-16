@@ -95,7 +95,7 @@ export async function editTask(_: FormState, formData: FormData): Promise<FormSt
 export async function setTaskDue(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const raw = String(formData.get("dueDate") ?? "");
-  const result = await setDueFor(user, String(formData.get("id")), raw);
+  const result = await setDueFor(user, String(formData.get("id")), raw, String(formData.get("reason") ?? ""));
   if (!result.ok) return { error: result.error };
   return { ok: raw ? "บันทึกวันแล้ว" : "เอากำหนดส่งออกแล้ว" };
 }

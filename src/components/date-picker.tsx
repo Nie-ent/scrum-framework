@@ -22,6 +22,7 @@ export function DatePicker({
   size = "md",
   className = "",
   "aria-label": ariaLabel,
+  onChange,
 }: {
   name?: string;
   inputProps?: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> };
@@ -34,6 +35,8 @@ export function DatePicker({
   size?: "sm" | "md";
   className?: string;
   "aria-label"?: string;
+  /** เรียกเมื่อเลือกวัน ("" = ไม่กำหนดวัน) */
+  onChange?: (value: string) => void;
 }) {
   const tr = useT();
   const locale = useLocale();
@@ -59,6 +62,7 @@ export function DatePicker({
     setValue(next);
     if (input.current) input.current.value = next;
     setOpen(false);
+    onChange?.(next);
   };
 
   const [year, monthIndex] = month.split("-").map(Number) as [number, number];

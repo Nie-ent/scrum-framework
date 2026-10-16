@@ -3,6 +3,7 @@ import type { AssignKind } from "@prisma/client";
 import { prisma } from "./db";
 import type { CurrentUser } from "./auth";
 import { dateToKey } from "./dates";
+import { isPostpone } from "./tasks";
 import { notify } from "./notify";
 import { teamAccess } from "./access";
 import { spacePeople, syncRefs } from "./refs";
@@ -161,9 +162,13 @@ async function notifyAssigned(actor: CurrentUser, userId: string, kind: AssignKi
 export async function editCommentFor(user: CurrentUser, id: string, rawBody: string): Promise<OpResult> {
   const thread = await loadThread(id);
   if (!thread || thread.comment.authorId !== user.id) return { ok: false, error: "แก้ได้เฉพาะความคิดเห็นของคุณ" };
-  if (thread.comment.progressTo !== null) return { ok: false, error: "แก้รายการอัปเดตความคืบหน้าไม่ได้" };
+  // รายการอัปเดต % / เปลี่ยนกำหนดส่ง: แก้ได้แค่เหตุผล (ตัวเลขและวันที่คงเดิม)
+  const entry = thread.comment.progressTo !== null || thread.comment.dueChange;
   const body = rawBody.trim();
-  if (!body) return { ok: false, error: "กรุณาพิมพ์ความคิดเห็น" };
+  if (!body && !entry) return { ok: false, error: "กรุณาพิมพ์ความคิดเห็น" };
+  if (!body && thread.comment.dueChange && isPostpone(thread.comment.dueFrom && dateToKey(thread.comment.dueFrom), thread.comment.dueTo && dateToKey(thread.comment.dueTo))) {
+    return { ok: false, error: "เลื่อนกำหนดส่งต้องใส่เหตุผล" };
+  }
   if (body.length > MAX_BODY) return { ok: false, error: "ความคิดเห็นยาวเกิน 2,000 ตัวอักษร" };
   await prisma.comment.update({ where: { id }, data: { body, editedAt: new Date() } });
   if (thread.target.teamId) {

@@ -1337,4 +1337,12 @@ export const en: Record<string, string> = {
   "ค้นหาสมาชิก": "Search members",
   "ไม่พบสมาชิก": "No members found",
   "{0} คน — แต่ละคนได้งานย่อยของตัวเองภายใต้งานนี้": "{0} people — each gets their own subtask under this task",
+  "เลื่อนกำหนดส่งต้องใส่เหตุผล": "Moving a due date later needs a reason",
+  "{0} เลื่อนกำหนดส่ง {1} → {2}": "{0} moved the due date {1} → {2}",
+  "{0} เอากำหนดส่งออก": "{0} removed the due date",
+  "เหตุผลที่เลื่อน (จำเป็น)": "Reason for moving (required)",
+  "เหตุผลที่เลื่อนกำหนดส่งของ {0}": "Reason for moving the due date of {0}",
+  "เลื่อนกำหนดส่ง": "Move due date",
+  "เพิ่มเหตุผล": "Add reason",
+  "เลื่อนกำหนดส่งต้องใส่เหตุผล — เปิดงานแล้วเลื่อนในหน้างาน": "Moving a due date later needs a reason — open the task and move it there",
 };

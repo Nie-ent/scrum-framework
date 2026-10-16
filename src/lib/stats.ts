@@ -67,7 +67,7 @@ export async function teamParticipation(teamId: string, todayKey: string, days: 
     prisma.task.groupBy({ by: ["assigneeId"], where: { teamId, deletedAt: null, doneAt: { gte: start } }, _count: true }),
     prisma.task.findMany({ where: { teamId, deletedAt: null, progress: { lt: 100 } }, select: { assigneeId: true, dueDate: true } }),
     // ไม่นับรายการอัปเดต % ที่ระบบบันทึกให้เอง
-    prisma.comment.groupBy({ by: ["authorId"], where: { ...inTeam, progressTo: null, createdAt: { gte: start } }, _count: true }),
+    prisma.comment.groupBy({ by: ["authorId"], where: { ...inTeam, progressTo: null, dueChange: false, createdAt: { gte: start } }, _count: true }),
   ]);
 
   const doneBy = new Map(done.map((d) => [d.assigneeId, d._count]));
