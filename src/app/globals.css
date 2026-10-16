@@ -288,6 +288,33 @@
   &::-webkit-scrollbar { display: none; }
 }
 
+/* แถบเลื่อนของ Pace: บาง สีตามธีม (สว่าง/มืด) แทนแถบของระบบที่หนาและสีเทาไม่เข้ากับดีไซน์ */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--subtle) 55%, transparent) transparent;
+  }
+  /* Safari (ยังไม่รองรับ scrollbar-color) */
+  ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--subtle) 55%, transparent) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--subtle); }
+  ::-webkit-scrollbar-corner { background: transparent; }
+}
+
+/* แถบเลื่อนที่ซ่อนไว้จนกว่าจะชี้หรือโฟกัสในกล่อง (เช่น แถบรายการโน้ตด้านข้าง) — ยังเลื่อนได้ตามปกติ */
+@utility scrollbar-hover {
+  scrollbar-color: transparent transparent;
+  &::-webkit-scrollbar-thumb { background-color: transparent; }
+  &:hover, &:focus-within {
+    scrollbar-color: color-mix(in oklab, var(--subtle) 55%, transparent) transparent;
+  }
+  &:hover::-webkit-scrollbar-thumb, &:focus-within::-webkit-scrollbar-thumb { background-color: color-mix(in oklab, var(--subtle) 55%, transparent); }
+}
+
 /* แถบเครื่องมือลอยของตัวแก้ไข: เฉพาะอุปกรณ์ที่ใช้เมาส์ (จอสัมผัสมีเมนูเลือกข้อความของระบบ) */
 .fine-only { display: flex; }
 @media (pointer: coarse) { .fine-only { display: none; } }
