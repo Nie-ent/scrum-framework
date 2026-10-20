@@ -171,6 +171,9 @@ describe.skipIf(!DB_TESTS)("tasks: edit, reassign, bulk, subtasks, labels, waiti
     expect(await setDueFor(as, t.id, "2030-02-20")).toEqual({ ok: false, error: "เลื่อนกำหนดส่งต้องใส่เหตุผล" });
     expect(await setDueFor(as, t.id, "", "  ")).toEqual({ ok: false, error: "เลื่อนกำหนดส่งต้องใส่เหตุผล" });
     expect((await prisma.task.findUniqueOrThrow({ where: { id: t.id } })).dueDate?.toISOString().slice(0, 10)).toBe("2030-02-10");
+    // ย้อนไปก่อนวันนี้ไม่ได้ ทั้งตอนเลื่อนและตอนสร้างงาน
+    expect(await setDueFor(as, t.id, "2020-01-01", "x")).toEqual({ ok: false, error: "กำหนดส่งต้องเป็นวันนี้หรือหลังจากนี้" });
+    expect(await createTaskFor(as, { teamId: team.id, assigneeId: dev1.id, title: "Old", description: null, dueDate: keyToDate("2020-01-01") })).toMatchObject({ ok: false });
     // เลื่อนเข้ามาเร็วขึ้นไม่ต้องมีเหตุผล
     expect(await setDueFor(as, t.id, "2030-02-05")).toEqual({ ok: true });
     const before = (await w.notices(lead.id)).length;

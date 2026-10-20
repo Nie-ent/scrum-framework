@@ -1345,4 +1345,6 @@ export const en: Record<string, string> = {
   "เลื่อนกำหนดส่ง": "Move due date",
   "เพิ่มเหตุผล": "Add reason",
   "เลื่อนกำหนดส่งต้องใส่เหตุผล — เปิดงานแล้วเลื่อนในหน้างาน": "Moving a due date later needs a reason — open the task and move it there",
+  "กำหนดส่งต้องเป็นวันนี้หรือหลังจากนี้": "The due date must be today or later",
+  "ดูเพิ่มเติม": "Show more",
 };

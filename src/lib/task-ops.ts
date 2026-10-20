@@ -26,6 +26,10 @@ export function revalidateTasks() {
 }
 
 /** หัวหน้าทีมมอบหมายให้สมาชิกในทีมได้ทุกคน — สมาชิกทั่วไปสร้างได้เฉพาะงานของตัวเอง */
+/** กำหนดส่งย้อนหลังไม่ได้ (วันนี้ได้) — งานที่เลยกำหนดอยู่แล้วยังคงวันเดิมไว้ได้ แค่ตั้งวันใหม่ในอดีตไม่ได้ */
+const PAST_DUE = "กำหนดส่งต้องเป็นวันนี้หรือหลังจากนี้";
+const isPastDue = (due: Date | null) => due !== null && dateToKey(due) < todayKey();
+
 export async function createTaskFor(
   user: CurrentUser,
   data: { teamId: string; assigneeId: string; title: string; description: string | null; dueDate: Date | null; parentId?: string | null },
@@ -35,6 +39,7 @@ export async function createTaskFor(
   if (!canManage && !(isMember && data.assigneeId === user.id)) {
     return { ok: false, error: "มอบหมายงานให้คนอื่นได้เฉพาะหัวหน้าทีม" };
   }
+  if (isPastDue(data.dueDate)) return { ok: false, error: PAST_DUE };
   const assignee = await prisma.teamMember.findUnique({
     where: { userId_teamId: { userId: data.assigneeId, teamId: data.teamId } },
     include: { team: { select: { name: true } }, user: { select: { active: true } } },
@@ -70,6 +75,7 @@ type NewTask = { assigneeId: string; title: string; description: string | null; 
  */
 export async function createTasksFor(user: CurrentUser, teamId: string, items: NewTask[]): Promise<OpResult<{ tasks: { number: number; title: string }[] }>> {
   if (items.length === 0 || items.length > MAX_BATCH) return { ok: false, error: "สร้างได้ครั้งละ 1–50 งาน" };
+  if (items.some((t) => isPastDue(t.dueDate))) return { ok: false, error: PAST_DUE };
   const canManage = (await getManageableTeamIds(user)).has(teamId);
   const isMember = user.memberships.some((m) => m.teamId === teamId);
   if (!canManage && !(isMember && items.every((t) => t.assigneeId === user.id))) return { ok: false, error: "มอบหมายงานให้คนอื่นได้เฉพาะหัวหน้าทีม" };
@@ -312,6 +318,7 @@ export async function setDueFor(user: CurrentUser, taskId: string, raw: string, 
   const found = await loadTask(user, taskId);
   if (!found || !(found.canManage || found.isAssignee)) return { ok: false, error: "คุณไม่มีสิทธิ์แก้งานนี้" };
   if (raw !== "" && !isDateKey(raw)) return { ok: false, error: "วันที่ไม่ถูกต้อง" };
+  if (raw !== "" && raw < todayKey()) return { ok: false, error: PAST_DUE };
   const { task } = found;
   const from = task.dueDate ? dateToKey(task.dueDate) : null;
   const to = raw || null;

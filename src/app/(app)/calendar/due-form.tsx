@@ -20,7 +20,7 @@ export function DueForm({ id, title, dueDate }: { id: string; title: string; due
   return (
     <form action={action} className="flex flex-wrap items-center justify-end gap-1.5">
       <input type="hidden" name="id" value={id} />
-      <DatePicker key={dueDate ?? ""} name="dueDate" defaultValue={dueDate ?? ""} onChange={setValue} today={todayKey()} size="sm" className="w-40" aria-label={tr("กำหนดส่งของ {0}", [title])} />
+      <DatePicker key={dueDate ?? ""} name="dueDate" defaultValue={dueDate ?? ""} onChange={setValue} today={todayKey()} min={todayKey()} size="sm" className="w-40" aria-label={tr("กำหนดส่งของ {0}", [title])} />
       {postpone && (
         <input
           name="reason"

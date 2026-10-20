@@ -12,6 +12,7 @@ import { DeleteTaskButton, SwipeDeleteTask, UndoDeleteProvider } from "./undo-de
 import { TaskForm } from "./task-form";
 import { TaskSearch } from "./task-search";
 import { ProgressForm } from "./progress-slider";
+import { TaskDescription } from "./task-description";
 import { DueForm } from "../calendar/due-form";
 import { TaskEdit } from "./task-edit";
 import { AddSubtask, LabelPicker, ParentPicker, WaitingEditor } from "./task-structure";
@@ -279,7 +280,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                 const view = (
                   <div>
                     <h2 className={`text-xl font-semibold leading-snug ${selected.progress >= 100 ? "text-muted-foreground line-through" : "text-foreground"}`}>{selected.title}</h2>
-                    {selected.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground"><LinkedText text={selected.description} ctx={ctx} /></p>}
+                    {selected.description && <TaskDescription title={selected.title}><LinkedText text={selected.description} ctx={ctx} /></TaskDescription>}
                   </div>
                 );
                 return canEditText(selected) ? (
