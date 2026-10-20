@@ -5,7 +5,7 @@ import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser, type CurrentUser } from "@/lib/auth";
 import { teamAccess } from "@/lib/access";
-import { MAX_FILE_BYTES, formatBytes } from "@/lib/attachments";
+import { MAX_FILE_BYTES, MAX_NOTE_IMAGE_BYTES, NOTE_IMAGE_TYPES, formatBytes } from "@/lib/attachments";
 import { newExpiry, purgeAttachments } from "@/lib/attachment-store";
 import { createUploadUrl, isFileStorageConfigured, storedSize } from "@/lib/file-store";
 import { getTr } from "@/lib/i18n/server";
@@ -20,6 +20,7 @@ function done() {
 const UploadSchema = z.object({
   taskId: z.string().max(40).optional(),
   commentId: z.string().max(40).optional(),
+  noteId: z.string().max(40).optional(),
   name: z.string().trim().min(1).max(200),
   mimeType: z.string().max(150),
   size: z.number().int().positive(),
@@ -29,31 +30,38 @@ const UploadSchema = z.object({
  * ขั้นที่ 1 ของการแนบไฟล์: ตรวจสิทธิ์ จองแถว แล้วคืน URL ให้เบราว์เซอร์อัปโหลดตรงไปที่ Storage
  * - แนบกับงาน: คนรับงาน คนมอบหมาย หรือคนที่ดูแลทีม
  * - แนบกับความคิดเห็น: คนเขียนความคิดเห็นนั้น
+ * - รูปในโน้ต: ทุกคนที่แก้โน้ตนั้นได้ (รับเฉพาะรูป ไม่เกิน 10 MB)
  */
 export async function requestUpload(input: z.input<typeof UploadSchema>): Promise<{ error: string } | { id: string; uploadUrl: string }> {
   const user = await requireUser();
   if (!isFileStorageConfigured()) return { error: "ระบบยังไม่ได้ตั้งค่าที่เก็บไฟล์" };
   const parsed = UploadSchema.safeParse(input);
   if (!parsed.success) return { error: "ข้อมูลไฟล์ไม่ถูกต้อง" };
-  const { taskId, commentId, name, mimeType, size } = parsed.data;
-  if (size > MAX_FILE_BYTES) return { error: (await getTr())("ไฟล์ใหญ่เกิน {0}", [formatBytes(MAX_FILE_BYTES)]) };
+  const { taskId, commentId, noteId, name, mimeType, size } = parsed.data;
+  if ([taskId, commentId, noteId].filter(Boolean).length !== 1) return { error: "คุณไม่มีสิทธิ์แนบไฟล์ที่นี่" };
+  const limit = noteId ? MAX_NOTE_IMAGE_BYTES : MAX_FILE_BYTES;
+  if (size > limit) return { error: (await getTr())("ไฟล์ใหญ่เกิน {0}", [formatBytes(limit)]) };
+  if (noteId && !NOTE_IMAGE_TYPES.includes(mimeType)) return { error: "ใส่ได้เฉพาะรูป PNG, JPG, GIF หรือ WebP" };
 
   let allowed = false;
-  if (taskId && !commentId) {
+  if (taskId) {
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (task && !task.deletedAt) {
       const access = await teamAccess(user, { teamId: task.teamId, ownerId: task.assigneeId });
       allowed = access.manage || (access.read && (task.assigneeId === user.id || task.createdById === user.id));
     }
-  } else if (commentId && !taskId) {
+  } else if (commentId) {
     const comment = await prisma.comment.findUnique({ where: { id: commentId }, select: { authorId: true } });
     allowed = comment?.authorId === user.id;
+  } else if (noteId) {
+    const note = await prisma.note.findUnique({ where: { id: noteId } }).catch(() => null);
+    allowed = Boolean(note && !note.deletedAt && note.kind === "NOTE" && (await teamAccess(user, { teamId: note.teamId, ownerId: user.id })).read);
   }
   if (!allowed) return { error: "คุณไม่มีสิทธิ์แนบไฟล์ที่นี่" };
 
   const row = await prisma.attachment.create({
     // path ใช้ id ล้วน ๆ — ชื่อไฟล์จริง (อาจเป็นภาษาไทย/มีอักขระพิเศษ) เก็บใน name
-    data: { uploaderId: user.id, taskId, commentId, name, mimeType: mimeType || "application/octet-stream", size, path: crypto.randomUUID(), expiresAt: newExpiry() },
+    data: { uploaderId: user.id, taskId, commentId, noteId, name, mimeType: mimeType || "application/octet-stream", size, path: crypto.randomUUID(), expiresAt: newExpiry() },
   });
   try {
     return { id: row.id, uploadUrl: await createUploadUrl(row.path) };
@@ -70,7 +78,7 @@ export async function confirmUpload(id: string): Promise<{ ok: boolean }> {
   const row = await prisma.attachment.findUnique({ where: { id: String(id) } });
   if (!row || row.uploaderId !== user.id || row.uploadedAt) return { ok: false };
   const size = await storedSize(row.path);
-  if (size === null || size > MAX_FILE_BYTES) {
+  if (size === null || size > (row.noteId ? MAX_NOTE_IMAGE_BYTES : MAX_FILE_BYTES)) {
     await purgeAttachments({ id: row.id });
     return { ok: false };
   }

@@ -29,6 +29,16 @@ export function Markdown({ content }: { content: string }) {
         remarkPlugins={[remarkGfm]}
         components={{
           ...HEADINGS,
+          // รูปในโน้ต (/api/files/… ตรวจสิทธิ์ก่อนส่งไฟล์) หรือรูปจากเว็บ https — กดเพื่อเปิดรูปเต็ม
+          img({ src, alt = "" }) {
+            if (typeof src !== "string" || !(src.startsWith("/api/files/") || src.startsWith("https://"))) return null;
+            return (
+              <a href={src.replace(/#[sm]$/, "")} target="_blank" rel="noopener noreferrer" className={`note-image ${src.endsWith("#s") ? "note-image-s" : src.endsWith("#m") ? "note-image-m" : ""}`} aria-label={alt ? tr("เปิดรูป {0}", [alt]) : tr("เปิดรูป")}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- ไฟล์ส่วนตัวผ่าน redirect ไป signed URL, next/image ใช้ไม่ได้ */}
+                <img src={src} alt={alt} loading="lazy" />
+              </a>
+            );
+          },
           a({ href = "", children }) {
             // @คน ที่ถูกแท็ก (ดู mentionify)
             if (href.startsWith("#mention-")) return <span className="mention-chip">{children}</span>;

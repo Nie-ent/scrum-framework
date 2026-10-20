@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { teamAccess } from "@/lib/access";
 import { createDownloadUrl, isFileStorageConfigured } from "@/lib/file-store";
 
-/** เปิด/ดาวน์โหลดไฟล์แนบ — ตรวจสิทธิ์แล้วส่งต่อไปที่ signed URL อายุสั้นของ Storage (?download=1 = บังคับดาวน์โหลด) */
+/** เปิด/ดาวน์โหลดไฟล์แนบ (รวมรูปในโน้ต) — ตรวจสิทธิ์แล้วส่งต่อไปที่ signed URL อายุสั้นของ Storage (?download=1 = บังคับดาวน์โหลด) */
 export async function GET(request: Request, { params }: RouteContext<"/api/files/[id]">) {
   const user = await getCurrentUser();
   if (!user) return new Response(null, { status: 401 });
@@ -12,6 +12,7 @@ export async function GET(request: Request, { params }: RouteContext<"/api/files
     where: { id },
     include: {
       task: { select: { teamId: true, assigneeId: true } },
+      note: { select: { teamId: true, deletedAt: true } },
       comment: {
         select: { task: { select: { teamId: true, assigneeId: true } }, standup: { select: { teamId: true, userId: true } } },
       },
@@ -19,8 +20,16 @@ export async function GET(request: Request, { params }: RouteContext<"/api/files
   });
   const task = file?.task ?? file?.comment?.task;
   const standup = file?.comment?.standup;
-  const target = task ? { teamId: task.teamId, ownerId: task.assigneeId } : standup ? { teamId: standup.teamId, ownerId: standup.userId } : null;
-  const expired = file && !file.importantAt && file.expiresAt <= new Date();
+  const note = file?.note && !file.note.deletedAt ? file.note : null;
+  const target = task
+    ? { teamId: task.teamId, ownerId: task.assigneeId }
+    : standup
+      ? { teamId: standup.teamId, ownerId: standup.userId }
+      : note
+        ? { teamId: note.teamId, ownerId: user.id }
+        : null;
+  // รูปในโน้ตไม่หมดอายุ — อยู่ตราบที่โน้ตยังอยู่
+  const expired = file && !file.noteId && !file.importantAt && file.expiresAt <= new Date();
   if (!file || !file.uploadedAt || expired || !target || !isFileStorageConfigured()) return new Response("ไม่พบไฟล์ หรือไฟล์หมดอายุแล้ว", { status: 404 });
   if (!(await teamAccess(user, target)).read) return new Response(null, { status: 403 });
 

@@ -2,6 +2,9 @@ import type { Prisma } from "@prisma/client";
 
 /** ขนาดไฟล์แนบสูงสุดต่อไฟล์ */
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** รูปในโน้ต: ชนิดที่รับ และขนาดสูงสุดต่อรูป */
+export const NOTE_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+export const MAX_NOTE_IMAGE_BYTES = 10 * 1024 * 1024;
 /** แนบได้กี่ไฟล์ต่อครั้ง */
 export const MAX_FILES_PER_UPLOAD = 5;
 
@@ -23,7 +26,7 @@ export const withAttachments = {
 export type AttachmentRow = Prisma.AttachmentGetPayload<typeof withAttachments>;
 
 /** ไฟล์แนบอยู่ใต้งาน หรือใต้ความคิดเห็น */
-export type AttachmentTarget = { taskId: string } | { commentId: string };
+export type AttachmentTarget = { taskId: string } | { commentId: string } | { noteId: string };
 
 /** ข้อมูลไฟล์ที่ส่งให้ฝั่ง client — daysLeft = null เมื่อถูก mark ว่าสำคัญ (ไม่หมดอายุ) */
 export type FileItem = { id: string; name: string; size: number; isImage: boolean; important: boolean; daysLeft: number | null; mine: boolean };

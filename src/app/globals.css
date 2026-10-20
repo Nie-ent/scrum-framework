@@ -232,6 +232,14 @@
 .markdown ul { @apply my-3 list-disc pl-6; }
 .markdown ol { @apply my-3 list-decimal pl-6; }
 .markdown li { @apply my-1; }
+/* รูปในโน้ต: ขนาดเลือกจากท้าย URL (#s เล็ก, #m กลาง, ไม่มี = เต็มความกว้าง)
+   ตอนอ่าน รูปอยู่ในลิงก์เปิดรูปเต็ม (.note-image) — ลิงก์รับขนาด รูปเต็มลิงก์ */
+.markdown img { @apply my-2 block h-auto max-w-full rounded-xl ring-1 ring-border; }
+.markdown .note-image { @apply my-2 block w-fit max-w-full; }
+.markdown .note-image img { @apply my-0 w-full; }
+.markdown img[src$="#s"], .markdown .note-image-s { width: min(100%, 16rem); }
+.markdown img[src$="#m"], .markdown .note-image-m { width: max(min(100%, 16rem), 50%); }
+.markdown img.ProseMirror-selectednode { @apply ring-2 ring-primary; }
 .markdown li > ul, .markdown li > ol { @apply my-1; }
 .markdown ul:has(> li > input[type="checkbox"]) { @apply list-none pl-1; }
 .markdown input[type="checkbox"] { @apply mr-2 align-middle; }

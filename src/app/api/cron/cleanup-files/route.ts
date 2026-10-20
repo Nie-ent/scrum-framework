@@ -1,4 +1,4 @@
-import { purgeAttachments } from "@/lib/attachment-store";
+import { purgeAttachments, purgeUnusedNoteImages } from "@/lib/attachment-store";
 import { prisma } from "@/lib/db";
 import { isFileStorageConfigured } from "@/lib/file-store";
 
@@ -21,15 +21,19 @@ export async function GET(request: Request) {
   ]);
   if (!isFileStorageConfigured()) return Response.json({ ok: true, removed: 0, rateLimits: limits.count, notifications: notices.count });
 
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const removed = await purgeAttachments({
     OR: [
-      // หมดอายุและไม่ได้ถูก mark ว่าสำคัญ
-      { importantAt: null, expiresAt: { lt: now } },
-      // งาน/ความคิดเห็นที่ไฟล์สังกัดถูกลบไปแล้ว
-      { taskId: null, commentId: null },
+      // หมดอายุและไม่ได้ถูก mark ว่าสำคัญ (รูปในโน้ตไม่หมดอายุ)
+      { noteId: null, importantAt: null, expiresAt: { lt: now } },
+      // งาน/ความคิดเห็น/โน้ตที่ไฟล์สังกัดถูกลบไปแล้ว
+      { taskId: null, commentId: null, noteId: null },
+      // โน้ตถูกลบ (ซ่อน) เกิน 30 วัน
+      { note: { deletedAt: { lt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) } } },
       // ขอ URL แล้วแต่อัปโหลดไม่เสร็จเกิน 1 วัน
-      { uploadedAt: null, createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+      { uploadedAt: null, createdAt: { lt: dayAgo } },
     ],
   });
-  return Response.json({ ok: true, removed, rateLimits: limits.count, notifications: notices.count });
+  const unused = await purgeUnusedNoteImages(dayAgo);
+  return Response.json({ ok: true, removed: removed + unused, rateLimits: limits.count, notifications: notices.count });
 }

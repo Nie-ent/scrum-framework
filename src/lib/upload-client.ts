@@ -4,7 +4,7 @@ import { translate, type Translate } from "./i18n/core";
 /** ไม่ได้ส่งตัวแปลมา = ข้อความไทยตามเดิม */
 const same: Translate = (text, vars) => translate("th", text, vars);
 import { confirmUpload, requestUpload } from "@/app/actions/attachments";
-import { MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD, formatBytes, type AttachmentTarget } from "./attachments";
+import { MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD, MAX_NOTE_IMAGE_BYTES, NOTE_IMAGE_TYPES, formatBytes, type AttachmentTarget } from "./attachments";
 
 /** ตรวจไฟล์ที่เลือกก่อนอัปโหลด — คืนข้อความ error หรือ null */
 export function checkFiles(files: File[], tr: Translate = same): string | null {
@@ -60,4 +60,19 @@ export async function uploadFiles(
     }
   }
   return { uploaded, errors };
+}
+
+/** อัปโหลดรูปหนึ่งรูปเข้าโน้ต — คืน URL ที่ใช้ใน Markdown (/api/files/<id>) หรือข้อความ error */
+export async function uploadNoteImage(noteId: string, file: File, tr: Translate = same): Promise<{ src: string } | { error: string }> {
+  if (!NOTE_IMAGE_TYPES.includes(file.type)) return { error: tr("ใส่ได้เฉพาะรูป PNG, JPG, GIF หรือ WebP") };
+  if (file.size > MAX_NOTE_IMAGE_BYTES) return { error: tr('"{0}" ใหญ่เกิน {1}', [file.name, formatBytes(MAX_NOTE_IMAGE_BYTES)]) };
+  try {
+    const ticket = await requestUpload({ noteId, name: file.name || "image", mimeType: file.type, size: file.size });
+    if ("error" in ticket) return { error: tr(ticket.error) };
+    await axios.put(ticket.uploadUrl, file, { headers: { "Content-Type": file.type } });
+    if (!(await confirmUpload(ticket.id)).ok) return { error: tr("อัปโหลดไม่สำเร็จ") };
+    return { src: `/api/files/${ticket.id}` };
+  } catch {
+    return { error: tr("อัปโหลดไม่สำเร็จ") };
+  }
 }

@@ -475,13 +475,13 @@ export const TOOLS: Tool[] = [
   {
     name: "read_note",
     title: "Read a note",
-    description: "Read a note's full Markdown content. [[Title]] links to another note in the same space ([[Title#Heading]] to a heading, [[Folder/Title]] when titles repeat) and #12 links to task 12.",
+    description: "Read a note's full Markdown content. [[Title]] links to another note in the same space ([[Title#Heading]] to a heading, [[Folder/Title]] when titles repeat) and #12 links to task 12. Images are ![alt](url) links that open for people signed in to Pace; keep them as they are when you update the note.",
     inputSchema: object({ id: { type: "string", description: "Note id from list_notes" } }, ["id"]),
     write: false,
     run: async (args, { user, appUrl }) => {
       const note = await findNote(user, args.id);
       if (note.kind !== "NOTE") throw new ToolError("That id is a folder. Use list_notes to see what is inside.");
-      return { id: note.id, title: note.title, content: note.content, folder_id: note.parentId, updated_at: note.updatedAt.toISOString(), url: `${appUrl}/notes/${note.id}` };
+      return { id: note.id, title: note.title, content: note.content.replaceAll("](/api/files/", `](${appUrl}/api/files/`), folder_id: note.parentId, updated_at: note.updatedAt.toISOString(), url: `${appUrl}/notes/${note.id}` };
     },
   },
   {

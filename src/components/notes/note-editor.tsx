@@ -47,7 +47,7 @@ export function NoteEditor({
       </div>
       <div>
         <p className="label">{tr("เนื้อหา")}</p>
-        <RichEditor name={content.name} defaultValue={note.content} inputRef={content.ref} onDirty={() => setDirty(true)} noteTitles={noteTitles} tasks={tasks} people={people} />
+        <RichEditor noteId={note.id} name={content.name} defaultValue={note.content} inputRef={content.ref} onDirty={() => setDirty(true)} noteTitles={noteTitles} tasks={tasks} people={people} />
         <FieldError name="content" message={error("content")} />
         <p className="mt-1.5 text-xs text-slate-500">
           {tr("ใช้ปุ่มด้านบนจัดรูปแบบได้เลย · เลือก \"เชื่อมไปโน้ต\" หรือ \"เชื่อมไปงาน\" เพื่อสร้างความสัมพันธ์ (หรือพิมพ์")}{" "}<code className="rounded bg-slate-100 px-1">{tr("[[ชื่อโน้ต]]")}</code> / <code className="rounded bg-slate-100 px-1">{tr("#เลขงาน")}</code> {tr("เองก็ได้)")}
